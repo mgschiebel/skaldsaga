@@ -24,6 +24,7 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 | SR-41 | Release split into a read-only build and a write-scoped publish job | #26 |
 | SR-42 | Rust toolchain and the Claude Code validator pinned (no `rust-toolchain.toml`: see HANDOFF) | #26 |
 | SR-43 | Dependabot and `cargo audit` | #27 |
+| SR-44 (checksums) | Each release publishes `skaldsaga-<version>-linux-x64.tar.gz.sha256` beside the tarball; the publish job re-checks it before releasing | this PR |
 | SR-45 | Release only by running the workflow on `main`; tag trigger removed | #26 |
 | SR-52 | Hostile-story test: embedded instructions, shell tricks, links, a program, traversal IDs, a committed status line command | `crates/skaldsaga/tests/hostile_story_cli.rs` |
 | SR-60 | Security checklist in the pull request template | `.github/pull_request_template.md` |
@@ -50,7 +51,7 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 
 | SR | When |
 |---|---|
-| SR-44 | Release checksums now; provenance before public release |
+| SR-44 (provenance) | Build provenance for the tarball and `dist` binary (`actions/attest-build-provenance`) before public release; signing is planned for the public-release phase |
 | SR-12, SR-25, SR-46, SR-47, SR-51, SR-62 | Before public release |
 | SR-23 (rest), SR-21 (rest) | As readers and importers are built |
 
