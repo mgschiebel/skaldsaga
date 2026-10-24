@@ -67,6 +67,10 @@ The meter never runs a command read from a committed file (SR-10). A `meter.wrap
 
 Values outside 1 to 100 fall back to the defaults, and a suggestion threshold above the hard one is lowered to match, so a hand-edited typo never stops the meter. Other keys in the file are preserved.
 
+## The status line command
+
+Setup and the session-start hook write the command as `sh '<plugin folder>/scripts/skaldsaga' meter statusline`, with the path in single quotes (any single quote in the path is escaped), so a plugin folder name with spaces, quotes, `$` or backticks stays plain text and nothing in it runs (SR-24). An older command with double quotes is replaced the next time the hook refreshes it.
+
 ## The launcher
 
 `plugin/scripts/skaldsaga` (installed as `scripts/skaldsaga` in the plugin) picks `scripts/bin/<platform>/skaldsaga`, restores a missing executable bit, and (except for the status line, which must stay fast) checks the binary's version against `scripts/VERSION`. Always invoke it through `sh`, so it works even if a plugin install drops its executable bit. `SKALDSAGA_BIN` points it at another binary during development.

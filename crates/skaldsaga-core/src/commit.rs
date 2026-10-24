@@ -135,6 +135,10 @@ pub const COMMITTED_DIR: &str = "committed";
 
 /// Commits one proposal from the inbox.
 pub fn commit(project: &Project, id: &str, options: CommitOptions) -> Result<Outcome, FsError> {
+    // The ID becomes part of a path, so only a well-formed one gets that far (SR-20).
+    if !crate::ids::is_kind(id, crate::ids::IdKind::Proposal) {
+        return Ok(Outcome::NotFound);
+    }
     let inbox_path = project.inbox_dir().join(format!("{id}.json"));
     let text = match fsio::read_regular_capped(&inbox_path, fsio::MAX_STORY_FILE_BYTES)? {
         Some(Ok(text)) => text,

@@ -127,3 +127,35 @@ fn commit_reports_usage_mistakes_and_missing_proposals() {
     ));
     assert_eq!(v["outcome"], "not_found");
 }
+
+/// SR-20: the proposal ID becomes part of a path, so only a well-formed one
+/// is accepted; a path-like one never reaches a file.
+#[test]
+fn a_path_like_proposal_id_is_refused_before_any_file_is_touched() {
+    let dir = TempDir::new();
+    let p = dir.path();
+    assert!(skaldsaga(p, &["init"]).status.success());
+    assert!(skaldsaga(p, &["demo"]).status.success());
+    // A real proposal that sits outside the inbox, reachable with "..".
+    let outside = p.join(".harness/pr-escapee.json");
+    std::fs::copy(p.join(".harness/inbox/pr-demstart.json"), &outside).unwrap();
+    let before = std::fs::read_to_string(&outside).unwrap();
+
+    for id in [
+        "../pr-escapee",
+        "../../.harness/pr-escapee",
+        "pr-escapee/..",
+        "",
+        "pr-ESCAPEE",
+    ] {
+        let o = skaldsaga(p, &["commit", "--proposal", id]);
+        assert_eq!(o.status.code(), Some(64), "id {id:?}");
+    }
+    assert_eq!(std::fs::read_to_string(&outside).unwrap(), before);
+    assert!(
+        !p.join("spec/people")
+            .read_dir()
+            .map(|mut d| d.next().is_some())
+            .unwrap_or(false)
+    );
+}

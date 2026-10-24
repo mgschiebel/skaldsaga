@@ -10,10 +10,19 @@ use crate::meter;
 use crate::project::{self, Location, Project};
 use crate::statusline;
 
+/// Quotes `text` as one word for `sh`: single quotes, with any single quote
+/// in it closed, escaped and reopened. Nothing inside is ever expanded, so a
+/// folder name with spaces, quotes, `$` or backticks stays plain text (SR-24).
+pub fn shell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
+}
+
 /// The status line command for a plugin installed at `plugin_root`.
-/// Quoted so a path with spaces stays one word in the shell.
 pub fn meter_command(plugin_root: &str) -> String {
-    format!("sh \"{plugin_root}/scripts/skaldsaga\" meter statusline")
+    format!(
+        "sh {} meter statusline",
+        shell_quote(&format!("{plugin_root}/scripts/skaldsaga"))
+    )
 }
 
 /// What the session-start hook decided.
@@ -151,6 +160,32 @@ mod tests {
         assert!(meter::read_reading(&project).is_some());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn the_meter_command_keeps_a_hostile_path_as_plain_text() {
+        let dir = TempDir::new();
+        let marker = dir.path().join("ran");
+        // A folder name with a space, quotes, a dollar sign and a command substitution.
+        let name = format!(
+            "odd 'dir\" $HOME `touch {}` $(touch {})",
+            marker.display(),
+            marker.display()
+        );
+        let root = dir.path().join(name);
+        std::fs::create_dir_all(root.join("scripts")).unwrap();
+        std::fs::write(root.join("scripts/skaldsaga"), "echo \"ran with: $*\"\n").unwrap();
+        let out = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(meter_command(root.to_str().unwrap()))
+            .output()
+            .unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(&out.stdout).trim(),
+            "ran with: meter statusline"
+        );
+        assert!(!marker.exists(), "nothing in the path may run");
+    }
+
     #[test]
     fn refreshes_a_moved_plugin_path() {
         let dir = TempDir::new();
@@ -159,7 +194,7 @@ mod tests {
         session_start(dir.path(), "startup", Some("/new place"));
         let text = std::fs::read_to_string(project.claude_local_settings_path()).unwrap();
         assert!(
-            text.contains(r#"sh \"/new place/scripts/skaldsaga\" meter statusline"#),
+            text.contains("sh '/new place/scripts/skaldsaga' meter statusline"),
             "{text}"
         );
     }

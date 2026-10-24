@@ -480,6 +480,11 @@ fn commit_cmd(rest: &[&str]) -> Result<(), CliError> {
     let Some(id) = flag(&parsed, "--proposal") else {
         return Err(CliError::Usage("commit needs --proposal ID".into()));
     };
+    if !skaldsaga_core::ids::is_kind(id, skaldsaga_core::ids::IdKind::Proposal) {
+        return Err(CliError::Usage(
+            "--proposal must be a proposal ID such as pr-abcdefgh".into(),
+        ));
+    }
     let decision =
         match flag(&parsed, "--decision") {
             None => None,

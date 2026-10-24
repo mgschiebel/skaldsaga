@@ -124,18 +124,25 @@ fn a_linked_proposal_is_not_read() {
     assert!(skaldsaga(p, &["init"]).status.success());
     assert!(skaldsaga(p, &["demo"]).status.success());
     let outside = TempDir::new();
-    let target = outside.path().join("pr-linkprop.json");
+    let target = outside.path().join("pr-demwxzqk.json");
     std::fs::copy(p.join(".harness/inbox/pr-demstart.json"), &target).unwrap();
-    std::os::unix::fs::symlink(&target, p.join(".harness/inbox/pr-linkprop.json")).unwrap();
+    std::os::unix::fs::symlink(&target, p.join(".harness/inbox/pr-demwxzqk.json")).unwrap();
 
     let before = std::fs::read_to_string(&target).unwrap();
-    let v = json_of(&skaldsaga(p, &["check", "--proposal", "pr-linkprop"]));
+    let v = json_of(&skaldsaga(p, &["check", "--proposal", "pr-demwxzqk"]));
     assert_eq!(v["proposals"][0]["status"], "unreadable", "{v}");
+    assert!(
+        v["proposals"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("never follows links"),
+        "refused because it is a link, not for another reason: {v}"
+    );
     assert_eq!(
         std::fs::read_to_string(&target).unwrap(),
         before,
         "the target is untouched"
     );
-    let c = json_of(&skaldsaga(p, &["commit", "--proposal", "pr-linkprop"]));
-    assert_ne!(c["outcome"], "committed", "{c}");
+    let c = json_of(&skaldsaga(p, &["commit", "--proposal", "pr-demwxzqk"]));
+    assert_eq!(c["outcome"], "unreadable", "{c}");
 }

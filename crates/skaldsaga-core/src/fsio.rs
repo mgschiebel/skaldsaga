@@ -109,9 +109,27 @@ pub fn read_json_object(path: &Path) -> Result<Option<Value>, FsError> {
     Ok(Some(v))
 }
 
+/// Counts temporary files so each name in this process is new.
+static TMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// How many temporary names to try before giving up.
+const TMP_ATTEMPTS: u64 = 100;
+
+fn tmp_path(parent: &Path, file_name: &str, n: u64) -> std::path::PathBuf {
+    parent.join(format!(".{file_name}.{}.{n}.tmp", std::process::id()))
+}
+
 /// Writes a file atomically: write a temporary file next to it, then rename
-/// over the target. Creates the parent folder if needed.
+/// over the target. Creates the parent folder if needed. The temporary file
+/// is created exclusively: if anything already sits at that name (a link
+/// planted in a shared story folder, say), it is never opened or written
+/// through, and the next name is tried (SR-22).
 pub fn write_atomic(path: &Path, contents: &str) -> Result<(), FsError> {
+    let start = TMP_COUNTER.fetch_add(TMP_ATTEMPTS, std::sync::atomic::Ordering::Relaxed);
+    write_atomic_from(path, contents, start)
+}
+
+fn write_atomic_from(path: &Path, contents: &str, start: u64) -> Result<(), FsError> {
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -121,11 +139,25 @@ pub fn write_atomic(path: &Path, contents: &str) -> Result<(), FsError> {
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let tmp = parent.join(format!(".{file_name}.{}.tmp", std::process::id()));
+    let mut attempt = 0;
+    let (tmp, mut file) = loop {
+        let tmp = tmp_path(parent, &file_name, start + attempt);
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)
+        {
+            Ok(f) => break (tmp, f),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists && attempt + 1 < TMP_ATTEMPTS => {
+                attempt += 1;
+            }
+            Err(e) => return Err(io_err(&tmp, e)),
+        }
+    };
     let result = (|| {
-        let mut f = std::fs::File::create(&tmp)?;
-        f.write_all(contents.as_bytes())?;
-        f.sync_all()?;
+        file.write_all(contents.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
         std::fs::rename(&tmp, path)
     })();
     if let Err(e) = result {
@@ -318,6 +350,22 @@ mod tests {
         assert_eq!(linkdir.kind, EntryKind::Symlink);
         assert!(!linkdir.is_dir, "a link to a folder is not a folder");
         assert!(by_name("sub").is_dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_planted_link_at_the_temporary_name_is_never_written_through() {
+        let dir = TempDir::new();
+        let target = dir.path().join("story.json");
+        let victim = dir.path().join("victim.txt");
+        std::fs::write(&victim, "keep me").unwrap();
+        // Occupy the first two names the write would try.
+        for n in [7, 8] {
+            std::os::unix::fs::symlink(&victim, tmp_path(dir.path(), "story.json", n)).unwrap();
+        }
+        write_atomic_from(&target, "{\"a\":1}", 7).unwrap();
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "{\"a\":1}");
+        assert_eq!(std::fs::read_to_string(&victim).unwrap(), "keep me");
     }
 
     #[test]
