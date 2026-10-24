@@ -50,7 +50,7 @@ The `meter` part says what happened to the session meter:
 
 - `wired`: the meter is on. If `wrapped` isn't null, mention that their own status line still shows.
 - `already_wired` or `updated`: the meter was already on.
-- `cleaned` lists files an earlier version changed by mistake: it had put the meter's setting in the shared settings file, which goes into git. Setup has taken it out. Mention it in one short line.
+- `cleaned` lists files an earlier version changed by mistake: it had put a meter setting where git shares it (the shared Claude settings file, or the writer's own status line command in the story's settings). Setup has moved it to a file that stays on this computer. Mention it in one short line.
 
 The meter's setting is kept in a personal file that never goes into git; setup's `.gitignore` keeps it (and other personal or secret files) out.
 

@@ -24,7 +24,7 @@ use skaldsaga_core::init::{self, InitOutcome, InitReport};
 use skaldsaga_core::json::{self, Value, ValueExt as _};
 use skaldsaga_core::meter::{self, StatusInput};
 use skaldsaga_core::project::{self, Location, Project};
-use skaldsaga_core::settings::MeterSettings;
+use skaldsaga_core::settings::{self, MeterSettings};
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
 
 const USAGE: &str = "\
@@ -291,6 +291,10 @@ fn wire_meter(
     // even when the personal file is already wired.
     let retired =
         statusline::retire_shared(project).map_err(|e| CliError::Failed(e.to_string()))?;
+    // Likewise a status line command older versions kept in the committed
+    // settings: it moves to this machine's file and is never run from there.
+    let moved =
+        settings::retire_committed_wrapped(project).map_err(|e| CliError::Failed(e.to_string()))?;
     let outcome = statusline::wire(project, command, user).map_err(|e| match e {
         WireError::NotInitialized => CliError::Failed(e.to_string()),
         WireError::Fs(e) => CliError::Failed(e.to_string()),
@@ -307,9 +311,13 @@ fn wire_meter(
     }
     // Files the skill should add to git if git already tracks them (an edit or
     // a removal of the shared settings file).
-    let cleaned: Vec<String> = retired
+    let mut cleaned: Vec<String> = retired
         .map(|_| vec![".claude/settings.json".to_string()])
         .unwrap_or_default();
+    if moved {
+        cleaned.push(".harness/settings.json".to_string());
+        cleaned.push(".harness/.gitignore".to_string());
+    }
     v.set("cleaned", strings(&cleaned));
     Ok(v)
 }

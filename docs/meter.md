@@ -44,17 +44,26 @@ Everything is guarded by `.harness/`: outside a Skaldsaga project, `statusline` 
 | `wrap_up` | Finishes the current question, saves, writes the recap, and tells the writer to start fresh. |
 | `unknown` | Carries on; `note` says why (no reading yet, usage not reported yet, or a different session). The manual session boundary still works. |
 
-## Settings (`.harness/settings.json`)
+## Settings
+
+Thresholds live in `.harness/settings.json`, which is committed and shared:
 
 ```json
 {
   "meter": {
     "suggest_wrap_up_percent": 50,
-    "wrap_up_percent": 70,
-    "wrapped_statusline": { "type": "command", "command": "~/.claude/statusline.sh" }
+    "wrap_up_percent": 70
   }
 }
 ```
+
+The writer's own status line lives only in `.harness/local.json`, which stays out of git (setup adds it to `.harness/.gitignore`):
+
+```json
+{ "wrapped_statusline": { "type": "command", "command": "~/.claude/statusline.sh" } }
+```
+
+The meter never runs a command read from a committed file (SR-10). A `meter.wrapped_statusline` left in `settings.json` by version 0.3.2 or earlier is ignored; `init` and `meter wire` move it to `local.json` (unless that file already has one), take it out of `settings.json`, and list `.harness/settings.json` and `.harness/.gitignore` under `cleaned`. A `local.json` that is a symlink or over 64 KiB is ignored. Git history keeps any command that was committed before.
 
 Values outside 1 to 100 fall back to the defaults, and a suggestion threshold above the hard one is lowered to match, so a hand-edited typo never stops the meter. Other keys in the file are preserved.
 
