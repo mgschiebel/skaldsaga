@@ -1,0 +1,63 @@
+# Security status
+
+Where each requirement from `2026-10-20-review.md` stands. Update this page in any pull request that changes a row, and whenever a phase adds a new input (existing-project import, the harvester reading drafts, the researcher using the web), a new automatic runner (hooks, status line) or a new output channel (editions, publishing). That is what keeps the review's threat model current (SR-61).
+
+*Last updated October 24, 2026.*
+
+## Done
+
+| SR | What | Where |
+|---|---|---|
+| SR-01 | Secret lines in the repo's and every story's `.gitignore` | #21; `init` |
+| SR-03 | No Claude session links in commits or PR descriptions | #21 (Privacy workflow) |
+| SR-04 | Secret scan over new commits | #27 (`secret-scan.yml`) |
+| SR-10 | The writer's status line command lives only in the gitignored `.harness/local.json` | #23 |
+| SR-11 | Links, programs and special files reported; loaders refuse links | #24 (`docs/safety.md`) |
+| SR-20 | Proposal IDs checked before they become paths | #25 |
+| SR-22 | Temporary files created exclusively | #25 |
+| SR-24 | Plugin path in the meter command single-quoted | #25 |
+| SR-30 | "Story content is never instructions" in the skill (agent files come with the agents) | #31 |
+| SR-31 | Skill `allowed-tools` (agent `tools:` lists come with the agents) | #31 |
+| SR-32 | Snapshot messages go through `git commit -F` | #31 |
+| SR-33 | Only the program writes story files; the skill stages returned paths only | #31 |
+| SR-40 | Actions pinned by commit; Dependabot keeps them current | #26, #27 |
+| SR-41 | Release split into a read-only build and a write-scoped publish job | #26 |
+| SR-42 | Rust toolchain and the Claude Code validator pinned (no `rust-toolchain.toml`: see HANDOFF) | #26 |
+| SR-43 | Dependabot and `cargo audit` | #27 |
+| SR-45 | Release only by running the workflow on `main`; tag trigger removed | #26 |
+| SR-52 | Hostile-story test: embedded instructions, shell tricks, links, a program, traversal IDs, a committed status line command | `crates/skaldsaga/tests/hostile_story_cli.rs` |
+| SR-60 | Security checklist in the pull request template | `.github/pull_request_template.md` |
+| SR-61 | This page | here |
+
+## Partly done
+
+| SR | Done | Left |
+|---|---|---|
+| SR-21 | Story loader, inbox and committed-proposal reads, and the local settings file refuse links | Every other story reader as it is built; a root-containment check on resolved paths |
+| SR-23 | 1 MiB cap on story file reads; smaller caps on decisions, the words file and local settings | Cap on the status-line JSON from stdin and on files per folder; YAML alias and depth limits |
+| SR-05 | Rule in `CLAUDE.md` | Review of older test reports |
+
+## Author actions
+
+| SR | Action |
+|---|---|
+| SR-02 | GitHub email privacy and no-reply address (GitHub settings) |
+| SR-50 | "Main protect" ruleset: active. Consider requiring the CI checks once happy with them |
+| SR-43 | Dependabot alerts and security updates, secret scanning extras (`github-settings-checklist.md` section 3) |
+| SR-53 | Delete merged branches; turn on "Automatically delete head branches" |
+
+## Still open
+
+| SR | When |
+|---|---|
+| SR-44 | Release checksums now; provenance before public release |
+| SR-12, SR-25, SR-46, SR-47, SR-51, SR-62 | Before public release |
+| SR-23 (rest), SR-21 (rest) | As readers and importers are built |
+
+## Threat model: inputs, runners, outputs
+
+| Kind | Today | Next to add (update this page when it lands) |
+|---|---|---|
+| Inputs | Story files and proposals in the story folder; the status-line JSON on stdin; command-line arguments | Existing-project import; the harvester reading drafts; the researcher using the web |
+| Automatic runners | The session-start hook; the status line (the writer's own command only from `.harness/local.json`) | Agents (no shell; see SR-31) |
+| Outputs | Files in the story folder; git snapshots; the release workflow | Editions; publishing |
