@@ -1,0 +1,19 @@
+# Keeps dependencies and pinned Actions current (SR-43, SR-40). Each update
+# arrives as a pull request for the author to review; nothing merges itself.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "Dependencies:"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "Actions:"
