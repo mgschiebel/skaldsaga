@@ -323,22 +323,30 @@ pub fn store_wrapped_statusline(project: &Project, wrapped: Option<Value>) -> Re
 /// Adds `local.json` to `.harness/.gitignore` when it is missing, keeping the
 /// writer's own lines. Returns true when it changed the file.
 pub fn ensure_local_ignored(project: &Project) -> Result<bool, FsError> {
+    ensure_harness_ignored(
+        project,
+        crate::project::LOCAL_SETTINGS_FILE,
+        "Per-machine settings (the writer's own status line); never shared.",
+    )
+}
+
+/// Adds `name` to `.harness/.gitignore` when it is missing, under `comment`,
+/// keeping the writer's own lines. Returns true when it changed the file.
+pub fn ensure_harness_ignored(
+    project: &Project,
+    name: &str,
+    comment: &str,
+) -> Result<bool, FsError> {
     let path = project.harness_dir().join(".gitignore");
-    let existing = fsio::read_optional(&path)?;
-    let text = existing.clone().unwrap_or_default();
-    if text
-        .lines()
-        .any(|l| l.trim() == crate::project::LOCAL_SETTINGS_FILE)
-    {
+    let text = fsio::read_optional(&path)?.unwrap_or_default();
+    if text.lines().any(|l| l.trim() == name) {
         return Ok(false);
     }
     let mut out = text;
     if !out.is_empty() && !out.ends_with('\n') {
         out.push('\n');
     }
-    out.push_str("# Per-machine settings (the writer's own status line); never shared.\n");
-    out.push_str(crate::project::LOCAL_SETTINGS_FILE);
-    out.push('\n');
+    out.push_str(&format!("# {comment}\n{name}\n"));
     fsio::write_atomic(&path, &out)?;
     Ok(true)
 }

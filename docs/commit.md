@@ -46,7 +46,7 @@ The program writes files; the skill makes the git commit:
 ```sh
 git rm --cached --ignore-unmatch -q -- <remove_paths>
 git add -- <add_paths>
-git commit -q -m "<message>"
+git commit -q -F <message_file>
 ```
 
 `remove_paths` holds deleted node files and the inbox file, which git may never have seen (hence `--ignore-unmatch`). The index is ignored by git and never listed.
@@ -66,3 +66,7 @@ Runs only in a set-up project whose story is empty. `pr-demstart` creates Mara, 
 ## Proposal IDs
 
 `--proposal` must be a proposal ID (`pr-` and eight characters); anything else, such as a path, exits 64 before any file is looked at. The same check sits inside the committer, which answers `not_found` for a malformed ID (SR-20).
+
+## The snapshot message (SR-32)
+
+A snapshot message can hold the writer's own words, so no command returns its text. `commit`, `decisions acknowledge`, `decisions withdraw` and `complete` (when it cleans up) write the message to `.harness/commit-message.txt`, which `.harness/.gitignore` keeps out of git, and return `message_file` with that path. The skill runs `git commit -q -F <message_file>` and never builds a message itself.

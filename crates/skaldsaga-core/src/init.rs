@@ -45,6 +45,8 @@ const HARNESS_GITIGNORE: &str = "\
 meter.json
 # Per-machine settings (the writer's own status line); never shared.
 local.json
+# The text of the next git snapshot, which can hold the writer's own words.
+commit-message.txt
 ";
 
 /// What the story folder's top-level `.gitignore` keeps out of git: personal
@@ -203,6 +205,14 @@ pub fn init(project: &Project) -> Result<InitReport, FsError> {
     // A folder set up by an earlier version lacks the line for local.json.
     note(
         settings::ensure_local_ignored(project)?,
+        ".harness/.gitignore",
+    );
+    note(
+        settings::ensure_harness_ignored(
+            project,
+            crate::commit::MESSAGE_FILE,
+            "The text of the next git snapshot, which can hold the writer's own words.",
+        )?,
         ".harness/.gitignore",
     );
 
