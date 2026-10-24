@@ -2,7 +2,8 @@
 //!
 //! One binary with subcommands. First-run setup, the session meter, the
 //! session-start hook, the index rebuild, the dependency checker, the
-//! committer and the demo are built so far; `complete` is reserved and says so.
+//! committer, the demo and `complete` (with the writer's stored decisions) are
+//! built so far.
 
 mod wrapped;
 
@@ -13,7 +14,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use skaldsaga_core::check::{self, InboxEntry};
 use skaldsaga_core::commit::{self, CommitOptions, Decision, Outcome};
+use skaldsaga_core::complete;
+use skaldsaga_core::decisions::{self, DecisionError};
 use skaldsaga_core::demo::{self, DemoOutcome};
+use skaldsaga_core::fsio::{self, Refused};
 use skaldsaga_core::hooks;
 use skaldsaga_core::index;
 use skaldsaga_core::init::{self, InitOutcome, InitReport};
@@ -57,19 +61,26 @@ Usage:
                                      index. Prints JSON, including the paths to hand to git
   skaldsaga demo [--project DIR]     Files two sample answers in a set-up project with an empty
                                      story, for trying check and commit
+  skaldsaga complete [--project DIR] Reports how close the whole story is, as codes and IDs:
+                                     whether each stage can start (weave, outline, complete)
+                                     and what blocks it, plus the soft findings from the
+                                     script checks. Deletes the writer's acknowledgments
+                                     that are resolved. Prints JSON, including paths for git
+  skaldsaga decisions acknowledge --code CODE --words-file FILE [--ids ID,ID] [--detail TEXT]
+                                     [--project DIR]
+                                     Records that the writer accepts a current finding as it
+                                     is. The writer's own words come from FILE. Prints JSON
+  skaldsaga decisions withdraw --decision ID [--project DIR]
+                                     Deletes one of the writer's stored decisions
   skaldsaga index [--project DIR]    Rebuilds the generated index in spec/_index (backlinks,
                                      attributes, grid, scenes, status). Prints a summary as JSON
   skaldsaga --version                Prints the version
-
-Not built yet: complete
 
 DIR defaults to $CLAUDE_PROJECT_DIR, then the current folder.
 ";
 
 /// Exit code for usage mistakes.
 const USAGE_ERROR: u8 = 64;
-/// Exit code for a reserved subcommand that isn't built yet.
-const NOT_BUILT: u8 = 69;
 /// Exit code for a failure while doing the work.
 const FAILURE: u8 = 1;
 
@@ -99,10 +110,9 @@ fn main() -> ExitCode {
         ["check", rest @ ..] => run(check_cmd(rest)),
         ["commit", rest @ ..] => run(commit_cmd(rest)),
         ["demo", rest @ ..] => run(demo_cmd(rest)),
-        [cmd @ "complete", ..] => {
-            eprintln!("skaldsaga {cmd}: not built yet");
-            ExitCode::from(NOT_BUILT)
-        }
+        ["complete", rest @ ..] => run(complete_cmd(rest)),
+        ["decisions", "acknowledge", rest @ ..] => run(acknowledge_cmd(rest)),
+        ["decisions", "withdraw", rest @ ..] => run(withdraw_cmd(rest)),
         _ => {
             eprint!("skaldsaga: unknown command\n\n{USAGE}");
             ExitCode::from(USAGE_ERROR)
@@ -520,6 +530,111 @@ fn demo_cmd(rest: &[&str]) -> Result<(), CliError> {
         "proposals",
         Value::Array(demo::PROPOSALS.iter().map(|p| Value::from(*p)).collect()),
     );
+    print_json(&v)
+}
+
+/// Reports how close the story is. Refuses outside a Skaldsaga project.
+fn complete_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let parsed = flags(rest, &["--project"])?;
+    let project = require_project(&parsed)?;
+    let report = complete::run(&project).map_err(|e| CliError::Failed(e.to_string()))?;
+    let mut v = report.to_value();
+    if !report.remove_paths.is_empty() {
+        v.set(
+            "message",
+            "Skaldsaga: clear acknowledgments that no longer apply".into(),
+        );
+    }
+    print_json(&v)
+}
+
+/// The longest file of the writer's words we read, in bytes.
+const MAX_WORDS_FILE: u64 = 16 * 1024;
+
+fn decision_error(e: DecisionError) -> CliError {
+    match e {
+        DecisionError::Invalid(m) => CliError::Usage(m),
+        DecisionError::Fs(e) => CliError::Failed(e.to_string()),
+    }
+}
+
+/// Records that the writer accepts a finding. The writer's words come from a
+/// file, never from the command line, so they can't be read as part of a command.
+fn acknowledge_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let parsed = flags(
+        rest,
+        &["--project", "--code", "--ids", "--detail", "--words-file"],
+    )?;
+    let code =
+        flag(&parsed, "--code").ok_or_else(|| CliError::Usage("--code is required".into()))?;
+    let words_file = flag(&parsed, "--words-file")
+        .ok_or_else(|| CliError::Usage("--words-file is required".into()))?;
+    let ids: Vec<String> = flag(&parsed, "--ids")
+        .map(|list| {
+            list.split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    let project = require_project(&parsed)?;
+    let words = match fsio::read_regular_capped(std::path::Path::new(words_file), MAX_WORDS_FILE)
+        .map_err(|e| CliError::Failed(e.to_string()))?
+    {
+        Some(Ok(text)) => text,
+        Some(Err(Refused::TooBig)) => {
+            return Err(CliError::Usage("the words file is too big".into()));
+        }
+        Some(Err(Refused::NotARegularFile)) => {
+            return Err(CliError::Usage(
+                "the words file isn't a regular text file".into(),
+            ));
+        }
+        None => return Err(CliError::Usage("the words file doesn't exist".into())),
+    };
+    let date = decisions::date_from_unix(now());
+    let ack = complete::acknowledge(
+        &project,
+        code,
+        &ids,
+        flag(&parsed, "--detail"),
+        &words,
+        &date,
+    )
+    .map_err(decision_error)?;
+    let mut v = json::object();
+    v.set("outcome", "acknowledged".into());
+    v.set("id", ack.decision.id.as_str().into());
+    v.set("renewed", Value::from(ack.renewed));
+    v.set("add_paths", strings(&[ack.path]));
+    v.set(
+        "message",
+        "Skaldsaga: note that a finding is fine as it is".into(),
+    );
+    print_json(&v)
+}
+
+/// Deletes one stored decision (the writer withdraws it).
+fn withdraw_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let parsed = flags(rest, &["--project", "--decision"])?;
+    let id = flag(&parsed, "--decision")
+        .ok_or_else(|| CliError::Usage("--decision is required".into()))?;
+    let project = require_project(&parsed)?;
+    let removed = decisions::remove(&project, id).map_err(decision_error)?;
+    let mut v = json::object();
+    match removed {
+        Some(path) => {
+            v.set("outcome", "withdrawn".into());
+            v.set("remove_paths", strings(&[path]));
+            v.set("message", "Skaldsaga: withdraw an acknowledgment".into());
+        }
+        None => {
+            v.set("outcome", "not_found".into());
+            v.set("remove_paths", strings(&[]));
+        }
+    }
+    v.set("id", id.into());
     print_json(&v)
 }
 

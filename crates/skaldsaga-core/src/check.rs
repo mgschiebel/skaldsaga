@@ -409,6 +409,16 @@ fn label(spec: &Spec, id: &str) -> String {
 // ---------------------------------------------------------------------------
 // Problems in a spec (computed before and after; only new ones count)
 
+/// Every hard problem the spec has right now, as `complete` reports them:
+/// broken references, impossible facts, loops and violated orderings.
+pub fn spec_problems(spec: &Spec) -> Vec<Finding> {
+    let registry = Registry::new(&spec.attributes);
+    problems(spec, &registry, &BTreeSet::new())
+        .into_iter()
+        .filter(|f| f.severity == Severity::Hard)
+        .collect()
+}
+
 fn problems(spec: &Spec, registry: &Registry, deleted: &BTreeSet<String>) -> Vec<Finding> {
     let mut out = Vec::new();
     references(spec, deleted, &mut out);
@@ -453,6 +463,7 @@ fn kind_word(kinds: &[IdKind]) -> String {
         IdKind::Fact => "a fact",
         IdKind::Edition => "an edition",
         IdKind::Proposal => "a proposal",
+        IdKind::WriterDecision => "a writer decision",
     };
     kinds.iter().map(word).collect::<Vec<_>>().join(" or ")
 }

@@ -128,6 +128,87 @@ impl RoutingSettings {
     }
 }
 
+/// Starting values for the script soft checks in `complete` (build step 9).
+/// The pacing pair is decided (Default settings); the rest were chosen in the
+/// step 9 build and are listed in its pull request for the author to adjust.
+pub const DEFAULT_UNDER_SHARE: f64 = 0.5;
+pub const DEFAULT_OVER_SHARE: f64 = 2.0;
+/// An arc's pivot belief ending more than this share of the book's scenes
+/// before the climax counts as an early pivot.
+pub const DEFAULT_EARLY_PIVOT_SHARE: f64 = 0.25;
+/// A thread whose scenes for a stage fall more than this share outside that
+/// movement counts as out of alignment.
+pub const DEFAULT_MISALIGNED_SHARE: f64 = 0.5;
+/// Two attribute keys this close (after dropping underscores) look alike.
+pub const DEFAULT_SIMILAR_KEY_MAX_DISTANCE: usize = 2;
+
+/// Thresholds for the script soft checks.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckSettings {
+    /// `pacing.under_share`: a movement under this share of its expected
+    /// scene count is short.
+    pub under_share: f64,
+    /// `pacing.over_share`: a movement over this multiple of its expected
+    /// scene count is long.
+    pub over_share: f64,
+    /// `checks.early_pivot_share`
+    pub early_pivot_share: f64,
+    /// `checks.misaligned_share`
+    pub misaligned_share: f64,
+    /// `checks.similar_key_max_distance`
+    pub similar_key_max_distance: usize,
+}
+
+impl Default for CheckSettings {
+    fn default() -> Self {
+        CheckSettings {
+            under_share: DEFAULT_UNDER_SHARE,
+            over_share: DEFAULT_OVER_SHARE,
+            early_pivot_share: DEFAULT_EARLY_PIVOT_SHARE,
+            misaligned_share: DEFAULT_MISALIGNED_SHARE,
+            similar_key_max_distance: DEFAULT_SIMILAR_KEY_MAX_DISTANCE,
+        }
+    }
+}
+
+impl CheckSettings {
+    /// Reads the thresholds from a whole settings document, falling back to
+    /// the default for anything missing or out of range.
+    pub fn from_settings(doc: Option<&Value>) -> Self {
+        let mut s = CheckSettings::default();
+        let num = |path: &[&str], ok: fn(f64) -> bool| {
+            doc.and_then(|d| d.get_path(path))
+                .and_then(Value::as_f64)
+                .filter(|n| ok(*n))
+        };
+        if let Some(n) = num(&["pacing", "under_share"], |n| n > 0.0 && n <= 1.0) {
+            s.under_share = n;
+        }
+        if let Some(n) = num(&["pacing", "over_share"], |n| n >= 1.0) {
+            s.over_share = n;
+        }
+        if let Some(n) = num(&["checks", "early_pivot_share"], |n| n > 0.0 && n <= 1.0) {
+            s.early_pivot_share = n;
+        }
+        if let Some(n) = num(&["checks", "misaligned_share"], |n| (0.0..1.0).contains(&n)) {
+            s.misaligned_share = n;
+        }
+        if let Some(n) = doc
+            .and_then(|d| d.get_path(&["checks", "similar_key_max_distance"]))
+            .and_then(Value::as_u64)
+            .filter(|n| *n <= 5)
+        {
+            s.similar_key_max_distance = n as usize;
+        }
+        s
+    }
+
+    pub fn load(project: &Project) -> Result<Self, FsError> {
+        let doc = fsio::read_json_object(&project.settings_path())?;
+        Ok(Self::from_settings(doc.as_ref()))
+    }
+}
+
 /// The whole settings file as first-run setup writes it (HANDOFF, Default
 /// settings, and the models per sub-agent in Architecture). Every value is a
 /// starting point the writer can tune. `format` lets later versions migrate
@@ -150,6 +231,11 @@ const DEFAULT_SETTINGS: &str = r#"{
   "pacing": {
     "under_share": 0.5,
     "over_share": 2.0
+  },
+  "checks": {
+    "early_pivot_share": 0.25,
+    "misaligned_share": 0.5,
+    "similar_key_max_distance": 2
   },
   "models": {
     "housekeeper": "strong",
@@ -350,6 +436,40 @@ mod routing_tests {
         assert_eq!(
             RoutingSettings::from_settings(Some(&defaults)).strict_fan_out,
             10
+        );
+    }
+}
+
+#[cfg(test)]
+mod check_tests {
+    use super::*;
+
+    #[test]
+    fn check_thresholds_read_and_fall_back() {
+        let doc = |s: &str| json::parse(s).unwrap();
+        assert_eq!(CheckSettings::from_settings(None), CheckSettings::default());
+        let d = doc(
+            r#"{"pacing":{"under_share":0.4,"over_share":3},"checks":{"early_pivot_share":0.5,"misaligned_share":0.25,"similar_key_max_distance":1}}"#,
+        );
+        let s = CheckSettings::from_settings(Some(&d));
+        assert_eq!(
+            (s.under_share, s.over_share, s.early_pivot_share),
+            (0.4, 3.0, 0.5)
+        );
+        assert_eq!((s.misaligned_share, s.similar_key_max_distance), (0.25, 1));
+        for bad in [
+            r#"{"pacing":{"under_share":0,"over_share":0.5}}"#,
+            r#"{"checks":{"early_pivot_share":"x","misaligned_share":1,"similar_key_max_distance":99}}"#,
+        ] {
+            assert_eq!(
+                CheckSettings::from_settings(Some(&doc(bad))),
+                CheckSettings::default()
+            );
+        }
+        // First-run setup writes the same defaults.
+        assert_eq!(
+            CheckSettings::from_settings(Some(&default_settings())),
+            CheckSettings::default()
         );
     }
 }

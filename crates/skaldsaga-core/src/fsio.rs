@@ -54,6 +54,41 @@ pub fn read_optional(path: &Path) -> Result<Option<String>, FsError> {
     }
 }
 
+/// Why a story-side file wasn't read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refused {
+    /// A symlink, folder or special file: never followed (SR-21).
+    NotARegularFile,
+    /// Bigger than the cap (SR-23).
+    TooBig,
+}
+
+/// Reads a small regular file for the story folder, refusing symlinks and
+/// special files and anything over `max_bytes`. A missing file is `Ok(None)`;
+/// a refused one is `Ok(Some(Err(_)))`, so the caller can report it and go on.
+pub fn read_regular_capped(
+    path: &Path,
+    max_bytes: u64,
+) -> Result<Option<Result<String, Refused>>, FsError> {
+    let meta = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(io_err(path, e)),
+    };
+    if !meta.file_type().is_file() {
+        return Ok(Some(Err(Refused::NotARegularFile)));
+    }
+    if meta.len() > max_bytes {
+        return Ok(Some(Err(Refused::TooBig)));
+    }
+    match std::fs::read_to_string(path) {
+        Ok(s) => Ok(Some(Ok(s))),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(e) if e.kind() == io::ErrorKind::InvalidData => Ok(Some(Err(Refused::NotARegularFile))),
+        Err(e) => Err(io_err(path, e)),
+    }
+}
+
 /// Reads a JSON object file. A missing or empty file reads as `None`.
 pub fn read_json_object(path: &Path) -> Result<Option<Value>, FsError> {
     let Some(text) = read_optional(path)? else {
@@ -167,6 +202,38 @@ pub fn write_if_missing(path: &Path, contents: &str) -> Result<bool, FsError> {
 mod tests {
     use super::*;
     use crate::testutil::TempDir;
+
+    #[test]
+    fn capped_reads_refuse_symlinks_folders_and_big_files() {
+        let dir = TempDir::new();
+        let file = dir.path().join("a.json");
+        std::fs::write(&file, "{}").unwrap();
+        assert_eq!(
+            read_regular_capped(&file, 10).unwrap(),
+            Some(Ok("{}".to_string()))
+        );
+        assert_eq!(
+            read_regular_capped(&dir.path().join("nope"), 10).unwrap(),
+            None
+        );
+        assert_eq!(
+            read_regular_capped(&file, 1).unwrap(),
+            Some(Err(Refused::TooBig))
+        );
+        assert_eq!(
+            read_regular_capped(dir.path(), 10).unwrap(),
+            Some(Err(Refused::NotARegularFile))
+        );
+        #[cfg(unix)]
+        {
+            let link = dir.path().join("link.json");
+            std::os::unix::fs::symlink(&file, &link).unwrap();
+            assert_eq!(
+                read_regular_capped(&link, 10).unwrap(),
+                Some(Err(Refused::NotARegularFile))
+            );
+        }
+    }
 
     #[test]
     fn atomic_write_round_trip_and_cleanup() {

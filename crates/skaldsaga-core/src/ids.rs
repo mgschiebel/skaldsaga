@@ -36,11 +36,14 @@ pub enum IdKind {
     Fact,
     Edition,
     Proposal,
+    /// A decision the writer made about the process (an acknowledged finding),
+    /// as opposed to a shape decision node (`d-`). Stored in `.harness/decisions/`.
+    WriterDecision,
 }
 
 impl IdKind {
     /// Every kind, in a fixed order.
-    pub const ALL: [IdKind; 12] = [
+    pub const ALL: [IdKind; 13] = [
         IdKind::Person,
         IdKind::Place,
         IdKind::Group,
@@ -53,6 +56,7 @@ impl IdKind {
         IdKind::Fact,
         IdKind::Edition,
         IdKind::Proposal,
+        IdKind::WriterDecision,
     ];
 
     /// The prefix written before the hyphen.
@@ -70,6 +74,7 @@ impl IdKind {
             IdKind::Fact => "f",
             IdKind::Edition => "e",
             IdKind::Proposal => "pr",
+            IdKind::WriterDecision => "wd",
         }
     }
 
@@ -93,6 +98,7 @@ impl fmt::Display for IdKind {
             IdKind::Fact => "fact",
             IdKind::Edition => "edition",
             IdKind::Proposal => "proposal",
+            IdKind::WriterDecision => "writer decision",
         };
         f.write_str(name)
     }
@@ -211,6 +217,7 @@ mod tests {
         }
         assert_eq!(kind_of("pr-7kq2xmhd"), Some(IdKind::Proposal));
         assert_eq!(kind_of("st-7kq2xmhd"), Some(IdKind::Style));
+        assert_eq!(kind_of("wd-7kq2xmhd"), Some(IdKind::WriterDecision));
         assert!(!is_kind("s-7kq2xmhd", IdKind::Person));
     }
 }
