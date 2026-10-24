@@ -73,9 +73,12 @@ Values outside their allowed range fall back to the default.
   "assumptions": ["pr-…"],
   "acknowledgments": {"active": 0, "removed": [], "cleanup_skipped": false},
   "decision_problems": [{"path": "…", "message": "…"}],
-  "remove_paths": []
+  "remove_paths": [],
+  "unsafe_files": {"flagged": [], "truncated": false}
 }
 ```
+
+`unsafe_files` is the story-folder scan described in `docs/safety.md`; it never gates anything.
 
 With no main story, every gate is blocked by `no_main_story` and nothing else is reported.
 

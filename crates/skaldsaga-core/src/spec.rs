@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::fsio::{self, FsError};
+use crate::fsio::{self, EntryKind, FsError, Refused};
 use crate::ids::{self, IdKind};
 use crate::model::{Node, NodeType};
 use crate::node_file;
@@ -90,6 +90,13 @@ pub fn load(spec_dir: &Path) -> Result<Loaded, FsError> {
         {
             continue;
         }
+        if matches!(entry.kind, EntryKind::Symlink | EntryKind::Other) {
+            problem(
+                &path,
+                fsio::refusal_message(&Refused::NotARegularFile).into(),
+            );
+            continue;
+        }
         let Some(node_type) = entry
             .is_dir
             .then(|| NodeType::from_folder(&entry.name))
@@ -104,6 +111,13 @@ pub fn load(spec_dir: &Path) -> Result<Loaded, FsError> {
         for file in fsio::list_dir(&path)? {
             let file_path = path.join(&file.name);
             if skipped(&file.name) {
+                continue;
+            }
+            if matches!(file.kind, EntryKind::Symlink | EntryKind::Other) {
+                problem(
+                    &file_path,
+                    fsio::refusal_message(&Refused::NotARegularFile).into(),
+                );
                 continue;
             }
             match load_node(&file_path, &file.name, node_type)? {
@@ -139,8 +153,9 @@ pub fn load(spec_dir: &Path) -> Result<Loaded, FsError> {
     unique.sort_by(|a, b| a.id.cmp(&b.id));
 
     let seq_path = spec_dir.join(SEQUENCE_FILE);
-    let (sequence, seq_problems) = match fsio::read_optional(&seq_path)? {
-        Some(text) => parse_sequence(&text),
+    let (sequence, seq_problems) = match read_story_text(&seq_path)? {
+        Some(Ok(text)) => parse_sequence(&text),
+        Some(Err(message)) => (Vec::new(), vec![message]),
         None => (Vec::new(), Vec::new()),
     };
     for message in seq_problems {
@@ -148,13 +163,17 @@ pub fn load(spec_dir: &Path) -> Result<Loaded, FsError> {
     }
 
     let attr_path = spec_dir.join(ATTRIBUTES_FILE);
-    let attributes = match fsio::read_optional(&attr_path)? {
-        Some(text) => {
+    let attributes = match read_story_text(&attr_path)? {
+        Some(Ok(text)) => {
             let (defs, attr_problems) = registry::parse_attributes_file(&text);
             for message in attr_problems {
                 problem(&attr_path, message);
             }
             defs
+        }
+        Some(Err(message)) => {
+            problem(&attr_path, message);
+            Vec::new()
         }
         None => Vec::new(),
     };
@@ -169,6 +188,13 @@ pub fn load(spec_dir: &Path) -> Result<Loaded, FsError> {
 
 /// Reads one node file. The outer error is a file-system failure; the inner
 /// one is a problem with the file itself.
+/// Reads one story file without following links, up to the size cap
+/// (SR-21, SR-23). A refusal comes back as a plain-words problem message.
+fn read_story_text(path: &Path) -> Result<Option<Result<String, String>>, FsError> {
+    Ok(fsio::read_regular_capped(path, fsio::MAX_STORY_FILE_BYTES)?
+        .map(|r| r.map_err(|why| fsio::refusal_message(&why).to_string())))
+}
+
 fn load_node(
     path: &Path,
     file_name: &str,
@@ -177,8 +203,10 @@ fn load_node(
     let Some(stem) = file_name.strip_suffix(".md") else {
         return Ok(Err("only Markdown (.md) node files belong here".into()));
     };
-    let Some(text) = fsio::read_optional(path)? else {
-        return Ok(Err("the file disappeared while loading".into()));
+    let text = match read_story_text(path)? {
+        Some(Ok(text)) => text,
+        Some(Err(message)) => return Ok(Err(message)),
+        None => return Ok(Err("the file disappeared while loading".into())),
     };
     let node = match node_file::parse_node(&text) {
         Ok(node) => node,

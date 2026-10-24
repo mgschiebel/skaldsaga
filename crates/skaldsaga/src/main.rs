@@ -24,6 +24,7 @@ use skaldsaga_core::init::{self, InitOutcome, InitReport};
 use skaldsaga_core::json::{self, Value, ValueExt as _};
 use skaldsaga_core::meter::{self, StatusInput};
 use skaldsaga_core::project::{self, Location, Project};
+use skaldsaga_core::safety;
 use skaldsaga_core::settings::{self, MeterSettings};
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
 
@@ -322,6 +323,14 @@ fn wire_meter(
     Ok(v)
 }
 
+/// Links, executable files and special files in the story folder, for the
+/// skill to tell the writer about (SR-11). A scan that can't run reports null.
+fn unsafe_files(project: &Project) -> Value {
+    safety::scan(project)
+        .map(|s| s.to_value())
+        .unwrap_or(Value::Null)
+}
+
 fn strings(items: &[String]) -> Value {
     Value::Array(items.iter().map(|s| Value::from(s.as_str())).collect())
 }
@@ -358,6 +367,7 @@ fn init_cmd(rest: &[&str]) -> Result<(), CliError> {
             None => Value::Null,
         };
         v.set("meter", meter);
+        v.set("unsafe_files", unsafe_files(&project));
     }
     print_json(&v)
 }
@@ -380,6 +390,7 @@ fn index_cmd(rest: &[&str]) -> Result<(), CliError> {
     v.set("nodes", Value::from(rebuilt.nodes));
     v.set("problems", Value::from(rebuilt.problems));
     v.set("broken_references", Value::from(rebuilt.broken_references));
+    v.set("unsafe_files", unsafe_files(&project));
     print_json(&v)
 }
 
@@ -433,6 +444,7 @@ fn check_cmd(rest: &[&str]) -> Result<(), CliError> {
     v.set("outcome", "checked".into());
     v.set("spec_problems", Value::from(report.spec_problems));
     v.set("proposals", Value::Array(list));
+    v.set("unsafe_files", unsafe_files(&project));
     if !missing.is_empty() {
         v.set(
             "not_found",
@@ -547,6 +559,7 @@ fn complete_cmd(rest: &[&str]) -> Result<(), CliError> {
     let project = require_project(&parsed)?;
     let report = complete::run(&project).map_err(|e| CliError::Failed(e.to_string()))?;
     let mut v = report.to_value();
+    v.set("unsafe_files", unsafe_files(&project));
     if !report.remove_paths.is_empty() {
         v.set(
             "message",
