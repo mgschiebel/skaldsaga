@@ -700,7 +700,7 @@ struct SceneOut<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-enum Method {
+pub(crate) enum Method {
     /// Boundaries come from the arc's landmark scenes.
     Landmarks,
     /// Not every boundary landmark is usable yet, so each scene falls back
@@ -709,16 +709,26 @@ enum Method {
 }
 
 #[derive(Default, Serialize)]
-struct Movements {
-    setup: Vec<String>,
-    complications: Vec<String>,
-    crisis: Vec<String>,
-    resolution: Vec<String>,
+pub(crate) struct Movements {
+    pub(crate) setup: Vec<String>,
+    pub(crate) complications: Vec<String>,
+    pub(crate) crisis: Vec<String>,
+    pub(crate) resolution: Vec<String>,
     /// Scenes in the arc's span that no movement could be found for.
-    unplaced: Vec<String>,
+    pub(crate) unplaced: Vec<String>,
 }
 
 impl Movements {
+    /// The scenes of one movement, in reading order.
+    pub(crate) fn stage(&self, stage: Stage) -> &[String] {
+        match stage {
+            Stage::Setup => &self.setup,
+            Stage::Complications => &self.complications,
+            Stage::Crisis => &self.crisis,
+            Stage::Resolution => &self.resolution,
+        }
+    }
+
     fn stage_mut(&mut self, stage: Stage) -> &mut Vec<String> {
         match stage {
             Stage::Setup => &mut self.setup,
@@ -730,13 +740,40 @@ impl Movements {
 }
 
 #[derive(Serialize)]
-struct ArcMovements {
-    method: Method,
+pub(crate) struct ArcMovements {
+    pub(crate) method: Method,
     /// Why the landmarks couldn't be used, when some are placed.
     #[serde(skip_serializing_if = "Option::is_none")]
-    note: Option<String>,
+    pub(crate) note: Option<String>,
     #[serde(flatten)]
-    movements: Movements,
+    pub(crate) movements: Movements,
+}
+
+/// Each arc's movements as the index derives them (the main story and active
+/// subplots), for the checks in `complete`.
+pub(crate) fn derived_movements(spec: &Spec) -> BTreeMap<String, ArcMovements> {
+    let lookup = Lookup::new(spec);
+    let order = reading_order(spec);
+    movements(spec, &lookup, &order)
+}
+
+/// Scene IDs in reading order, leaving out any that don't exist as scenes.
+pub(crate) fn reading_order(spec: &Spec) -> Vec<String> {
+    spec.sequence
+        .iter()
+        .filter(|id| matches!(spec.node(id).map(|n| &n.body), Some(NodeBody::Scene(_))))
+        .cloned()
+        .collect()
+}
+
+/// Thread ID to the arc it belongs to, from the thread's own `arc` field or
+/// the arc's `threads` list.
+pub(crate) fn thread_arcs(spec: &Spec) -> HashMap<String, String> {
+    Lookup::new(spec)
+        .thread_arc
+        .into_iter()
+        .map(|(t, a)| (t.to_string(), a.to_string()))
+        .collect()
 }
 
 #[derive(Serialize)]
