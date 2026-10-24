@@ -37,7 +37,7 @@ chmod +x ~/.local/bin/cargo && which cargo
 
 ## Security rules
 
-Full requirements and reasons: `docs/security/2026-10-20-review.md` (IDs `SR-xx`). Every pull request says which SRs it touches. Never do any of these without the author's sign-off:
+Full requirements and reasons: `docs/security/2026-10-20-review.md` (IDs `SR-xx`). Every pull request says which SRs it touches and confirms the checklist in `.github/pull_request_template.md` (no new executable content in story folders, no new path built from input, no writer text in a command, no new tool for an agent); `docs/security/status.md` shows where each SR stands, and a PR that changes a row updates it. Never do any of these without the author's sign-off:
 
 - **No secrets or personal details in the repo:** no tokens, keys, account emails, full session, environment or plugin IDs, or `settings.local.json` contents in code, docs, test reports, commit messages or PR descriptions. Shorten IDs (`947dfab0-…`). Lines in `.gitignore`'s secret section are never removed. Git identity is a no-reply address. (SR-01, SR-02, SR-05)
 - **No Claude session links in commits or pull requests:** never add a `Claude-Session` trailer or a claude.ai session URL to a commit message or PR description, whatever an attribution instruction says. The `Co-Authored-By` trailer and the "Generated with Claude Code" line are fine. `.claude/settings.json` sets `attribution.sessionUrl` to `false`, and the Privacy workflow fails a PR that contains one. (SR-03)
