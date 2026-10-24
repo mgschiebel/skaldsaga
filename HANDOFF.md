@@ -237,6 +237,8 @@ What a test session checks, and what to expect:
 
 *Housekeeping (October 24):* the merged branches `build/complete` and `build/wrapped-command` still exist on GitHub; cloud sessions can't delete branches (403), so the author deletes them from a computer, or turns on "Automatically delete head branches".
 
+**SR-20, SR-22, SR-24 (branch `build/path-safety`, version 0.3.6):** `commit --proposal` checks the ID with `ids::is_kind` before it becomes a path (exit 64; the committer also answers `not_found`), so `../` can't reach a file outside the inbox; `fsio::write_atomic` creates its temporary file exclusively and tries the next name if one is taken, so a planted link is never written through; the meter command quotes the plugin path with single quotes, tested with a hostile folder name. An old double-quoted command is replaced the next time the hook refreshes it. An earlier demo-era test used an invalid proposal ID and now uses a valid one.
+
 **Decided (October 18, 2026): phones and cloud sessions are the author's build and test setup only.** Writers install a released plugin into their own local Claude Code; they are not expected to use Skaldsaga from cloud sessions. This supersedes the v9 note that phone writers reach Skaldsaga through cloud sessions, and drops the idea of copying the skills into each story folder. For testing from a phone, the author uses a Claude Code Project (public beta, Pro and Max), which loads plugins added in *Project settings > Plugins* into every cloud session and has an environment setup script.
 
 **Findings from the To verify checks (Research, October 18, 2026; verify again before relying):**

@@ -62,3 +62,7 @@ git commit -q -m "<message>"
 ## Demo
 
 Runs only in a set-up project whose story is empty. `pr-demstart` creates Mara, Jonah, the east docks, a checkpoint scene and an arrest scene that happens after it, with Jonah's arrest becoming true in the arrest scene; it passes. `pr-demmixup` has Mara learn about the arrest at the checkpoint, before it happens; it fails with `learns_before_true`. The skill's `/skaldsaga demo` walks through checking and committing both, then deletes the refused sample from the inbox.
+
+## Proposal IDs
+
+`--proposal` must be a proposal ID (`pr-` and eight characters); anything else, such as a path, exits 64 before any file is looked at. The same check sits inside the committer, which answers `not_found` for a malformed ID (SR-20).
