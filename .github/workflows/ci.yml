@@ -16,13 +16,17 @@ jobs:
     name: Format, lint, test (Linux x64)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          persist-credentials: false
+
+      # Pinned by commit; the toolchain version is pinned here and in release.yml (SR-42).
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: 1.97.0
           components: rustfmt, clippy
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c # v2.9.3
 
       - name: Format
         run: cargo fmt --all --check
@@ -48,7 +52,7 @@ jobs:
 
       - name: Validate the plugin
         run: |
-          npm install --global --silent @anthropic-ai/claude-code
+          npm install --global --silent @anthropic-ai/claude-code@2.1.310
           claude plugin validate --strict dist
           claude plugin validate --strict dist/.claude-plugin/plugin.json
 
