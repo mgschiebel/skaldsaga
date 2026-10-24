@@ -1,0 +1,7 @@
+# Secret-scan rules (SR-04): gitleaks' built-in rules, which include generic
+# patterns for keys that no provider-specific rule knows. Add an allowlist
+# entry below only for a value that is provably fake, with the reason.
+title = "Skaldsaga secret scan"
+
+[extend]
+useDefault = true
