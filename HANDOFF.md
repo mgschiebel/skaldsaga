@@ -220,6 +220,17 @@ What a test session checks, and what to expect:
   - Writes are not atomic across files; git is the safety net if a commit is interrupted.
   - The skill now finds the story folder when it is one level down (a repository cloned into the home folder), asking first and passing `--project`.
 
+**Step 9 (#22, branch `build/complete`, version 0.3.3, release after the author's go-ahead):** `skaldsaga complete`, `decisions acknowledge` and `decisions withdraw` (interface notes in `docs/complete.md`), built from "Step 9 planning" as written. Build details (Claude's choices, open to change):
+
+- **Starting thresholds, all settings:** `pacing.under_share` 0.5 and `pacing.over_share` 2.0 (each movement expects a quarter of the scenes until framework choice exists), `checks.early_pivot_share` 0.25, `checks.misaligned_share` 0.5, `checks.similar_key_max_distance` 2.
+- **Soft checks start counting only when the story supports them:** dangling setup waits for a main-plot Resolution scene; early pivot and subplot-after-climax wait for the climax; pacing and alignment wait for the arc's three movement landmarks in order. A dormant check's acknowledgments are never cleaned up.
+- **Acknowledgment identity** is code, check version, scope (`canon`), IDs and detail. Count-dependent findings put the movement or direction in `detail`, so a changed situation is a new finding.
+- **Cleanup** of resolved acknowledgments is skipped (`cleanup_skipped`) when the spec has loading problems. Unknown codes are left alone.
+- **Challenger and relationship threads** whose decisions are all `not_explored` are exempt from the coverage grid.
+- **Similar attribute keys** compares keys with underscores removed, skips pairs of starter keys and inverse pairs, and needs at least 4 characters.
+- **The skill's demo** gets a last step that runs `complete`; on the demo story every gate is blocked by `no_main_story`, which is the expected answer.
+- **Not built:** the orchestrator wording for findings, and the skill flow that asks the writer about open findings (both belong with the agents).
+
 **Decided (October 18, 2026): phones and cloud sessions are the author's build and test setup only.** Writers install a released plugin into their own local Claude Code; they are not expected to use Skaldsaga from cloud sessions. This supersedes the v9 note that phone writers reach Skaldsaga through cloud sessions, and drops the idea of copying the skills into each story folder. For testing from a phone, the author uses a Claude Code Project (public beta, Pro and Max), which loads plugins added in *Project settings > Plugins* into every cloud session and has an environment setup script.
 
 **Findings from the To verify checks (Research, October 18, 2026; verify again before relying):**
