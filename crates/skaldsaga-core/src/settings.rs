@@ -59,21 +59,18 @@ impl MeterSettings {
         if s.suggest_wrap_up_percent > s.wrap_up_percent {
             s.suggest_wrap_up_percent = s.wrap_up_percent;
         }
-        s.wrapped_statusline = meter
-            .get("wrapped_statusline")
-            .filter(|v| {
-                v.get("command")
-                    .and_then(Value::as_str)
-                    .is_some_and(|c| !c.trim().is_empty())
-            })
-            .cloned();
         s
     }
 
-    /// Loads the meter settings for a project.
+    /// Loads the meter settings for a project. The thresholds come from the
+    /// shared `.harness/settings.json`; the writer's own status line comes
+    /// only from the per-machine `.harness/local.json`. A command in a file
+    /// that is committed is never run (SR-10).
     pub fn load(project: &Project) -> Result<Self, FsError> {
         let doc = fsio::read_json_object(&project.settings_path())?;
-        Ok(Self::from_settings(doc.as_ref()))
+        let mut s = Self::from_settings(doc.as_ref());
+        s.wrapped_statusline = load_local_wrapped(project);
+        Ok(s)
     }
 }
 
@@ -284,24 +281,92 @@ pub fn fill_missing(doc: &mut Value) -> bool {
     changed
 }
 
-/// Records (or clears) the writer's wrapped status line, keeping every other
-/// key in the settings file as it was.
-pub fn store_wrapped_statusline(project: &Project, wrapped: Option<Value>) -> Result<(), FsError> {
-    let path = project.settings_path();
-    let mut doc = fsio::read_json_object(&path)?.unwrap_or_else(json::object);
-    let mut meter = doc
-        .get("meter")
-        .filter(|m| m.is_object())
+/// Most the per-machine settings file may hold.
+const LOCAL_MAX_BYTES: u64 = 64 * 1024;
+
+/// A wrapped status line only counts with a command in it.
+fn usable_wrapped(v: &Value) -> bool {
+    v.get("command")
+        .and_then(Value::as_str)
+        .is_some_and(|c| !c.trim().is_empty())
+}
+
+/// The writer's own status line from `.harness/local.json`. A symlink, an
+/// oversized or unreadable file, or a line without a command reads as none,
+/// so the meter shows its own line instead (SR-21, SR-23).
+fn load_local_wrapped(project: &Project) -> Option<Value> {
+    let text = fsio::read_regular_capped(&project.local_settings_path(), LOCAL_MAX_BYTES)
+        .ok()??
+        .ok()?;
+    let doc = json::parse(&text).ok()?;
+    doc.get("wrapped_statusline")
+        .filter(|v| usable_wrapped(v))
         .cloned()
-        .unwrap_or_else(default_meter_section);
+}
+
+/// Records (or clears) the writer's wrapped status line in the per-machine
+/// file, keeping every other key in it. Makes sure git ignores that file
+/// first, so the command is never committed.
+pub fn store_wrapped_statusline(project: &Project, wrapped: Option<Value>) -> Result<(), FsError> {
+    ensure_local_ignored(project)?;
+    let path = project.local_settings_path();
+    let mut doc = fsio::read_json_object(&path)?.unwrap_or_else(json::object);
     match wrapped {
-        Some(v) => meter.set("wrapped_statusline", v),
+        Some(v) => doc.set("wrapped_statusline", v),
         None => {
-            meter.remove_key("wrapped_statusline");
+            doc.remove_key("wrapped_statusline");
         }
     }
-    doc.set("meter", meter);
     fsio::write_json(&path, &doc)
+}
+
+/// Adds `local.json` to `.harness/.gitignore` when it is missing, keeping the
+/// writer's own lines. Returns true when it changed the file.
+pub fn ensure_local_ignored(project: &Project) -> Result<bool, FsError> {
+    let path = project.harness_dir().join(".gitignore");
+    let existing = fsio::read_optional(&path)?;
+    let text = existing.clone().unwrap_or_default();
+    if text
+        .lines()
+        .any(|l| l.trim() == crate::project::LOCAL_SETTINGS_FILE)
+    {
+        return Ok(false);
+    }
+    let mut out = text;
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str("# Per-machine settings (the writer's own status line); never shared.\n");
+    out.push_str(crate::project::LOCAL_SETTINGS_FILE);
+    out.push('\n');
+    fsio::write_atomic(&path, &out)?;
+    Ok(true)
+}
+
+/// Moves a wrapped status line out of the committed `.harness/settings.json`
+/// (where 0.3.2 and earlier kept it) into the per-machine file, and takes it
+/// out of the committed one. A story from someone else can carry a command
+/// there, so it is never run from that file (SR-10); the writer's own line is
+/// kept for this machine unless the per-machine file already has one.
+/// Returns true when the committed file changed.
+pub fn retire_committed_wrapped(project: &Project) -> Result<bool, FsError> {
+    let path = project.settings_path();
+    let Some(mut doc) = fsio::read_json_object(&path)? else {
+        return Ok(false);
+    };
+    let Some(mut meter) = doc.get("meter").filter(|m| m.is_object()).cloned() else {
+        return Ok(false);
+    };
+    let Some(old) = meter.get("wrapped_statusline").cloned() else {
+        return Ok(false);
+    };
+    if usable_wrapped(&old) && load_local_wrapped(project).is_none() {
+        store_wrapped_statusline(project, Some(old))?;
+    }
+    meter.remove_key("wrapped_statusline");
+    doc.set("meter", meter);
+    fsio::write_json(&path, &doc)?;
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -344,23 +409,145 @@ mod tests {
         assert_eq!((s.suggest_wrap_up_percent, s.wrap_up_percent), (60.0, 60.0));
     }
 
+    fn project_with_harness(dir: &TempDir) -> Project {
+        let project = Project::new(dir.path());
+        std::fs::create_dir_all(project.harness_dir()).unwrap();
+        project
+    }
+
     #[test]
     fn wrapped_statusline_needs_a_command() {
-        let doc =
-            parse(r#"{"meter":{"wrapped_statusline":{"type":"command","command":"  "}}}"#).unwrap();
+        let dir = TempDir::new();
+        let project = project_with_harness(&dir);
+        std::fs::write(
+            project.local_settings_path(),
+            r#"{"wrapped_statusline":{"type":"command","command":"  "}}"#,
+        )
+        .unwrap();
         assert!(
-            MeterSettings::from_settings(Some(&doc))
+            MeterSettings::load(&project)
+                .unwrap()
                 .wrapped_statusline
                 .is_none()
         );
-        let doc =
-            parse(r#"{"meter":{"wrapped_statusline":{"type":"command","command":"my-line"}}}"#)
-                .unwrap();
+        std::fs::write(
+            project.local_settings_path(),
+            r#"{"wrapped_statusline":{"type":"command","command":"my-line"}}"#,
+        )
+        .unwrap();
         assert!(
-            MeterSettings::from_settings(Some(&doc))
+            MeterSettings::load(&project)
+                .unwrap()
                 .wrapped_statusline
                 .is_some()
         );
+    }
+
+    #[test]
+    fn a_committed_wrapped_line_is_ignored() {
+        let dir = TempDir::new();
+        let project = project_with_harness(&dir);
+        std::fs::write(
+            project.settings_path(),
+            r#"{"meter":{"wrapped_statusline":{"type":"command","command":"evil"}}}"#,
+        )
+        .unwrap();
+        assert!(
+            MeterSettings::load(&project)
+                .unwrap()
+                .wrapped_statusline
+                .is_none()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_or_oversized_local_file_is_ignored() {
+        let dir = TempDir::new();
+        let project = project_with_harness(&dir);
+        let real = dir.path().join("elsewhere.json");
+        std::fs::write(&real, r#"{"wrapped_statusline":{"command":"x"}}"#).unwrap();
+        std::os::unix::fs::symlink(&real, project.local_settings_path()).unwrap();
+        assert!(
+            MeterSettings::load(&project)
+                .unwrap()
+                .wrapped_statusline
+                .is_none()
+        );
+        std::fs::remove_file(project.local_settings_path()).unwrap();
+        let big = format!(
+            r#"{{"wrapped_statusline":{{"command":"x"}},"pad":"{}"}}"#,
+            "a".repeat(70_000)
+        );
+        std::fs::write(project.local_settings_path(), big).unwrap();
+        assert!(
+            MeterSettings::load(&project)
+                .unwrap()
+                .wrapped_statusline
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn retiring_moves_the_line_to_the_local_file_and_out_of_the_committed_one() {
+        let dir = TempDir::new();
+        let project = project_with_harness(&dir);
+        std::fs::write(
+            project.settings_path(),
+            r#"{"meter":{"wrap_up_percent":65,"wrapped_statusline":{"type":"command","command":"mine"}},"models":{}}"#,
+        )
+        .unwrap();
+        assert!(retire_committed_wrapped(&project).unwrap());
+        let committed = std::fs::read_to_string(project.settings_path()).unwrap();
+        assert!(!committed.contains("wrapped_statusline") && !committed.contains("mine"));
+        assert!(committed.contains("wrap_up_percent") && committed.contains("models"));
+        let s = MeterSettings::load(&project).unwrap();
+        assert_eq!(s.wrap_up_percent, 65.0);
+        assert_eq!(
+            s.wrapped_statusline.unwrap()["command"].as_str(),
+            Some("mine")
+        );
+        let ignore = std::fs::read_to_string(project.harness_dir().join(".gitignore")).unwrap();
+        assert!(ignore.lines().any(|l| l == "local.json"));
+        assert!(
+            !retire_committed_wrapped(&project).unwrap(),
+            "nothing left to move"
+        );
+    }
+
+    #[test]
+    fn retiring_never_replaces_a_line_already_on_this_machine() {
+        let dir = TempDir::new();
+        let project = project_with_harness(&dir);
+        std::fs::write(
+            project.local_settings_path(),
+            r#"{"wrapped_statusline":{"command":"mine"}}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            project.settings_path(),
+            r#"{"meter":{"wrapped_statusline":{"command":"theirs"}}}"#,
+        )
+        .unwrap();
+        assert!(retire_committed_wrapped(&project).unwrap());
+        let s = MeterSettings::load(&project).unwrap();
+        assert_eq!(
+            s.wrapped_statusline.unwrap()["command"].as_str(),
+            Some("mine")
+        );
+    }
+
+    #[test]
+    fn ignoring_the_local_file_keeps_the_writers_lines() {
+        let dir = TempDir::new();
+        let project = project_with_harness(&dir);
+        let path = project.harness_dir().join(".gitignore");
+        std::fs::write(&path, "meter.json\nmine.txt").unwrap();
+        assert!(ensure_local_ignored(&project).unwrap());
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.starts_with("meter.json\nmine.txt\n"));
+        assert!(text.lines().any(|l| l == "local.json"));
+        assert!(!ensure_local_ignored(&project).unwrap());
     }
 
     #[test]
@@ -371,14 +558,10 @@ mod tests {
 
     #[test]
     fn filling_missing_settings_keeps_existing_values() {
-        let mut doc = parse(
-            r#"{"meter":{"wrap_up_percent":65,"wrapped_statusline":{"command":"x"}},"mine":true}"#,
-        )
-        .unwrap();
+        let mut doc = parse(r#"{"meter":{"wrap_up_percent":65},"mine":true}"#).unwrap();
         assert!(fill_missing(&mut doc));
         assert_eq!(doc["meter"]["wrap_up_percent"], 65);
         assert_eq!(doc["meter"]["suggest_wrap_up_percent"], 50);
-        assert_eq!(doc["meter"]["wrapped_statusline"]["command"], "x");
         assert_eq!(doc["models"]["harvester"], "mid");
         assert_eq!(doc["mine"], true);
         assert!(!fill_missing(&mut doc), "a second pass adds nothing");
@@ -400,7 +583,7 @@ mod tests {
         assert_eq!(s.wrap_up_percent, 65.0);
         assert!(s.wrapped_statusline.is_some());
         let text = std::fs::read_to_string(project.settings_path()).unwrap();
-        assert!(text.contains("housekeeper"));
+        assert!(text.contains("housekeeper") && !text.contains("mine"));
 
         store_wrapped_statusline(&project, None).unwrap();
         assert!(

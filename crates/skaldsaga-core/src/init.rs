@@ -43,6 +43,8 @@ pub const FOLDERS: [(&str, &str); 4] = [
 const HARNESS_GITIGNORE: &str = "\
 # Changes every turn and only matters on this computer.
 meter.json
+# Per-machine settings (the writer's own status line); never shared.
+local.json
 ";
 
 /// What the story folder's top-level `.gitignore` keeps out of git: personal
@@ -196,6 +198,11 @@ pub fn init(project: &Project) -> Result<InitReport, FsError> {
     }
     note(
         fsio::write_if_missing(&project.harness_dir().join(".gitignore"), HARNESS_GITIGNORE)?,
+        ".harness/.gitignore",
+    );
+    // A folder set up by an earlier version lacks the line for local.json.
+    note(
+        settings::ensure_local_ignored(project)?,
         ".harness/.gitignore",
     );
 

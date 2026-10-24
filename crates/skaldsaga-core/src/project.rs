@@ -3,6 +3,9 @@
 use std::path::{Path, PathBuf};
 
 /// The hidden folder that marks a folder as a Skaldsaga project.
+/// The per-machine settings file inside `.harness/`.
+pub const LOCAL_SETTINGS_FILE: &str = "local.json";
+
 pub const HARNESS_DIR: &str = ".harness";
 
 /// Paths inside one project folder.
@@ -44,6 +47,13 @@ impl Project {
 
     pub fn settings_path(&self) -> PathBuf {
         self.harness_dir().join("settings.json")
+    }
+
+    /// Per-machine settings that never go into git (the writer's own status
+    /// line command). Nothing in this file is read when it is a symlink, and
+    /// the meter never runs a command from any committed file (SR-10).
+    pub fn local_settings_path(&self) -> PathBuf {
+        self.harness_dir().join(LOCAL_SETTINGS_FILE)
     }
 
     pub fn meter_path(&self) -> PathBuf {

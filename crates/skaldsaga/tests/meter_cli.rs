@@ -316,8 +316,8 @@ fn broken_wrapped_line_falls_back_to_ours() {
     let dir = TempDir::new();
     let project = novel(&dir);
     std::fs::write(
-        project.join(".harness/settings.json"),
-        r#"{"meter":{"wrapped_statusline":{"type":"command","command":"exit 1"}}}"#,
+        project.join(".harness/local.json"),
+        r#"{"wrapped_statusline":{"type":"command","command":"exit 1"}}"#,
     )
     .unwrap();
     let o = run(
@@ -329,6 +329,57 @@ fn broken_wrapped_line_falls_back_to_ours() {
         stdout(&o),
         "Skaldsaga · session 80% full · time to wrap up\n"
     );
+}
+
+/// SR-10: a command in the committed settings is never run, and wiring moves
+/// it to this machine's file.
+#[cfg(unix)]
+#[test]
+fn a_committed_wrapped_line_is_never_run_and_is_moved_out() {
+    let dir = TempDir::new();
+    let project = novel(&dir);
+    let marker = dir.path().join("ran");
+    let cmd = format!("touch '{}'; echo theirs", marker.display());
+    std::fs::write(
+        project.join(".harness/settings.json"),
+        format!(
+            r#"{{"meter":{{"wrapped_statusline":{{"type":"command","command":{}}}}}}}"#,
+            serde_json::to_string(&cmd).unwrap()
+        ),
+    )
+    .unwrap();
+    let o = run(
+        &["meter", "statusline"],
+        dir.path(),
+        Some(&status_json(&project, "s1", "10")),
+    );
+    assert!(stdout(&o).starts_with("Skaldsaga"), "{}", stdout(&o));
+    assert!(!marker.exists(), "a committed command must not run");
+
+    let p = project.to_str().unwrap();
+    let user = dir.path().join("none.json");
+    let wired = run(
+        &[
+            "meter",
+            "wire",
+            "--command",
+            "sh /x/skaldsaga meter statusline",
+            "--project",
+            p,
+            "--user-settings",
+            user.to_str().unwrap(),
+        ],
+        dir.path(),
+        None,
+    );
+    let out = stdout(&wired);
+    assert!(out.contains(".harness/settings.json"), "{out}");
+    let committed = std::fs::read_to_string(project.join(".harness/settings.json")).unwrap();
+    assert!(!committed.contains("wrapped_statusline"));
+    let local = std::fs::read_to_string(project.join(".harness/local.json")).unwrap();
+    assert!(local.contains("theirs"));
+    let ignore = std::fs::read_to_string(project.join(".harness/.gitignore")).unwrap();
+    assert!(ignore.lines().any(|l| l == "local.json"));
 }
 
 #[test]
