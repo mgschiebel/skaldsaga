@@ -54,6 +54,8 @@ The `meter` part says what happened to the session meter:
 
 The meter's setting is kept in a personal file that never goes into git; setup's `.gitignore` keeps it (and other personal or secret files) out.
 
+Setup, `check`, `index` and `complete` also print `unsafe_files`. If its `flagged` list is not empty, tell the person in plain words that some files in the story folder are links, programs or special files, which Skaldsaga never opens or runs, and name up to three of the `path` values. Say what to do: replace a link with the real file, or remove the program permission (`why` is `executable`, which can also come from a drive that marks every file that way). Don't change or delete those files yourself. If `truncated` is true, say the scan stopped early because the folder is very large. If `unsafe_files` is null or the list is empty, say nothing.
+
 ## 3. Save a first snapshot with git
 
 Skaldsaga keeps its history in git, so the person can always go back.

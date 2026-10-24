@@ -136,8 +136,10 @@ pub const COMMITTED_DIR: &str = "committed";
 /// Commits one proposal from the inbox.
 pub fn commit(project: &Project, id: &str, options: CommitOptions) -> Result<Outcome, FsError> {
     let inbox_path = project.inbox_dir().join(format!("{id}.json"));
-    let Some(text) = fsio::read_optional(&inbox_path)? else {
-        return Ok(Outcome::NotFound);
+    let text = match fsio::read_regular_capped(&inbox_path, fsio::MAX_STORY_FILE_BYTES)? {
+        Some(Ok(text)) => text,
+        Some(Err(why)) => return Ok(Outcome::Unreadable(fsio::refusal_message(&why).to_string())),
+        None => return Ok(Outcome::NotFound),
     };
     let mut proposal = match proposal::parse(&text) {
         Ok(p) if p.id == id => p,
@@ -359,7 +361,8 @@ fn write_spec(
     }
     if applied.attributes_changed {
         let path = spec_dir.join(ATTRIBUTES_FILE);
-        let notes = fsio::read_optional(&path)?
+        let notes = fsio::read_regular_capped(&path, fsio::MAX_STORY_FILE_BYTES)?
+            .and_then(Result::ok)
             .and_then(|t| {
                 node_file::split_front_matter(&t)
                     .ok()

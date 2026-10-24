@@ -149,11 +149,50 @@ pub fn remove_optional(path: &Path) -> Result<bool, FsError> {
     }
 }
 
+/// What a folder entry is, without following links (SR-11, SR-21).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryKind {
+    File,
+    Dir,
+    Symlink,
+    /// A device, socket, pipe or anything else that isn't a plain file.
+    Other,
+}
+
 /// One entry in a folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirEntry {
     pub name: String,
+    /// True only for a real folder; a link to one is `Symlink`, not a folder.
     pub is_dir: bool,
+    pub kind: EntryKind,
+    /// A plain file with an executable permission bit set (never true on
+    /// systems without such bits).
+    pub executable: bool,
+}
+
+/// Largest story file Skaldsaga reads (SR-23).
+pub const MAX_STORY_FILE_BYTES: u64 = 1024 * 1024;
+
+/// The reason a refused file gives, in plain words for a problem list.
+pub fn refusal_message(why: &Refused) -> &'static str {
+    match why {
+        Refused::NotARegularFile => {
+            "this is a link or a special file; Skaldsaga only reads plain files and never follows links"
+        }
+        Refused::TooBig => "this file is too big for Skaldsaga to read",
+    }
+}
+
+#[cfg(unix)]
+fn has_exec_bit(meta: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt as _;
+    meta.permissions().mode() & 0o111 != 0
+}
+
+#[cfg(not(unix))]
+fn has_exec_bit(_meta: &std::fs::Metadata) -> bool {
+    false
 }
 
 /// Lists a folder, sorted by name. A missing folder lists as empty.
@@ -166,13 +205,27 @@ pub fn list_dir(path: &Path) -> Result<Vec<DirEntry>, FsError> {
     let mut out = Vec::new();
     for entry in read {
         let entry = entry.map_err(|e| io_err(path, e))?;
-        let is_dir = entry
-            .file_type()
-            .map(|t| t.is_dir())
-            .map_err(|e| io_err(&entry.path(), e))?;
+        let file_type = entry.file_type().map_err(|e| io_err(&entry.path(), e))?;
+        let kind = if file_type.is_symlink() {
+            EntryKind::Symlink
+        } else if file_type.is_dir() {
+            EntryKind::Dir
+        } else if file_type.is_file() {
+            EntryKind::File
+        } else {
+            EntryKind::Other
+        };
+        // The entry's own metadata, not the target's: links are never followed.
+        let executable = kind == EntryKind::File
+            && entry
+                .metadata()
+                .map(|m| has_exec_bit(&m))
+                .map_err(|e| io_err(&entry.path(), e))?;
         out.push(DirEntry {
             name: entry.file_name().to_string_lossy().into_owned(),
-            is_dir,
+            is_dir: kind == EntryKind::Dir,
+            kind,
+            executable,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -233,6 +286,38 @@ mod tests {
                 Some(Err(Refused::NotARegularFile))
             );
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn listing_tells_links_programs_and_plain_files_apart() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = TempDir::new();
+        let file = dir.path().join("plain.md");
+        std::fs::write(&file, "x").unwrap();
+        let prog = dir.path().join("prog.md");
+        std::fs::write(&prog, "x").unwrap();
+        std::fs::set_permissions(&prog, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::os::unix::fs::symlink(&file, dir.path().join("link.md")).unwrap();
+        std::os::unix::fs::symlink(dir.path(), dir.path().join("linkdir")).unwrap();
+        std::fs::create_dir(dir.path().join("sub")).unwrap();
+        let by_name = |n: &str| {
+            list_dir(dir.path())
+                .unwrap()
+                .into_iter()
+                .find(|e| e.name == n)
+                .unwrap()
+        };
+        assert_eq!(
+            (by_name("plain.md").kind, by_name("plain.md").executable),
+            (EntryKind::File, false)
+        );
+        assert!(by_name("prog.md").executable);
+        assert_eq!(by_name("link.md").kind, EntryKind::Symlink);
+        let linkdir = by_name("linkdir");
+        assert_eq!(linkdir.kind, EntryKind::Symlink);
+        assert!(!linkdir.is_dir, "a link to a folder is not a folder");
+        assert!(by_name("sub").is_dir);
     }
 
     #[test]

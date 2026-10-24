@@ -31,6 +31,7 @@ pub mod ops;
 pub mod project;
 pub mod proposal;
 pub mod registry;
+pub mod safety;
 pub mod settings;
 pub mod softchecks;
 pub mod spec;

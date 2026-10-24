@@ -872,7 +872,17 @@ pub fn check_inbox(
             continue;
         }
         let path = dir.join(&file.name);
-        let text = fsio::read_optional(&path)?.unwrap_or_default();
+        let text = match fsio::read_regular_capped(&path, fsio::MAX_STORY_FILE_BYTES)? {
+            Some(Ok(text)) => text,
+            Some(Err(why)) => {
+                entries.push(InboxEntry::Unreadable {
+                    file: file.name.clone(),
+                    message: fsio::refusal_message(&why).to_string(),
+                });
+                continue;
+            }
+            None => String::new(),
+        };
         let mut proposal = match crate::proposal::parse(&text) {
             Ok(p) => p,
             Err(message) => {
