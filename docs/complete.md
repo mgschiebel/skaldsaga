@@ -10,7 +10,7 @@
 | `decisions acknowledge --code CODE --words-file FILE [--ids ID,ID] [--detail TEXT] [--project DIR]` | JSON | Records the writer saying "that one is fine". The words come from a file (16 KiB cap, symlinks refused), never from the command line. Acknowledging the same finding again renews the same file. Exit 64 if the story has no such finding. |
 | `decisions withdraw --decision ID [--project DIR]` | JSON | Deletes one acknowledgment. `not_found` if it is already gone. |
 
-`acknowledge` returns `add_paths` and `message`; `withdraw` returns `remove_paths` and `message`; `complete` returns `remove_paths` and, when that list is not empty, `message`. As with `commit`, the skill makes the git commit from exactly those paths and the program never runs git.
+`acknowledge` returns `add_paths` and `message_file`; `withdraw` returns `remove_paths` and `message_file`; `complete` returns `remove_paths` and, when that list is not empty, `message_file` (see `docs/commit.md`). As with `commit`, the skill makes the git commit from exactly those paths and the program never runs git.
 
 ## Gates
 

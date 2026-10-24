@@ -78,8 +78,12 @@ fn the_demo_commits_one_answer_and_refuses_the_other() {
     ));
     assert_eq!(v["outcome"], "committed");
     assert!(
-        v["message"]
-            .as_str()
+        v.get("message").is_none(),
+        "the text itself is never returned"
+    );
+    assert_eq!(v["message_file"], ".harness/commit-message.txt");
+    assert!(
+        std::fs::read_to_string(story.join(".harness/commit-message.txt"))
             .unwrap()
             .starts_with("Skaldsaga: Mara is a courier")
     );

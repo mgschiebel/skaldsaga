@@ -133,6 +133,25 @@ pub enum Outcome {
 /// Where committed proposals go.
 pub const COMMITTED_DIR: &str = "committed";
 
+/// The file the next git snapshot's message is written to (inside
+/// `.harness/`, kept out of git).
+pub const MESSAGE_FILE: &str = "commit-message.txt";
+
+/// Writes a snapshot message to `.harness/commit-message.txt` and returns its
+/// path relative to the story folder. The message can hold the writer's own
+/// words, so the skill passes it to git as a file (`git commit -F`) and never
+/// puts it inside a command line (SR-32).
+pub fn write_message(project: &Project, message: &str) -> Result<String, FsError> {
+    crate::settings::ensure_harness_ignored(
+        project,
+        MESSAGE_FILE,
+        "The text of the next git snapshot, which can hold the writer's own words.",
+    )?;
+    let text = format!("{}\n", message.trim_end());
+    fsio::write_atomic(&project.harness_dir().join(MESSAGE_FILE), &text)?;
+    Ok(format!("{}/{MESSAGE_FILE}", crate::project::HARNESS_DIR))
+}
+
 /// Commits one proposal from the inbox.
 pub fn commit(project: &Project, id: &str, options: CommitOptions) -> Result<Outcome, FsError> {
     // The ID becomes part of a path, so only a well-formed one gets that far (SR-20).
@@ -707,6 +726,23 @@ mod tests {
             commit(&project, "pr-badbadba", CommitOptions::default()).unwrap(),
             Outcome::Unreadable(_)
         ));
+    }
+
+    #[test]
+    fn a_hostile_message_is_stored_verbatim_in_an_ignored_file() {
+        let dir = TempDir::new();
+        let project = Project::new(dir.path());
+        std::fs::create_dir_all(project.harness_dir()).unwrap();
+        let hostile = "Skaldsaga: \"; touch pwned; $(touch pwned) `touch pwned` \\n it's";
+        let path = write_message(&project, hostile).unwrap();
+        assert_eq!(path, ".harness/commit-message.txt");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(&path)).unwrap(),
+            format!("{hostile}\n")
+        );
+        let ignore = std::fs::read_to_string(project.harness_dir().join(".gitignore")).unwrap();
+        assert!(ignore.lines().any(|l| l == MESSAGE_FILE));
+        assert!(!dir.path().join("pwned").exists());
     }
 
     #[test]

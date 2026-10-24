@@ -331,6 +331,15 @@ fn unsafe_files(project: &Project) -> Value {
         .unwrap_or(Value::Null)
 }
 
+/// Writes a snapshot message to its file and returns the path for the skill's
+/// `git commit -F`. No command returns the message text itself, so nothing
+/// can paste a writer's words into a command line (SR-32).
+fn message_file(project: &Project, message: &str) -> Result<Value, CliError> {
+    commit::write_message(project, message)
+        .map(Value::from)
+        .map_err(|e| CliError::Failed(e.to_string()))
+}
+
 fn strings(items: &[String]) -> Value {
     Value::Array(items.iter().map(|s| Value::from(s.as_str())).collect())
 }
@@ -515,7 +524,7 @@ fn commit_cmd(rest: &[&str]) -> Result<(), CliError> {
             v.set("files", strings(&files));
             v.set("add_paths", strings(&add_paths));
             v.set("remove_paths", strings(&remove_paths));
-            v.set("message", message.into());
+            v.set("message_file", message_file(&project, &message)?);
         }
         Outcome::Held { reason, report } => {
             v.set("outcome", "held".into());
@@ -567,8 +576,11 @@ fn complete_cmd(rest: &[&str]) -> Result<(), CliError> {
     v.set("unsafe_files", unsafe_files(&project));
     if !report.remove_paths.is_empty() {
         v.set(
-            "message",
-            "Skaldsaga: clear acknowledgments that no longer apply".into(),
+            "message_file",
+            message_file(
+                &project,
+                "Skaldsaga: clear acknowledgments that no longer apply",
+            )?,
         );
     }
     print_json(&v)
@@ -635,8 +647,8 @@ fn acknowledge_cmd(rest: &[&str]) -> Result<(), CliError> {
     v.set("renewed", Value::from(ack.renewed));
     v.set("add_paths", strings(&[ack.path]));
     v.set(
-        "message",
-        "Skaldsaga: note that a finding is fine as it is".into(),
+        "message_file",
+        message_file(&project, "Skaldsaga: note that a finding is fine as it is")?,
     );
     print_json(&v)
 }
@@ -653,7 +665,10 @@ fn withdraw_cmd(rest: &[&str]) -> Result<(), CliError> {
         Some(path) => {
             v.set("outcome", "withdrawn".into());
             v.set("remove_paths", strings(&[path]));
-            v.set("message", "Skaldsaga: withdraw an acknowledgment".into());
+            v.set(
+                "message_file",
+                message_file(&project, "Skaldsaga: withdraw an acknowledgment")?,
+            );
         }
         None => {
             v.set("outcome", "not_found".into());
