@@ -101,13 +101,20 @@ jobs:
           EOF
           sh dist/scripts/skaldsaga --version
           tar -C dist -czf "skaldsaga-${VERSION}-linux-x64.tar.gz" .
+          # A checksum file to publish with the tarball (SR-44). It is also
+          # checked again in the publish job, so a change between the jobs shows.
+          sha256sum "skaldsaga-${VERSION}-linux-x64.tar.gz" > "skaldsaga-${VERSION}-linux-x64.tar.gz.sha256"
+          cat "skaldsaga-${VERSION}-linux-x64.tar.gz.sha256"
 
-      # Only the tarball travels between the jobs: it keeps the files'
-      # permissions, which a plain artifact upload of the folder would drop.
+      # Only the tarball and its checksum travel between the jobs: the tarball
+      # keeps the files' permissions, which a plain artifact upload of the
+      # folder would drop.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release
-          path: skaldsaga-*-linux-x64.tar.gz
+          path: |
+            skaldsaga-*-linux-x64.tar.gz
+            skaldsaga-*-linux-x64.tar.gz.sha256
           if-no-files-found: error
           retention-days: 7
 
@@ -129,6 +136,8 @@ jobs:
       - name: Unpack the build
         run: |
           set -eu
+          # What was built is what gets published: the checksum must still match.
+          sha256sum --check skaldsaga-*-linux-x64.tar.gz.sha256
           mkdir dist
           tar -C dist -xzf skaldsaga-*-linux-x64.tar.gz
           sh dist/scripts/skaldsaga --version
@@ -144,14 +153,15 @@ jobs:
           # Creates the tag at this commit if it doesn't exist yet.
           if [ "$DRY_RUN" = "true" ]; then
             echo "Dry run: would create release $TAG at $GITHUB_SHA with skaldsaga-$VERSION-linux-x64.tar.gz"
-            ls -l "skaldsaga-$VERSION-linux-x64.tar.gz"
+            ls -l "skaldsaga-$VERSION-linux-x64.tar.gz" "skaldsaga-$VERSION-linux-x64.tar.gz.sha256"
             gh release list --limit 1
           else
             gh release create "$TAG" \
               "skaldsaga-$VERSION-linux-x64.tar.gz" \
+              "skaldsaga-$VERSION-linux-x64.tar.gz.sha256" \
               --target "$GITHUB_SHA" \
               --title "Skaldsaga $TAG" \
-              --notes "Phase 1 test build (not a public release). Linux x64 only, unsigned." \
+              --notes "Phase 1 test build (not a public release). Linux x64 only, unsigned. To check a download: sha256sum --check skaldsaga-$VERSION-linux-x64.tar.gz.sha256" \
               --prerelease
           fi
 
