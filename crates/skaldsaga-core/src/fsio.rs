@@ -5,7 +5,7 @@
 //! rules in one spot: every write is atomic, so a reader never sees half a
 //! file even when Claude Code cancels the status line script mid-run.
 
-use std::io::{self, Write as _};
+use std::io::{self, Read as _, Write as _};
 use std::path::Path;
 
 use crate::json::{self, Value, ValueExt as _};
@@ -45,12 +45,15 @@ fn io_err(path: &Path, source: io::Error) -> FsError {
     }
 }
 
-/// Reads a file, returning `None` when it does not exist.
+/// Reads a plain file that lives in the story folder, returning `None` when
+/// it does not exist. The same rules as `read_regular_capped` (SR-21, SR-23):
+/// a link or special file, or one over `MAX_STORY_FILE_BYTES`, is an error
+/// here, because every caller wants to stop and say so.
 pub fn read_optional(path: &Path) -> Result<Option<String>, FsError> {
-    match std::fs::read_to_string(path) {
-        Ok(s) => Ok(Some(s)),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(io_err(path, e)),
+    match read_regular_capped(path, MAX_STORY_FILE_BYTES)? {
+        None => Ok(None),
+        Some(Ok(text)) => Ok(Some(text)),
+        Some(Err(why)) => Err(refused_err(path, &why)),
     }
 }
 
@@ -63,35 +66,114 @@ pub enum Refused {
     TooBig,
 }
 
+fn refused_err(path: &Path, why: &Refused) -> FsError {
+    FsError::Io {
+        path: path.display().to_string(),
+        source: io::Error::new(io::ErrorKind::InvalidData, refusal_message(why)),
+    }
+}
+
+/// True when both describe the same file on disk. Where the system gives no
+/// way to tell (not Unix), the file type check alone has to do.
+#[cfg(unix)]
+fn same_file(a: &std::fs::Metadata, b: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt as _;
+    a.dev() == b.dev() && a.ino() == b.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file(_a: &std::fs::Metadata, _b: &std::fs::Metadata) -> bool {
+    true
+}
+
+/// Reads at most `max_bytes` from `reader`, however much it holds. One byte
+/// more than the cap is read, which is enough to tell "too big" from "just
+/// fits" without ever holding more than the cap plus one byte (SR-23).
+fn read_bounded(reader: impl io::Read, max_bytes: u64) -> io::Result<Result<String, Refused>> {
+    let mut bytes = Vec::new();
+    reader
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    match u64::try_from(bytes.len()) {
+        Ok(len) if len <= max_bytes => {}
+        _ => return Ok(Err(Refused::TooBig)),
+    }
+    Ok(String::from_utf8(bytes).map_err(|_| Refused::NotARegularFile))
+}
+
 /// Reads a small regular file for the story folder, refusing symlinks and
 /// special files and anything over `max_bytes`. A missing file is `Ok(None)`;
 /// a refused one is `Ok(Some(Err(_)))`, so the caller can report it and go on.
+///
+/// The file is opened once. What was opened has to be the file that was
+/// looked at (same device and file number), so a link swapped in after the
+/// check is refused, and the read stops at the cap even if the file grew
+/// since its size was checked.
 pub fn read_regular_capped(
     path: &Path,
     max_bytes: u64,
 ) -> Result<Option<Result<String, Refused>>, FsError> {
-    let meta = match std::fs::symlink_metadata(path) {
+    let before = match std::fs::symlink_metadata(path) {
         Ok(m) => m,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(io_err(path, e)),
     };
-    if !meta.file_type().is_file() {
+    if !before.file_type().is_file() {
         return Ok(Some(Err(Refused::NotARegularFile)));
     }
-    if meta.len() > max_bytes {
+    if before.len() > max_bytes {
         return Ok(Some(Err(Refused::TooBig)));
     }
-    match std::fs::read_to_string(path) {
-        Ok(s) => Ok(Some(Ok(s))),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(e) if e.kind() == io::ErrorKind::InvalidData => Ok(Some(Err(Refused::NotARegularFile))),
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(io_err(path, e)),
+    };
+    let opened = file.metadata().map_err(|e| io_err(path, e))?;
+    if !opened.is_file() || !same_file(&before, &opened) {
+        return Ok(Some(Err(Refused::NotARegularFile)));
+    }
+    match read_bounded(file, max_bytes) {
+        Ok(read) => Ok(Some(read)),
         Err(e) => Err(io_err(path, e)),
     }
 }
 
-/// Reads a JSON object file. A missing or empty file reads as `None`.
+/// Reads a file that belongs to the writer, not to the story (their own
+/// Claude Code settings). It may be a link, since many people keep their
+/// settings in a folder of dotfiles, but the read is still capped.
+pub fn read_user_optional(path: &Path) -> Result<Option<String>, FsError> {
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(io_err(path, e)),
+    };
+    let opened = file.metadata().map_err(|e| io_err(path, e))?;
+    if !opened.is_file() {
+        return Err(refused_err(path, &Refused::NotARegularFile));
+    }
+    match read_bounded(file, MAX_STORY_FILE_BYTES) {
+        Ok(Ok(text)) => Ok(Some(text)),
+        Ok(Err(why)) => Err(refused_err(path, &why)),
+        Err(e) => Err(io_err(path, e)),
+    }
+}
+
+/// Reads a JSON object file in the story folder. A missing or empty file
+/// reads as `None`; links and files over the cap are errors (see
+/// `read_optional`).
 pub fn read_json_object(path: &Path) -> Result<Option<Value>, FsError> {
-    let Some(text) = read_optional(path)? else {
+    parse_object(path, read_optional(path)?)
+}
+
+/// Like `read_json_object`, for a file that belongs to the writer (see
+/// `read_user_optional`).
+pub fn read_user_json_object(path: &Path) -> Result<Option<Value>, FsError> {
+    parse_object(path, read_user_optional(path)?)
+}
+
+fn parse_object(path: &Path, text: Option<String>) -> Result<Option<Value>, FsError> {
+    let Some(text) = text else {
         return Ok(None);
     };
     if text.trim().is_empty() {
@@ -109,6 +191,61 @@ pub fn read_json_object(path: &Path) -> Result<Option<Value>, FsError> {
     Ok(Some(v))
 }
 
+/// What a refused write says, in plain words.
+const LINKED_FOLDER: &str = "this folder is a link; Skaldsaga never writes through a link, so nothing was changed. Replace the link with a real folder, or ask where it came from";
+
+/// Refuses to touch anything below `dir` when `dir`, or any folder between
+/// `root` and it, is a link (SR-21). `root` is the story folder; a path that
+/// is not inside it belongs to the writer (their own settings) and is not
+/// checked. A folder that does not exist yet is fine: nothing deeper can be
+/// a link either.
+///
+/// Reading refuses links and so must writing: a story that was cloned or
+/// shared can hold a link where a folder should be, and a write would
+/// otherwise land wherever the link points.
+pub fn refuse_links_in(root: &Path, dir: &Path) -> Result<(), FsError> {
+    let Ok(inside) = dir.strip_prefix(root) else {
+        return Ok(());
+    };
+    let mut here = root.to_path_buf();
+    for part in inside.components() {
+        match part {
+            std::path::Component::Normal(name) => here.push(name),
+            std::path::Component::CurDir => continue,
+            _ => {
+                return Err(FsError::Io {
+                    path: dir.display().to_string(),
+                    source: io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "this path leaves the story folder",
+                    ),
+                });
+            }
+        }
+        match std::fs::symlink_metadata(&here) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                return Err(FsError::Io {
+                    path: here.display().to_string(),
+                    source: io::Error::new(io::ErrorKind::InvalidInput, LINKED_FOLDER),
+                });
+            }
+            Ok(_) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(io_err(&here, e)),
+        }
+    }
+    Ok(())
+}
+
+/// `refuse_links_in` for the folder a file is going into. The file itself
+/// may be a link: writing replaces the link and never writes through it.
+pub fn refuse_links_under(root: &Path, file: &Path) -> Result<(), FsError> {
+    match file.parent() {
+        Some(parent) => refuse_links_in(root, parent),
+        None => Ok(()),
+    }
+}
+
 /// Counts temporary files so each name in this process is new.
 static TMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -124,7 +261,7 @@ fn tmp_path(parent: &Path, file_name: &str, n: u64) -> std::path::PathBuf {
 /// is created exclusively: if anything already sits at that name (a link
 /// planted in a shared story folder, say), it is never opened or written
 /// through, and the next name is tried (SR-22).
-pub fn write_atomic(path: &Path, contents: &str) -> Result<(), FsError> {
+pub(crate) fn write_atomic(path: &Path, contents: &str) -> Result<(), FsError> {
     let start = TMP_COUNTER.fetch_add(TMP_ATTEMPTS, std::sync::atomic::Ordering::Relaxed);
     write_atomic_from(path, contents, start)
 }
@@ -168,12 +305,12 @@ fn write_atomic_from(path: &Path, contents: &str, start: u64) -> Result<(), FsEr
 }
 
 /// Writes a JSON value atomically, pretty-printed.
-pub fn write_json(path: &Path, value: &Value) -> Result<(), FsError> {
+pub(crate) fn write_json(path: &Path, value: &Value) -> Result<(), FsError> {
     write_atomic(path, &value.to_pretty_string())
 }
 
 /// Removes a file, treating "already gone" as success.
-pub fn remove_optional(path: &Path) -> Result<bool, FsError> {
+pub(crate) fn remove_optional(path: &Path) -> Result<bool, FsError> {
     match std::fs::remove_file(path) {
         Ok(()) => Ok(true),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
@@ -265,7 +402,7 @@ pub fn list_dir(path: &Path) -> Result<Vec<DirEntry>, FsError> {
 }
 
 /// Creates a folder (and its parents). Returns true if it didn't exist.
-pub fn ensure_dir(path: &Path) -> Result<bool, FsError> {
+pub(crate) fn ensure_dir(path: &Path) -> Result<bool, FsError> {
     if path.is_dir() {
         return Ok(false);
     }
@@ -275,7 +412,7 @@ pub fn ensure_dir(path: &Path) -> Result<bool, FsError> {
 
 /// Writes a file only if nothing is there yet. Returns true if it wrote.
 /// Never replaces an existing file, so setup can't overwrite the writer's work.
-pub fn write_if_missing(path: &Path, contents: &str) -> Result<bool, FsError> {
+pub(crate) fn write_if_missing(path: &Path, contents: &str) -> Result<bool, FsError> {
     if path.exists() {
         return Ok(false);
     }
@@ -317,6 +454,140 @@ mod tests {
                 read_regular_capped(&link, 10).unwrap(),
                 Some(Err(Refused::NotARegularFile))
             );
+        }
+    }
+
+    #[test]
+    fn a_read_stops_at_the_cap_however_much_the_source_holds() {
+        // An endless source must not hang or fill memory: only the cap plus
+        // one byte is ever read.
+        assert_eq!(
+            read_bounded(io::repeat(b'a'), 10).unwrap(),
+            Err(Refused::TooBig)
+        );
+        assert_eq!(
+            read_bounded(&b"hello"[..], 5).unwrap(),
+            Ok("hello".to_string())
+        );
+        assert_eq!(
+            read_bounded(&b"hello!"[..], 5).unwrap(),
+            Err(Refused::TooBig)
+        );
+        // A multi-byte letter cut by the cap reads as too big, not as broken text.
+        assert_eq!(
+            read_bounded("éé".as_bytes(), 3).unwrap(),
+            Err(Refused::TooBig)
+        );
+        assert_eq!(
+            read_bounded(&[0xff, 0xfe][..], 10).unwrap(),
+            Err(Refused::NotARegularFile)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_file_that_was_opened_must_be_the_one_that_was_checked() {
+        let dir = TempDir::new();
+        let a = dir.path().join("a");
+        let b = dir.path().join("b");
+        let hard = dir.path().join("hard");
+        std::fs::write(&a, "x").unwrap();
+        std::fs::write(&b, "x").unwrap();
+        std::fs::hard_link(&a, &hard).unwrap();
+        let meta = |p: &Path| std::fs::symlink_metadata(p).unwrap();
+        assert!(same_file(&meta(&a), &meta(&a)));
+        assert!(same_file(&meta(&a), &meta(&hard)));
+        assert!(!same_file(&meta(&a), &meta(&b)));
+    }
+
+    #[test]
+    fn story_reads_refuse_links_folders_and_big_files() {
+        let dir = TempDir::new();
+        let file = dir.path().join("s.json");
+        std::fs::write(&file, "{\"a\": 1}").unwrap();
+        assert_eq!(
+            read_optional(&file).unwrap(),
+            Some("{\"a\": 1}".to_string())
+        );
+        assert!(read_json_object(&file).unwrap().is_some());
+        assert_eq!(read_optional(&dir.path().join("none")).unwrap(), None);
+
+        let big = dir.path().join("big.json");
+        std::fs::write(
+            &big,
+            vec![b'a'; usize::try_from(MAX_STORY_FILE_BYTES).unwrap() + 1],
+        )
+        .unwrap();
+        assert!(read_optional(&big).is_err());
+        assert!(read_json_object(&big).is_err());
+        assert!(read_optional(dir.path()).is_err(), "a folder is not a file");
+        #[cfg(unix)]
+        {
+            let link = dir.path().join("link.json");
+            std::os::unix::fs::symlink(&file, &link).unwrap();
+            let err = read_json_object(&link).unwrap_err().to_string();
+            assert!(err.contains("never follows links"), "{err}");
+            assert!(read_optional(&link).is_err());
+        }
+    }
+
+    #[test]
+    fn the_writers_own_files_may_be_links_but_stay_capped() {
+        let dir = TempDir::new();
+        let file = dir.path().join("mine.json");
+        std::fs::write(&file, "{\"a\": 1}").unwrap();
+        assert!(read_user_json_object(&file).unwrap().is_some());
+        assert_eq!(read_user_optional(&dir.path().join("none")).unwrap(), None);
+        #[cfg(unix)]
+        {
+            let link = dir.path().join("dotfiles-link.json");
+            std::os::unix::fs::symlink(&file, &link).unwrap();
+            assert!(read_user_json_object(&link).unwrap().is_some());
+        }
+        let big = dir.path().join("big.json");
+        std::fs::write(
+            &big,
+            vec![b'a'; usize::try_from(MAX_STORY_FILE_BYTES).unwrap() + 1],
+        )
+        .unwrap();
+        assert!(read_user_json_object(&big).is_err());
+        assert!(
+            read_user_optional(dir.path()).is_err(),
+            "a folder is not a file"
+        );
+    }
+
+    #[test]
+    fn writes_are_refused_below_a_link_but_not_elsewhere() {
+        let dir = TempDir::new();
+        let root = dir.path().join("story");
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::create_dir_all(root.join("spec/people")).unwrap();
+        std::fs::create_dir_all(&elsewhere).unwrap();
+
+        // Plain folders, and folders that do not exist yet, are fine.
+        assert!(refuse_links_under(&root, &root.join("spec/people/p.md")).is_ok());
+        assert!(refuse_links_under(&root, &root.join("spec/new/deeper/p.md")).is_ok());
+        assert!(refuse_links_in(&root, &root.join("spec/people")).is_ok());
+        // A path outside the story is the writer's own and is not checked.
+        assert!(refuse_links_under(&root, &elsewhere.join("x.json")).is_ok());
+        // A path that climbs out of the story is refused.
+        assert!(refuse_links_under(&root, &root.join("spec/../../x.md")).is_err());
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&elsewhere, root.join("spec/places")).unwrap();
+            let err = refuse_links_under(&root, &root.join("spec/places/p.md"))
+                .unwrap_err()
+                .to_string();
+            assert!(err.contains("never writes through a link"), "{err}");
+            assert!(refuse_links_in(&root, &root.join("spec/places")).is_err());
+            assert!(refuse_links_in(&root, &root.join("spec/places/deeper")).is_err());
+            // A link in the middle of the way is caught too.
+            std::os::unix::fs::symlink(&elsewhere, root.join("spec/people/more")).unwrap();
+            assert!(refuse_links_under(&root, &root.join("spec/people/more/x/p.md")).is_err());
+            // The file itself may be a link: a write replaces it and never goes through it.
+            std::os::unix::fs::symlink(&elsewhere, root.join("spec/people/p.md")).unwrap();
+            assert!(refuse_links_under(&root, &root.join("spec/people/p.md")).is_ok());
         }
     }
 

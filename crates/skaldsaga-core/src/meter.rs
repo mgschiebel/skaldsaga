@@ -80,7 +80,7 @@ impl StatusInput {
 /// Saves a reading to `.harness/meter.json` (atomically).
 pub fn write_reading(project: &Project, reading: &Reading) -> Result<(), FsError> {
     let value = serde_json::to_value(reading).unwrap_or_else(|_| json::object());
-    fsio::write_json(&project.meter_path(), &value)
+    project.write_json(&project.meter_path(), &value)
 }
 
 /// Loads the last reading. A missing or unreadable file reads as `None`:
@@ -95,7 +95,7 @@ pub fn read_reading(project: &Project) -> Option<Reading> {
 /// Deletes the reading, for example when a new session starts, so a full
 /// meter from the last session can't end the new one early.
 pub fn reset(project: &Project) -> Result<bool, FsError> {
-    fsio::remove_optional(&project.meter_path())
+    project.remove_optional(&project.meter_path())
 }
 
 /// What the interviewer should do.

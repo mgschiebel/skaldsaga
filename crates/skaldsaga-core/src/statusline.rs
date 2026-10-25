@@ -107,7 +107,7 @@ pub fn wire(
         let mut updated = current.clone();
         updated.set("command", command.into());
         local_doc.set("statusLine", updated);
-        fsio::write_json(&local_path, &local_doc)?;
+        project.write_json(&local_path, &local_doc)?;
         return Ok(WireOutcome::Updated);
     }
 
@@ -122,7 +122,7 @@ pub fn wire(
                 Some(line) if is_meter_command(&line) => None,
                 Some(line) => Some(line),
                 None => match user_settings {
-                    Some(path) => statusline_in(fsio::read_json_object(path)?.as_ref())
+                    Some(path) => statusline_in(fsio::read_user_json_object(path)?.as_ref())
                         .filter(|s| !is_meter_command(s)),
                     None => None,
                 },
@@ -143,7 +143,7 @@ pub fn wire(
         ours.set("padding", padding);
     }
     local_doc.set("statusLine", ours);
-    fsio::write_json(&local_path, &local_doc)?;
+    project.write_json(&local_path, &local_doc)?;
     Ok(WireOutcome::Wired { wrapped })
 }
 
@@ -174,11 +174,11 @@ pub fn retire_shared(project: &Project) -> Result<Option<Retired>, FsError> {
     if let Some(map) = doc.as_object_mut() {
         map.shift_remove("statusLine");
         if map.is_empty() {
-            fsio::remove_optional(&path)?;
+            project.remove_optional(&path)?;
             return Ok(Some(Retired::Removed));
         }
     }
-    fsio::write_json(&path, &doc)?;
+    project.write_json(&path, &doc)?;
     Ok(Some(Retired::Edited))
 }
 
@@ -203,7 +203,7 @@ pub fn refresh(project: &Project, command: &str) -> Result<bool, FsError> {
     }
     current.set("command", command.into());
     doc.set("statusLine", current);
-    fsio::write_json(&path, &doc)?;
+    project.write_json(&path, &doc)?;
     Ok(true)
 }
 

@@ -12,7 +12,9 @@ use std::io::Write as _;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::Duration;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -54,6 +56,22 @@ fn run(dir: &Path, args: &[&str], stdin: Option<&str>, env: &[(&str, &str)]) -> 
         cmd.env(k, v);
     }
     let mut child = cmd.spawn().unwrap();
+    // A run that never ends (a read that does not stop) must fail the test,
+    // not hang the build.
+    let finished = Arc::new(AtomicBool::new(false));
+    let pid = child.id().to_string();
+    let watchdog = {
+        let finished = Arc::clone(&finished);
+        std::thread::spawn(move || {
+            for _ in 0..300 {
+                if finished.load(Ordering::Relaxed) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            let _ = Command::new("kill").args(["-9", &pid]).status();
+        })
+    };
     if let Some(text) = stdin {
         child
             .stdin
@@ -62,7 +80,10 @@ fn run(dir: &Path, args: &[&str], stdin: Option<&str>, env: &[(&str, &str)]) -> 
             .write_all(text.as_bytes())
             .unwrap();
     }
-    child.wait_with_output().unwrap()
+    let output = child.wait_with_output().unwrap();
+    finished.store(true, Ordering::Relaxed);
+    watchdog.join().unwrap();
+    output
 }
 
 fn skaldsaga(dir: &Path, args: &[&str]) -> Output {
@@ -285,4 +306,169 @@ fn nothing_in_a_hostile_story_is_ever_run_and_everything_is_flagged() {
         assert!(!marker.exists(), "{} was created", marker.display());
     }
     assert!(!outside.path().join("PWNED-text").exists());
+}
+
+/// A story set up with the two demo proposals waiting to be committed, and a
+/// separate folder that stands for "somewhere else on this computer".
+fn story_with_proposals() -> (TempDir, TempDir) {
+    let story = TempDir::new();
+    let outside = TempDir::new();
+    let root = story.path().to_str().unwrap();
+    assert!(
+        skaldsaga(story.path(), &["init", "--project", root])
+            .status
+            .success()
+    );
+    assert!(
+        skaldsaga(story.path(), &["scenario", "basics", "--project", root])
+            .status
+            .success()
+    );
+    (story, outside)
+}
+
+fn files_in(dir: &Path) -> Vec<PathBuf> {
+    match std::fs::read_dir(dir) {
+        Ok(entries) => entries.map(|e| e.unwrap().path()).collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Reproduces the baseline finding: with a node folder replaced by a link, a
+/// commit used to create its files wherever the link pointed. It must stop
+/// before writing anything, in any folder (SR-21).
+#[test]
+fn a_commit_never_writes_through_a_linked_folder_and_changes_nothing() {
+    let (story, outside) = story_with_proposals();
+    let root = story.path();
+    let rootstr = root.to_str().unwrap();
+    // Only `places` is a link, so the people and scenes would be written
+    // before the places if the commit did not check first.
+    std::os::unix::fs::symlink(outside.path(), root.join("spec/places")).unwrap();
+
+    let out = skaldsaga(
+        root,
+        &[
+            "commit",
+            "--proposal",
+            "pr-demstart",
+            "--decision",
+            "keep_anyway",
+            "--project",
+            rootstr,
+        ],
+    );
+    assert!(!out.status.success(), "a commit through a link must fail");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("link"), "the message says why: {stderr}");
+    assert!(
+        stderr.contains("nothing was changed"),
+        "the message says nothing changed: {stderr}"
+    );
+
+    assert!(
+        files_in(outside.path()).is_empty(),
+        "nothing may land outside the story"
+    );
+    for folder in ["people", "scenes", "groups", "items"] {
+        assert!(
+            files_in(&root.join("spec").join(folder)).is_empty(),
+            "{folder} was written"
+        );
+    }
+    assert!(
+        root.join(".harness/inbox/pr-demstart.json").exists(),
+        "the proposal stays in the inbox"
+    );
+    assert!(
+        !root.join(".harness/committed/pr-demstart.json").exists(),
+        "nothing was archived"
+    );
+}
+
+#[test]
+fn a_commit_still_works_when_nothing_is_a_link() {
+    let (story, outside) = story_with_proposals();
+    let root = story.path();
+    let rootstr = root.to_str().unwrap();
+    let out = skaldsaga(
+        root,
+        &[
+            "commit",
+            "--proposal",
+            "pr-demstart",
+            "--decision",
+            "keep_anyway",
+            "--project",
+            rootstr,
+        ],
+    );
+    assert_eq!(json_of(&out)["outcome"], "committed");
+    assert!(!files_in(&root.join("spec/people")).is_empty());
+    assert!(files_in(outside.path()).is_empty());
+}
+
+#[test]
+fn rebuilding_the_index_never_writes_through_a_linked_folder() {
+    let (story, outside) = story_with_proposals();
+    let root = story.path();
+    let rootstr = root.to_str().unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.join("spec/_index")).unwrap();
+    let out = skaldsaga(root, &["index", "--project", rootstr]);
+    assert!(!out.status.success());
+    assert!(files_in(outside.path()).is_empty());
+}
+
+/// The baseline's reader findings: a story can ship its settings files as
+/// links to something endless. Nothing may follow them or read without end;
+/// the hook and the status line stay quiet, and the commands that need the
+/// file stop and name it (SR-21, SR-23).
+#[test]
+fn settings_files_that_are_links_are_refused_and_never_read_without_end() {
+    let (story, _outside) = story_with_proposals();
+    let root = story.path();
+    let rootstr = root.to_str().unwrap();
+    std::fs::create_dir_all(root.join(".claude")).unwrap();
+    for rel in [
+        ".harness/settings.json",
+        ".harness/meter.json",
+        ".claude/settings.json",
+    ] {
+        let _ = std::fs::remove_file(root.join(rel));
+        std::os::unix::fs::symlink("/dev/zero", root.join(rel)).unwrap();
+    }
+
+    let hook = run(
+        root,
+        &["hook", "session-start"],
+        Some("{\"source\":\"startup\"}"),
+        &[
+            ("CLAUDE_PROJECT_DIR", rootstr),
+            ("CLAUDE_PLUGIN_ROOT", "/nowhere"),
+        ],
+    );
+    assert!(hook.status.success());
+    assert!(
+        !String::from_utf8_lossy(&hook.stderr).contains("skaldsaga:"),
+        "the hook shows no error"
+    );
+
+    let line = run(
+        root,
+        &["meter", "statusline"],
+        Some(&format!(
+            "{{\"session_id\":\"s\",\"workspace\":{{\"project_dir\":\"{rootstr}\"}},\"context_window\":{{\"used_percentage\":40}}}}"
+        )),
+        &[],
+    );
+    assert!(line.status.success());
+    assert!(String::from_utf8_lossy(&line.stdout).contains("40%"));
+
+    let check = skaldsaga(root, &["check", "--project", rootstr]);
+    assert!(!check.status.success());
+    let message = String::from_utf8_lossy(&check.stderr);
+    assert!(
+        message.contains("settings.json") && message.contains("never follows links"),
+        "{message}"
+    );
 }

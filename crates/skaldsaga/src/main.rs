@@ -449,8 +449,7 @@ fn index_cmd(rest: &[&str]) -> Result<(), CliError> {
             "this folder isn't set up for Skaldsaga yet (no .harness folder)".into(),
         ));
     }
-    let rebuilt =
-        index::rebuild(&project.spec_dir()).map_err(|e| CliError::Failed(e.to_string()))?;
+    let rebuilt = index::rebuild(&project).map_err(|e| CliError::Failed(e.to_string()))?;
     let mut v = json::object();
     v.set("outcome", "rebuilt".into());
     v.set("files", strings(&rebuilt.files));

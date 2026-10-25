@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::fsio::{self, FsError};
+use crate::fsio::FsError;
 use crate::ids::{self, IdKind};
 use crate::project::Project;
 use crate::proposal::{self, Op, Proposal, Revisions};
@@ -116,7 +116,7 @@ pub fn file(project: &Project, draft: &str, created: &str) -> Result<String, Pro
         revisions: Revisions::default(),
         check: None,
     };
-    fsio::write_atomic(&path, &proposal::render(&filed))?;
+    project.write_atomic(&path, &proposal::render(&filed))?;
     Ok(id)
 }
 

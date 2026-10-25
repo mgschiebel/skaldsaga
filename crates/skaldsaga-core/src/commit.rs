@@ -148,8 +148,25 @@ pub fn write_message(project: &Project, message: &str) -> Result<String, FsError
         "The text of the next git snapshot, which can hold the writer's own words.",
     )?;
     let text = format!("{}\n", message.trim_end());
-    fsio::write_atomic(&project.harness_dir().join(MESSAGE_FILE), &text)?;
+    project.write_atomic(&project.harness_dir().join(MESSAGE_FILE), &text)?;
     Ok(format!("{}/{MESSAGE_FILE}", crate::project::HARNESS_DIR))
+}
+
+/// Every folder a commit can write into or remove from.
+fn write_folders(project: &Project) -> Vec<std::path::PathBuf> {
+    let spec = project.spec_dir();
+    let mut dirs = vec![
+        spec.clone(),
+        spec.join(spec::INDEX_DIR),
+        project.inbox_dir(),
+        project.harness_dir().join(COMMITTED_DIR),
+    ];
+    dirs.extend(
+        crate::model::NodeType::ALL
+            .iter()
+            .map(|t| spec.join(t.folder())),
+    );
+    dirs
 }
 
 /// Commits one proposal from the inbox.
@@ -158,6 +175,9 @@ pub fn commit(project: &Project, id: &str, options: CommitOptions) -> Result<Out
     if !crate::ids::is_kind(id, crate::ids::IdKind::Proposal) {
         return Ok(Outcome::NotFound);
     }
+    // A commit writes in several folders. If any of them is a link, stop now,
+    // before anything is written, instead of half way (SR-21).
+    project.refuse_links_in(&write_folders(project))?;
     let inbox_path = project.inbox_dir().join(format!("{id}.json"));
     let text = match fsio::read_regular_capped(&inbox_path, fsio::MAX_STORY_FILE_BYTES)? {
         Some(Ok(text)) => text,
@@ -202,7 +222,7 @@ pub fn commit(project: &Project, id: &str, options: CommitOptions) -> Result<Out
         // Keep the fresh verdict in the inbox file, as check would.
         proposal.check = Some(report.to_value());
         proposal.revisions.checked = report.checked.clone();
-        fsio::write_atomic(&inbox_path, &proposal::render(&proposal))?;
+        project.write_atomic(&inbox_path, &proposal::render(&proposal))?;
         return Ok(Outcome::Held { reason, report });
     }
 
@@ -224,8 +244,8 @@ pub fn commit(project: &Project, id: &str, options: CommitOptions) -> Result<Out
     };
     label(&mut applied, report.lane, decision);
 
-    let (written, removed) = write_spec(&spec_dir, spec, &applied)?;
-    let rebuilt = index::rebuild(&spec_dir)?;
+    let (written, removed) = write_spec(project, &spec_dir, spec, &applied)?;
+    let rebuilt = index::rebuild(project)?;
     let mut files: Vec<String> = written.iter().chain(&removed).cloned().collect();
     files.sort();
     files.extend(rebuilt.files.iter().map(|f| format!("spec/{f}")));
@@ -261,8 +281,8 @@ pub fn commit(project: &Project, id: &str, options: CommitOptions) -> Result<Out
     }
     let mut archive_text = serde_json::to_string_pretty(&archived).unwrap_or_default();
     archive_text.push('\n');
-    fsio::write_atomic(&archive_path, &archive_text)?;
-    fsio::remove_optional(&inbox_path)?;
+    project.write_atomic(&archive_path, &archive_text)?;
+    project.remove_optional(&inbox_path)?;
 
     let mut add_paths = written;
     add_paths.push(format!(".harness/{COMMITTED_DIR}/{id}.json"));
@@ -348,6 +368,7 @@ fn label(applied: &mut Applied, lane: Lane, decision: Option<Decision>) {
 /// `sequence.md` and `attributes.md` when they changed. Returns the paths
 /// written and removed, relative to the project folder.
 fn write_spec(
+    project: &Project,
     spec_dir: &Path,
     before: &spec::Spec,
     applied: &Applied,
@@ -364,7 +385,7 @@ fn write_spec(
             path: path.clone(),
             source: std::io::Error::other(e.0),
         })?;
-        fsio::write_atomic(&spec_dir.join(&path), &text)?;
+        project.write_atomic(&spec_dir.join(&path), &text)?;
         files.push(rel(&path));
     }
     for id in &applied.removed_nodes {
@@ -372,11 +393,11 @@ fn write_spec(
             continue;
         };
         let path = format!("{}/{id}.md", node.node_type().folder());
-        fsio::remove_optional(&spec_dir.join(&path))?;
+        project.remove_optional(&spec_dir.join(&path))?;
         removed.push(rel(&path));
     }
     if applied.sequence_changed {
-        fsio::write_atomic(
+        project.write_atomic(
             &spec_dir.join(SEQUENCE_FILE),
             &spec::render_sequence(&applied.spec.sequence),
         )?;
@@ -399,7 +420,7 @@ fn write_spec(
                     source: std::io::Error::other(e),
                 }
             })?;
-        fsio::write_atomic(&path, &text)?;
+        project.write_atomic(&path, &text)?;
         files.push(rel(ATTRIBUTES_FILE));
     }
     files.sort();
