@@ -13,6 +13,7 @@ Security requirements this touches (IDs from `docs/security/2026-10-20-review.md
 - [ ] No secrets, account emails, full session or plugin IDs, or `settings.local.json` contents anywhere in the diff or this description
 - [ ] No Claude session link in a commit message or this description (SR-03)
 - [ ] Any new dependency or Action has a one-line reason here and is pinned (SR-40, SR-43)
+- [ ] Everything new that is included (dependency, copied code, text, asset) is AGPL-3.0-or-later or under a license on the allowlist in `docs/security/license-policy.md`
 - [ ] If this adds a new input, automatic runner or output channel, `docs/security/status.md` is updated (SR-61)
 
 ## Handoff

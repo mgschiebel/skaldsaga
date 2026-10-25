@@ -60,7 +60,7 @@ Skaldsaga draws on many story-structure ideas. Its early design was inspired in 
 
 ## For contributors
 
-The project is in its planning phase. Start with:
+The project is in its planning phase. Licensing rules for contributions are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Start with:
 
 - [`HANDOFF.md`](HANDOFF.md): the index to every decision so far (status, what's next, and a map of the reference files in [`docs/handoff/`](docs/handoff/) that hold the reasoning and open questions)
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): a one-page sketch of the components and how they fit together
