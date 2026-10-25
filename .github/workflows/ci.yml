@@ -28,14 +28,23 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
+      # These checks live in ci/presubmit.sh, which build sessions run before
+      # every push, so the local run and this gate are the same thing. The
+      # dependency checks run in deny.yml.
       - name: Format
-        run: cargo fmt --all --check
+        run: sh ci/presubmit.sh fmt
 
       - name: Lint
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: sh ci/presubmit.sh clippy
 
       - name: Test
-        run: cargo test --locked
+        run: sh ci/presubmit.sh test
+
+      - name: Check the license lists agree
+        run: sh ci/presubmit.sh license-sync
+
+      - name: Check the license elections cover the dependencies
+        run: sh ci/presubmit.sh license-elections
 
       - name: Build release binary
         run: cargo build --release --locked
@@ -44,7 +53,7 @@ jobs:
         # Findings are turned into annotations so they show on the pull request.
         run: |
           set -o pipefail
-          shellcheck -f gcc plugin/scripts/skaldsaga ci/assemble-dist.sh ci/check-session-links.sh \
+          sh ci/presubmit.sh shellcheck \
             | sed -E 's/^([^:]+):([0-9]+):([0-9]+): (.*)$/::error file=\1,line=\2,col=\3::\4/'
 
       - name: Assemble the plugin

@@ -1,0 +1,51 @@
+name: Workflow security
+
+# zizmor audits the workflow files and Dependabot config themselves: script
+# injection, excessive permissions, unpinned or impostor actions, credentials
+# left in checkouts (SR-40 to SR-45). Findings show as annotations on the pull
+# request. It runs with the strictest persona because any finding of any
+# severity counts (appsec-tooling-research.md, Goal and Strategy item 2).
+#
+# REPORT-ONLY until the baselining pull request is merged: the workflows that
+# existed before zizmor still have findings, so `--no-exit-codes` keeps this
+# job green. Baselining removes that flag, and then the job fails on any
+# finding; the author then makes it a required check in the ruleset.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    paths:
+      - ".github/**"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  zizmor:
+    name: Audit workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # check out the code
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The version is pinned (SR-42). pip checks the package against the index
+      # it came from; there is no lock file for the tool itself.
+      - name: Install zizmor
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor-venv"
+          "$RUNNER_TEMP/zizmor-venv/bin/pip" install --quiet zizmor==1.31.1
+
+      # The token lets zizmor's online audits ask GitHub about the actions we use.
+      - name: Audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          "$RUNNER_TEMP/zizmor-venv/bin/zizmor" --persona=auditor --format=github --no-exit-codes .github
