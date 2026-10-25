@@ -8,7 +8,8 @@
 #   sh ci/presubmit.sh fmt clippy      run only the named checks
 #
 # Checks: fmt, clippy, test, shellcheck, deny, license-sync, license-elections,
-# release-files.
+# release-files, fuzz (a short pass: needs cargo-fuzz and a nightly toolchain;
+# FUZZ_SECONDS and FUZZ_TOOLCHAIN are read by ci/fuzz-smoke.sh).
 #
 # A check that cannot run in this environment is reported as NOT RUN and the
 # script exits non-zero, so nothing is skipped silently. In CI the same
@@ -19,7 +20,7 @@ set -u
 
 cd "$(dirname "$0")/.." || exit 1
 
-all="fmt clippy test shellcheck deny license-sync license-elections release-files"
+all="fmt clippy test shellcheck deny license-sync license-elections release-files fuzz"
 if [ "$#" -gt 0 ]; then checks="$*"; else checks="$all"; fi
 
 failed=""
@@ -46,8 +47,10 @@ run() {
 
 for check in $checks; do
   case "$check" in
-    fmt) run fmt cargo cargo fmt --all --check ;;
-    clippy) run clippy cargo cargo clippy --all-targets --locked -- -D warnings ;;
+    # The fuzz crate sits outside the workspace (it needs nightly to run), so
+    # the format and lint checks name it on their own; both work on stable.
+    fmt) run fmt cargo sh -c 'cargo fmt --all --check && cargo fmt --manifest-path fuzz/Cargo.toml --check' ;;
+    clippy) run clippy cargo sh -c 'cargo clippy --all-targets --locked -- -D warnings && cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --locked -- -D warnings' ;;
     test) run test cargo cargo test --locked ;;
     # Every shell script the plugin ships or CI runs.
     shellcheck) run shellcheck shellcheck shellcheck -f gcc plugin/scripts/skaldsaga ci/*.sh ;;
@@ -55,6 +58,7 @@ for check in $checks; do
     license-sync) run license-sync "" sh ci/check-license-sync.sh ;;
     license-elections) run license-elections python3 python3 -I ci/check-license-elections.py ;;
     release-files) run release-files python3 python3 -I ci/release-files.py check ;;
+    fuzz) run fuzz cargo-fuzz sh ci/fuzz-smoke.sh ;;
     *)
       echo "presubmit: unknown check '$check' (known: $all)" >&2
       exit 2

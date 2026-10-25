@@ -132,3 +132,35 @@ jobs:
           rm "$d/scripts/bin/linux-x64/skaldsaga"
           test -z "$(echo '{}' | sh "$d/scripts/skaldsaga" hook session-start)"
           test "$(echo '{}' | sh "$d/scripts/skaldsaga" meter statusline)" = ""
+
+  # A short fuzz pass over the loaders (docs/security/appsec-tooling-research.md,
+  # step 5). Fuzzing needs nightly Rust, so it has its own job; the nightly is
+  # pinned by date and the tool by version (SR-42). A crash fails the job and
+  # leaves the input in the job's annotations.
+  fuzz:
+    name: Fuzz smoke (Linux x64)
+    runs-on: ubuntu-latest
+    env:
+      FUZZ_TOOLCHAIN: nightly-2026-10-24
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The runner already has rustup, so no action is needed for this. The tool
+      # is built with the pinned stable (its locked dependencies don't compile on
+      # nightly) and then runs the targets on the pinned nightly.
+      - name: Install the pinned toolchains
+        run: |
+          rustup toolchain install 1.97.0 --profile minimal --no-self-update
+          rustup toolchain install "$FUZZ_TOOLCHAIN" --profile minimal --no-self-update
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: fuzz
+
+      - name: Install cargo-fuzz
+        run: cargo +1.97.0 install cargo-fuzz --locked --version 0.13.1
+
+      - name: Fuzz the loaders
+        run: sh ci/presubmit.sh fuzz
