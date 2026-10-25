@@ -15,6 +15,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use skaldsaga_core::check::{self, InboxEntry};
 use skaldsaga_core::commit::{self, CommitOptions, Decision, Outcome};
 use skaldsaga_core::complete;
+use skaldsaga_core::craft::{self, CraftError};
 use skaldsaga_core::decisions::{self, DecisionError};
 use skaldsaga_core::demo::{self, DemoOutcome};
 use skaldsaga_core::fsio::{self, Refused};
@@ -73,6 +74,25 @@ Usage:
                                      is. The writer's own words come from FILE. Prints JSON
   skaldsaga decisions withdraw --decision ID [--project DIR]
                                      Deletes one of the writer's stored decisions
+  skaldsaga craft status [--project DIR]
+                                     What the writer has been taught and has shown they can use,
+                                     and how each concept should be worded now. Prints JSON
+  skaldsaga craft teach --concept ID [--via interviewer|writer_said] [--project DIR]
+  skaldsaga craft demonstrate --concept ID --evidence ID,ID [--project DIR]
+  skaldsaga craft misconception --concept ID --words-file FILE [--corrected yes|no]
+                                     [--project DIR]
+  skaldsaga craft teaching --level normal|less|more_why [--project DIR]
+  skaldsaga craft experience --written-before yes|no --read-craft-books yes|no
+                                     [--project DIR]
+                                     Record what the writer was taught, showed, got wrong, and
+                                     how much explaining they want. Prints JSON, including
+                                     paths for git
+  skaldsaga craft research-add --file FILE [--project DIR]
+                                     Stores a researched concept for this story (provisional)
+  skaldsaga craft export [--project DIR]
+                                     Prints this story's researched concepts with the story's
+                                     own examples removed, for review
+  skaldsaga craft shuffle --count N  Prints a random order for N options (2 to 12)
   skaldsaga index [--project DIR]    Rebuilds the generated index in spec/_index (backlinks,
                                      attributes, grid, scenes, status). Prints a summary as JSON
   skaldsaga --version                Prints the version
@@ -112,6 +132,7 @@ fn main() -> ExitCode {
         ["commit", rest @ ..] => run(commit_cmd(rest)),
         ["demo", rest @ ..] => run(demo_cmd(rest)),
         ["complete", rest @ ..] => run(complete_cmd(rest)),
+        ["craft", sub, rest @ ..] => run(craft_cmd(sub, rest)),
         ["decisions", "acknowledge", rest @ ..] => run(acknowledge_cmd(rest)),
         ["decisions", "withdraw", rest @ ..] => run(withdraw_cmd(rest)),
         _ => {
@@ -651,6 +672,217 @@ fn acknowledge_cmd(rest: &[&str]) -> Result<(), CliError> {
         message_file(&project, "Skaldsaga: note that a finding is fine as it is")?,
     );
     print_json(&v)
+}
+
+fn craft_error(e: CraftError) -> CliError {
+    match e {
+        CraftError::Invalid(m) => CliError::Usage(m),
+        CraftError::Fs(e) => CliError::Failed(e.to_string()),
+    }
+}
+
+fn yes_no(parsed: &[(&str, &str)], name: &str) -> Result<bool, CliError> {
+    match flag(parsed, name) {
+        Some("yes") => Ok(true),
+        Some("no") => Ok(false),
+        _ => Err(CliError::Usage(format!("{name} must be yes or no"))),
+    }
+}
+
+fn required<'a>(parsed: &[(&str, &'a str)], name: &str) -> Result<&'a str, CliError> {
+    flag(parsed, name).ok_or_else(|| CliError::Usage(format!("{name} is required")))
+}
+
+/// Reads a small text file the agent wrote (never the command line, so story
+/// or writer words can't be read as part of a command).
+fn read_input_file(path: &str, what: &str) -> Result<String, CliError> {
+    match fsio::read_regular_capped(std::path::Path::new(path), MAX_WORDS_FILE)
+        .map_err(|e| CliError::Failed(e.to_string()))?
+    {
+        Some(Ok(text)) => Ok(text),
+        Some(Err(Refused::TooBig)) => Err(CliError::Usage(format!("the {what} file is too big"))),
+        Some(Err(Refused::NotARegularFile)) => Err(CliError::Usage(format!(
+            "the {what} file isn't a regular text file"
+        ))),
+        None => Err(CliError::Usage(format!("the {what} file doesn't exist"))),
+    }
+}
+
+/// Prints the result of a craft write: the paths for git when something changed.
+fn craft_written(
+    project: &Project,
+    outcome: &str,
+    recorded: craft::Recorded,
+    message: &str,
+) -> Result<(), CliError> {
+    let mut v = json::object();
+    if recorded.changed {
+        v.set("outcome", outcome.into());
+        v.set("add_paths", strings(&[recorded.path]));
+        v.set("message_file", message_file(project, message)?);
+    } else {
+        v.set("outcome", "unchanged".into());
+        v.set("add_paths", strings(&[]));
+    }
+    print_json(&v)
+}
+
+fn craft_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
+    let date = decisions::date_from_unix(now());
+    match sub {
+        "shuffle" => {
+            let parsed = flags(rest, &["--count"])?;
+            let n: usize = required(&parsed, "--count")?
+                .parse()
+                .ok()
+                .filter(|n| (2..=12).contains(n))
+                .ok_or_else(|| CliError::Usage("--count must be from 2 to 12".into()))?;
+            let order = craft::shuffled_order(n).map_err(craft_error)?;
+            let mut v = json::object();
+            v.set(
+                "order",
+                Value::Array(order.into_iter().map(|i| Value::from(i as u64)).collect()),
+            );
+            print_json(&v)
+        }
+        "status" => {
+            let parsed = flags(rest, &["--project"])?;
+            let project = require_project(&parsed)?;
+            let (record, concepts, problems) = craft::statuses(&project).map_err(craft_error)?;
+            let mut v = json::object();
+            v.set("record", craft::to_value(&record));
+            v.set("concepts", craft::to_value(&concepts));
+            v.set("problems", strings(&problems));
+            print_json(&v)
+        }
+        "export" => {
+            let parsed = flags(rest, &["--project"])?;
+            let project = require_project(&parsed)?;
+            let out = craft::export_researched(&project).map_err(craft_error)?;
+            let mut v = json::object();
+            v.set("format", Value::from(u64::from(craft::FORMAT)));
+            v.set("concepts", craft::to_value(&out));
+            print_json(&v)
+        }
+        "teach" => {
+            let parsed = flags(rest, &["--project", "--concept", "--via"])?;
+            let via = match flag(&parsed, "--via") {
+                None | Some("interviewer") => craft::Via::Interviewer,
+                Some("writer_said") => craft::Via::WriterSaid,
+                Some(_) => {
+                    return Err(CliError::Usage(
+                        "--via must be interviewer or writer_said".into(),
+                    ));
+                }
+            };
+            let project = require_project(&parsed)?;
+            let r = craft::teach(&project, required(&parsed, "--concept")?, via, &date)
+                .map_err(craft_error)?;
+            craft_written(
+                &project,
+                "taught",
+                r,
+                "Skaldsaga: note what the writer has been taught",
+            )
+        }
+        "demonstrate" => {
+            let parsed = flags(rest, &["--project", "--concept", "--evidence"])?;
+            let evidence: Vec<String> = required(&parsed, "--evidence")?
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect();
+            let project = require_project(&parsed)?;
+            let r = craft::demonstrate(&project, required(&parsed, "--concept")?, &evidence, &date)
+                .map_err(craft_error)?;
+            craft_written(
+                &project,
+                "demonstrated",
+                r,
+                "Skaldsaga: note what the writer has shown they can use",
+            )
+        }
+        "misconception" => {
+            let parsed = flags(
+                rest,
+                &["--project", "--concept", "--words-file", "--corrected"],
+            )?;
+            let corrected = match flag(&parsed, "--corrected") {
+                None => false,
+                Some(_) => yes_no(&parsed, "--corrected")?,
+            };
+            let words = read_input_file(required(&parsed, "--words-file")?, "words")?;
+            let project = require_project(&parsed)?;
+            let r = craft::misconception(
+                &project,
+                required(&parsed, "--concept")?,
+                &words,
+                corrected,
+                &date,
+            )
+            .map_err(craft_error)?;
+            craft_written(
+                &project,
+                "misconception_noted",
+                r,
+                "Skaldsaga: note a mix-up the writer cleared up",
+            )
+        }
+        "teaching" => {
+            let parsed = flags(rest, &["--project", "--level"])?;
+            let level = match required(&parsed, "--level")? {
+                "normal" => craft::Teaching::Normal,
+                "less" => craft::Teaching::Less,
+                "more_why" => craft::Teaching::MoreWhy,
+                _ => {
+                    return Err(CliError::Usage(
+                        "--level must be normal, less or more_why".into(),
+                    ));
+                }
+            };
+            let project = require_project(&parsed)?;
+            let r = craft::set_teaching(&project, level).map_err(craft_error)?;
+            craft_written(
+                &project,
+                "teaching_set",
+                r,
+                "Skaldsaga: note how much explaining the writer wants",
+            )
+        }
+        "experience" => {
+            let parsed = flags(
+                rest,
+                &["--project", "--written-before", "--read-craft-books"],
+            )?;
+            let exp = craft::Experience {
+                written_before: yes_no(&parsed, "--written-before")?,
+                read_craft_books: yes_no(&parsed, "--read-craft-books")?,
+            };
+            let project = require_project(&parsed)?;
+            let r = craft::set_experience(&project, exp).map_err(craft_error)?;
+            craft_written(
+                &project,
+                "experience_noted",
+                r,
+                "Skaldsaga: note the writer's experience",
+            )
+        }
+        "research-add" => {
+            let parsed = flags(rest, &["--project", "--file"])?;
+            let text = read_input_file(required(&parsed, "--file")?, "concept")?;
+            let concept = craft::parse_concept(&text).map_err(craft_error)?;
+            let project = require_project(&parsed)?;
+            let r = craft::add_researched(&project, concept).map_err(craft_error)?;
+            craft_written(
+                &project,
+                "concept_added",
+                r,
+                "Skaldsaga: add a researched craft idea",
+            )
+        }
+        _ => Err(CliError::Usage(format!("unknown craft command '{sub}'"))),
+    }
 }
 
 /// Deletes one stored decision (the writer withdraws it).
