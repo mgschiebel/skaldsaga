@@ -1,0 +1,1 @@
+{"id":"pr-7kq2xmhd","agent":"interviewer","answer":"A courier crosses the border","ops":[{"op":"create","node":{"id":"p-7kq2xmhd","type":"person","name":"Mara"}},{"op":"set","target":"p-7kq2xmhd.summary","value":"A courier"},{"op":"add_item","target":"sequence","value":"s-7kq2xmhd"}]}

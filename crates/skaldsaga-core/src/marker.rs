@@ -178,8 +178,15 @@ pub fn load(project: &Project) -> Result<Option<Marker>, MarkerError> {
         }
         Some(Ok(t)) => t,
     };
+    parse(&text).map(Some)
+}
+
+/// Parses and checks the marker's text. Split out of [`load`] so the fuzz
+/// targets can feed it arbitrary text without a folder (`fuzz/`).
+pub fn parse(text: &str) -> Result<Marker, MarkerError> {
+    let rel = marker_rel();
     let marker: Marker =
-        serde_json::from_str(&text).map_err(|e| MarkerError::Invalid(format!("{rel}: {e}")))?;
+        serde_json::from_str(text).map_err(|e| MarkerError::Invalid(format!("{rel}: {e}")))?;
     if marker.format != FORMAT {
         return invalid(format!("{rel}: format {} isn't supported", marker.format));
     }
@@ -202,7 +209,7 @@ pub fn load(project: &Project) -> Result<Option<Marker>, MarkerError> {
     {
         return invalid(format!("{rel}: the last answer is too long"));
     }
-    Ok(Some(marker))
+    Ok(marker)
 }
 
 /// What a recording did.

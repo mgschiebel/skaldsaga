@@ -1,0 +1,60 @@
+# Fuzz targets for the loaders: every place Skaldsaga reads text it didn't write
+# itself (SR-20 to SR-23). A crash here is a denial of service, because the
+# release build uses panic = "abort". Run through cargo-fuzz on nightly Rust:
+# `sh ci/presubmit.sh fuzz` (a short pass) or `cargo +nightly fuzz run <target>`.
+# Reasons and plan: docs/security/appsec-tooling-research.md, step 5.
+#
+# Not part of the main workspace: it needs nightly, and nothing in it is
+# shipped, so it sits outside the dependency and license rules for releases
+# (docs/security/license-policy.md). It has its own Cargo.lock.
+[package]
+name = "skaldsaga-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+skaldsaga-core = { path = "../crates/skaldsaga-core" }
+
+# An empty table detaches this crate from the parent workspace.
+[workspace]
+
+[[bin]]
+name = "node_file"
+path = "fuzz_targets/node_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "json_input"
+path = "fuzz_targets/json_input.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "proposal"
+path = "fuzz_targets/proposal.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "marker_craft"
+path = "fuzz_targets/marker_craft.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sequence_ids"
+path = "fuzz_targets/sequence_ids.rs"
+test = false
+doc = false
+bench = false
