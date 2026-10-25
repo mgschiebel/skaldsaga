@@ -158,7 +158,7 @@ fn a_story_with_content_asks_new_or_more_when_text_is_typed() {
     // No record of how the last session ended: a thread still open.
     let v = route(p, "no");
     assert_eq!(v["condition"], "story_mid_thread");
-    assert_eq!(v["built"], false);
+    assert_eq!(v["built"], true);
 }
 
 #[test]
@@ -182,7 +182,9 @@ fn recording_an_answer_makes_the_story_mid_thread_even_when_empty() {
         v["add_paths"],
         serde_json::json!([".harness/writer/last-session.json"])
     );
-    assert!(v["message_file"].is_string());
+    // A marker write never makes a snapshot of its own: the path rides along
+    // with the next real save, so no message file comes back.
+    assert!(v.get("message_file").is_none());
     assert!(
         v.get("words").is_none(),
         "the writer's words never come back"

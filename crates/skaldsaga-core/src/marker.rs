@@ -6,6 +6,11 @@
 //! stopping point. The program records that after every answer, and the entry
 //! routing reads it, so story text never decides how a session opens.
 //!
+//! Slice 2 adds two small fields: the topic last asked about (a short code,
+//! never text or the writer's words) and how many confirmed answers have come
+//! since the last save offer. Writing the marker never makes a snapshot of its
+//! own: it is committed together with the next real save, or at a stop.
+//!
 //! One small file, `.harness/writer/last-session.json`, next to the craft
 //! record: writer state, not story meaning, committed to git so it follows the
 //! story between sessions and devices. Nothing here is read as an instruction;
@@ -46,6 +51,45 @@ impl State {
     }
 }
 
+/// The topic the interviewer last asked about (*Decided October 25, 2026*,
+/// planning session 2). A short code, never text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Topic {
+    Premise,
+    People,
+    Setup,
+    Complications,
+    Crisis,
+    Resolution,
+}
+
+impl Topic {
+    pub const ALL: [Topic; 6] = [
+        Topic::Premise,
+        Topic::People,
+        Topic::Setup,
+        Topic::Complications,
+        Topic::Crisis,
+        Topic::Resolution,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Topic::Premise => "premise",
+            Topic::People => "people",
+            Topic::Setup => "setup",
+            Topic::Complications => "complications",
+            Topic::Crisis => "crisis",
+            Topic::Resolution => "resolution",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Topic> {
+        Topic::ALL.into_iter().find(|t| t.as_str() == s)
+    }
+}
+
 /// The writer's last answer, in their own words.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -64,8 +108,18 @@ pub struct Marker {
     /// Present exactly when `state` is `mid_thread`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_answer: Option<Answer>,
+    /// The topic last asked about. Only for `mid_thread`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topic: Option<Topic>,
+    /// Confirmed answers since the last save offer (taken or not).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub answers_since_offer: u32,
     /// `YYYY-MM-DD`.
     pub date: String,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 impl Marker {
@@ -130,11 +184,16 @@ pub fn load(project: &Project) -> Result<Option<Marker>, MarkerError> {
         return invalid(format!("{rel}: format {} isn't supported", marker.format));
     }
     match (marker.state, &marker.last_answer) {
-        (State::MidThread, None) => {
-            return invalid(format!("{rel}: a thread in progress needs a last answer"));
+        (State::MidThread, None) if marker.topic.is_none() => {
+            return invalid(format!(
+                "{rel}: a thread in progress needs a last answer or a topic"
+            ));
         }
         (State::StoppingPoint, Some(_)) => {
             return invalid(format!("{rel}: a stopping point has no last answer"));
+        }
+        (State::StoppingPoint, None) if marker.topic.is_some() => {
+            return invalid(format!("{rel}: a stopping point has no topic"));
         }
         _ => {}
     }
@@ -158,9 +217,12 @@ pub struct Recorded {
 fn save(project: &Project, marker: &Marker) -> Result<Recorded, MarkerError> {
     let existing = load(project)?;
     // A new day alone doesn't make a change worth a snapshot.
-    let same = existing
-        .as_ref()
-        .is_some_and(|m| m.state == marker.state && m.last_answer == marker.last_answer);
+    let same = existing.as_ref().is_some_and(|m| {
+        m.state == marker.state
+            && m.last_answer == marker.last_answer
+            && m.topic == marker.topic
+            && m.answers_since_offer == marker.answers_since_offer
+    });
     if same {
         return Ok(Recorded {
             changed: false,
@@ -191,6 +253,20 @@ pub fn record_answer(
     if words.chars().count() > MAX_WORDS_CHARS {
         return invalid("the answer is too long to keep");
     }
+    // The topic and the count carry over: an answer doesn't change which
+    // topic was asked about, and a newly confirmed answer adds to the count.
+    let existing = load(project)?;
+    let (topic, mut count) = match &existing {
+        Some(m) if m.state == State::MidThread => (m.topic, m.answers_since_offer),
+        _ => (None, 0),
+    };
+    let already_confirmed = existing
+        .as_ref()
+        .and_then(|m| m.last_answer.as_ref())
+        .is_some_and(|a| a.confirmed && a.words == words);
+    if confirmed && !already_confirmed {
+        count = count.saturating_add(1);
+    }
     save(
         project,
         &Marker {
@@ -200,9 +276,55 @@ pub fn record_answer(
                 words: words.to_string(),
                 confirmed,
             }),
+            topic,
+            answers_since_offer: count,
             date: date.to_string(),
         },
     )
+}
+
+/// Records the topic the interviewer is asking about now. Keeps the last
+/// answer and the count. Allowed only when the story is mid-thread or has no
+/// marker yet (content with no record reads as mid-thread).
+pub fn record_ask(project: &Project, topic: Topic, date: &str) -> Result<Recorded, MarkerError> {
+    let existing = load(project)?;
+    let (last_answer, count) = match existing {
+        None => (None, 0),
+        Some(m) if m.state == State::MidThread => (m.last_answer, m.answers_since_offer),
+        Some(_) => {
+            return invalid("the story is at a stopping point, not in the middle of a thread");
+        }
+    };
+    save(
+        project,
+        &Marker {
+            format: FORMAT,
+            state: State::MidThread,
+            last_answer,
+            topic: Some(topic),
+            answers_since_offer: count,
+            date: date.to_string(),
+        },
+    )
+}
+
+/// Records that a save offer was made (taken or not): the count starts over.
+/// With no marker, or a count already at zero, nothing changes.
+pub fn record_offer(project: &Project, date: &str) -> Result<Recorded, MarkerError> {
+    let Some(mut m) = load(project)? else {
+        return Ok(Recorded {
+            changed: false,
+            path: marker_rel(),
+        });
+    };
+    m.answers_since_offer = 0;
+    m.date = date.to_string();
+    save(project, &m)
+}
+
+/// Whether a marker file is on disk (so its path can go in the next snapshot).
+pub fn exists(project: &Project) -> bool {
+    matches!(load(project), Ok(Some(_)))
 }
 
 /// Records that the session ended at a stopping point.
@@ -213,6 +335,8 @@ pub fn record_stopping_point(project: &Project, date: &str) -> Result<Recorded, 
             format: FORMAT,
             state: State::StoppingPoint,
             last_answer: None,
+            topic: None,
+            answers_since_offer: 0,
             date: date.to_string(),
         },
     )
@@ -281,6 +405,82 @@ mod tests {
     }
 
     #[test]
+    fn topics_round_trip_through_their_codes() {
+        for t in Topic::ALL {
+            assert_eq!(Topic::parse(t.as_str()), Some(t));
+        }
+        assert_eq!(Topic::parse("themes"), None);
+        assert_eq!(Topic::parse(""), None);
+    }
+
+    #[test]
+    fn asking_with_no_marker_starts_a_thread_with_a_topic_only() {
+        let dir = TempDir::new();
+        let p = project(&dir);
+        let r = record_ask(&p, Topic::Setup, "2026-10-25").unwrap();
+        assert!(r.changed);
+        let m = load(&p).unwrap().unwrap();
+        assert_eq!(m.state, State::MidThread);
+        assert_eq!(m.topic, Some(Topic::Setup));
+        assert_eq!(m.last_answer, None);
+        assert!(!m.has_unconfirmed_answer());
+        // Asking the same thing again changes nothing.
+        assert!(!record_ask(&p, Topic::Setup, "2026-10-26").unwrap().changed);
+    }
+
+    #[test]
+    fn an_answer_keeps_the_topic_and_a_new_question_keeps_the_answer() {
+        let dir = TempDir::new();
+        let p = project(&dir);
+        record_answer(&p, "maybe a dark alley", false, "2026-10-25").unwrap();
+        record_ask(&p, Topic::People, "2026-10-25").unwrap();
+        let m = load(&p).unwrap().unwrap();
+        assert_eq!(m.topic, Some(Topic::People));
+        assert!(m.has_unconfirmed_answer());
+        record_answer(&p, "Jack and Jill", true, "2026-10-25").unwrap();
+        let m = load(&p).unwrap().unwrap();
+        assert_eq!(m.topic, Some(Topic::People));
+        assert_eq!(m.last_answer.unwrap().words, "Jack and Jill");
+    }
+
+    #[test]
+    fn only_newly_confirmed_answers_are_counted_and_an_offer_resets_the_count() {
+        let dir = TempDir::new();
+        let p = project(&dir);
+        record_answer(&p, "one", false, "2026-10-25").unwrap();
+        assert_eq!(load(&p).unwrap().unwrap().answers_since_offer, 0);
+        record_answer(&p, "one", true, "2026-10-25").unwrap();
+        // Confirming the same words again is not a new answer.
+        record_answer(&p, "one", true, "2026-10-25").unwrap();
+        record_answer(&p, "two", true, "2026-10-25").unwrap();
+        assert_eq!(load(&p).unwrap().unwrap().answers_since_offer, 2);
+        let r = record_offer(&p, "2026-10-25").unwrap();
+        assert!(r.changed);
+        assert_eq!(load(&p).unwrap().unwrap().answers_since_offer, 0);
+        assert!(!record_offer(&p, "2026-10-25").unwrap().changed);
+    }
+
+    #[test]
+    fn an_offer_with_no_marker_changes_nothing() {
+        let dir = TempDir::new();
+        let p = project(&dir);
+        assert!(!record_offer(&p, "2026-10-25").unwrap().changed);
+        assert_eq!(load(&p).unwrap(), None);
+    }
+
+    #[test]
+    fn a_stopping_point_clears_the_topic_and_refuses_a_question() {
+        let dir = TempDir::new();
+        let p = project(&dir);
+        record_ask(&p, Topic::Crisis, "2026-10-25").unwrap();
+        record_stopping_point(&p, "2026-10-25").unwrap();
+        let m = load(&p).unwrap().unwrap();
+        assert_eq!(m.topic, None);
+        assert_eq!(m.answers_since_offer, 0);
+        assert!(record_ask(&p, Topic::Crisis, "2026-10-25").is_err());
+    }
+
+    #[test]
     fn refuses_empty_and_oversized_answers() {
         let dir = TempDir::new();
         let p = project(&dir);
@@ -303,6 +503,8 @@ mod tests {
             r#"{"format":1,"state":"mid_thread","date":"2026-10-25"}"#,
             r#"{"format":1,"state":"stopping_point","last_answer":{"words":"x","confirmed":true},"date":"2026-10-25"}"#,
             r#"{"format":1,"state":"stopping_point","date":"2026-10-25","extra":1}"#,
+            r#"{"format":1,"state":"stopping_point","topic":"setup","date":"2026-10-25"}"#,
+            r#"{"format":1,"state":"mid_thread","topic":"themes","date":"2026-10-25"}"#,
         ] {
             std::fs::write(&file, bad).unwrap();
             assert!(load(&p).is_err(), "should refuse: {bad}");
