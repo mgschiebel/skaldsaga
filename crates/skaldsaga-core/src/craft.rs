@@ -81,8 +81,9 @@ pub struct Concept {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ConceptFile {
-    #[allow(dead_code)]
-    format: u32,
+    /// Present in the file and required by `deny_unknown_fields`; never read.
+    #[serde(rename = "format")]
+    _format: u32,
     concepts: Vec<Concept>,
 }
 

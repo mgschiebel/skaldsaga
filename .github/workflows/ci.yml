@@ -46,6 +46,11 @@ jobs:
       - name: Check the license elections cover the dependencies
         run: sh ci/presubmit.sh license-elections
 
+      # Every suppression (an allow, an ignore, a disable) is on the register with a
+      # reason, an approval and an unexpired date.
+      - name: Check the suppressions are registered and unexpired
+        run: sh ci/presubmit.sh exceptions
+
       # Built from the locked, checksummed crates.io releases of these exact versions (SR-42).
       - name: Install cargo-auditable and rust-audit-info
         run: |
