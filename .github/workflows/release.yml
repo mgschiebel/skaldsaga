@@ -57,9 +57,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
-        with:
-          toolchain: 1.97.0
+      # The runner already has rustup, so no third-party action is needed (SR-42).
+      - name: Install the pinned toolchain
+        run: |
+          rustup toolchain install 1.97.0 --profile minimal --no-self-update
+          rustup default 1.97.0
 
       - name: Work out the version and tag
         id: version
@@ -175,11 +177,14 @@ jobs:
     needs: [build, check-sbom]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # create the GitHub Release and push the dist branch; no other job can write (SR-41)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          # The token is not left in the checkout's git config; the one step
+          # that pushes passes it through the environment instead (below).
+          persist-credentials: false
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -225,10 +230,19 @@ jobs:
 
       - name: Update the dist branch
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.build.outputs.tag }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -eu
+          # Authenticate git for this step only, through environment variables:
+          # nothing is written to .git/config, and the derived value is masked
+          # because only the token itself is masked automatically.
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           work=$(mktemp -d)

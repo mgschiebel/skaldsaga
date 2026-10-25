@@ -6,10 +6,10 @@ name: Workflow security
 # request. It runs with the strictest persona because any finding of any
 # severity counts (appsec-tooling-research.md, Goal and Strategy item 2).
 #
-# REPORT-ONLY until the baselining pull request is merged: the workflows that
-# existed before zizmor still have findings, so `--no-exit-codes` keeps this
-# job green. Baselining removes that flag, and then the job fails on any
-# finding; the author then makes it a required check in the ruleset.
+# The job fails on any finding. It was report-only until the baselining pull
+# request fixed the findings in the older workflows (October 25, 2026); the
+# author makes it a required check in the ruleset. The same audit runs
+# offline in `sh ci/presubmit.sh zizmor`. Settings: .github/zizmor.yml.
 
 on:
   push:
@@ -48,4 +48,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          "$RUNNER_TEMP/zizmor-venv/bin/zizmor" --persona=auditor --format=github --no-exit-codes .github
+          "$RUNNER_TEMP/zizmor-venv/bin/zizmor" --persona=auditor --format=github .github

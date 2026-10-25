@@ -1,5 +1,6 @@
 /target
 /dist
+/ci/claude-code/node_modules
 
 # Personal or secret files, never shared (security requirement SR-01)
 # Claude Code personal settings and notes
