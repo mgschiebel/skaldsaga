@@ -1,0 +1,60 @@
+# The register of security suppressions: everything that tells a tool to look
+# away from a finding. A suppression needs a written reason, an expiry and the
+# author's approval; a build session never adds one on its own (CLAUDE.md,
+# "No new defects in new code"). The check is ci/check-exceptions.py, run by
+# ci/presubmit.sh and CI. It fails when:
+#
+#   - a suppression exists in the repository and no entry below covers it
+#     (a Rust `allow` or `expect`, a lint level of "allow", a clippy.toml
+#     relaxation, a cargo-deny ignore or skip, a ShellCheck disable, a zizmor
+#     ignore, a CodeQL filter, a gitleaks allowlist, `continue-on-error`);
+#   - an entry covers nothing any more (remove it when the code is fixed);
+#   - an entry has no reason, no approval, or is past its expiry date, or the
+#     date is more than a year away.
+#
+# When an entry expires, the check fails on every pull request until the
+# finding is fixed or the author renews the entry with a new reason and date.
+# Dismissed code-scanning alerts live on GitHub, not in the repository, so the
+# check cannot see them. Until it can (a job with `security-events: read`), a
+# dismissal is recorded in `docs/security/baseline.md` with the same reason,
+# expiry and approval, and the baselining pull request decides how to enforce it.
+#
+# Fields: id; kind (see KINDS in the check); where (a file path or glob, as
+# the check reports it); lints (the suppressed names; an entry covers a
+# suppression whose names are all listed); reason; approved (date); approved_in
+# (the pull request or note where the author said yes); expires (YYYY-MM-DD).
+#
+# The two entries below record what was already accepted before this register
+# existed. Their expiry dates are *Proposed* (six months out): the author sets
+# the real ones.
+
+[[exception]]
+id = "tests-may-panic"
+kind = "rust-attribute"
+where = "crates/skaldsaga/tests/*.rs"
+lints = [
+    "clippy::unwrap_used",
+    "clippy::expect_used",
+    "clippy::panic",
+    "clippy::indexing_slicing",
+    "clippy::string_slice",
+]
+reason = "Integration tests may unwrap, panic and index: a test that cannot go on should fail loudly, and a test failure is a panic. Each file lists only the lints it uses, as a file-level #![expect(...)] with its own reason, so an unused one is an error. Production code is not covered (CLAUDE.md, Code)."
+approved = "2026-10-25"
+approved_in = "#45 (the one suppression class in that pull request, approved by the author)"
+expires = "2027-04-25"
+
+[[exception]]
+id = "unit-tests-may-panic"
+kind = "clippy-config"
+where = "clippy.toml"
+lints = [
+    "allow-unwrap-in-tests",
+    "allow-expect-in-tests",
+    "allow-panic-in-tests",
+    "allow-indexing-slicing-in-tests",
+]
+reason = "Unit tests (code under #[cfg(test)]) may unwrap, expect, panic and index, for the same reason as the integration tests. The setting is clippy's own switch for tests; it does not touch production code."
+approved = "2026-10-25"
+approved_in = "#45 (the Clippy lints pull request; the author decided that tests may unwrap)"
+expires = "2027-04-25"

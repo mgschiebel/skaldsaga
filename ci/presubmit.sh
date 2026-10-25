@@ -8,7 +8,8 @@
 #   sh ci/presubmit.sh fmt clippy      run only the named checks
 #
 # Checks: fmt, clippy, test, shellcheck, deny, license-sync, license-elections,
-# release-files, fuzz (a short pass: needs cargo-fuzz and a nightly toolchain;
+# release-files, exceptions (every suppression is on docs/security/exceptions.toml
+# and unexpired; ci/check-exceptions.py), fuzz (a short pass: needs cargo-fuzz and a nightly toolchain;
 # FUZZ_SECONDS and FUZZ_TOOLCHAIN are read by ci/fuzz-smoke.sh).
 #
 # A check that cannot run in this environment is reported as NOT RUN and the
@@ -20,7 +21,7 @@ set -u
 
 cd "$(dirname "$0")/.." || exit 1
 
-all="fmt clippy test shellcheck deny license-sync license-elections release-files fuzz"
+all="fmt clippy test shellcheck deny license-sync license-elections release-files exceptions fuzz"
 if [ "$#" -gt 0 ]; then checks="$*"; else checks="$all"; fi
 
 failed=""
@@ -58,6 +59,7 @@ for check in $checks; do
     license-sync) run license-sync "" sh ci/check-license-sync.sh ;;
     license-elections) run license-elections python3 python3 -I ci/check-license-elections.py ;;
     release-files) run release-files python3 python3 -I ci/release-files.py check ;;
+    exceptions) run exceptions python3 sh -c 'python3 -I ci/check-exceptions.py && python3 -I ci/test-check-exceptions.py' ;;
     fuzz) run fuzz cargo-fuzz sh ci/fuzz-smoke.sh ;;
     *)
       echo "presubmit: unknown check '$check' (known: $all)" >&2
