@@ -145,9 +145,11 @@ fn from_bytes(kind: IdKind, bytes: [u8; RANDOM_LEN]) -> String {
     let mut id = String::with_capacity(kind.prefix().len() + 1 + RANDOM_LEN);
     id.push_str(kind.prefix());
     id.push('-');
-    for b in bytes {
-        id.push(ALPHABET[usize::from(b & 31)] as char);
-    }
+    id.extend(
+        bytes
+            .iter()
+            .filter_map(|b| ALPHABET.get(usize::from(b & 31)).map(|&c| char::from(c))),
+    );
     id
 }
 

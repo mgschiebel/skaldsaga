@@ -100,7 +100,13 @@ pub fn rebuild(spec_dir: &Path) -> Result<Rebuilt, FsError> {
         files.push(format!("{INDEX_DIR}/{name}"));
     }
     fsio::write_atomic(&dir.join(".gitignore"), GITIGNORE)?;
-    let count = |key: &str| index.status[key].as_array().map_or(0, std::vec::Vec::len);
+    let count = |key: &str| {
+        index
+            .status
+            .get(key)
+            .and_then(Value::as_array)
+            .map_or(0, std::vec::Vec::len)
+    };
     Ok(Rebuilt {
         files,
         nodes: loaded.spec.nodes.len(),
@@ -974,7 +980,7 @@ fn movements(spec: &Spec, lookup: &Lookup, order: &[String]) -> BTreeMap<String,
                 .map(|(i, _)| i)
                 .collect();
             match (mine.first(), mine.last()) {
-                (Some(&a), Some(&b)) => &order[a..=b],
+                (Some(&a), Some(&b)) => order.get(a..=b).unwrap_or(&[]),
                 _ => &[],
             }
         };
@@ -1004,20 +1010,26 @@ fn movements(spec: &Spec, lookup: &Lookup, order: &[String]) -> BTreeMap<String,
                 }
             }
         }
-        let usable =
-            bounds.len() == MOVEMENT_BOUNDARIES.len() && bounds.windows(2).all(|w| w[0] < w[1]);
+        // The three boundaries, in story order, when all are usable.
+        let ordered = match *bounds.as_slice() {
+            [a, b, c] if bounds.len() == MOVEMENT_BOUNDARIES.len() && a < b && b < c => {
+                Some((a, b, c))
+            }
+            _ => None,
+        };
+        let usable = ordered.is_some();
         if bounds.len() == MOVEMENT_BOUNDARIES.len() && !usable {
             note = Some("the landmarks that end the movements are out of order".to_string());
         }
 
         let mut m = Movements::default();
-        let method = if usable {
+        let method = if let Some((first, second, third)) = ordered {
             for (i, id) in span.iter().enumerate() {
-                let stage = if i <= bounds[0] {
+                let stage = if i <= first {
                     Stage::Setup
-                } else if i <= bounds[1] {
+                } else if i <= second {
                     Stage::Complications
-                } else if i <= bounds[2] {
+                } else if i <= third {
                     Stage::Crisis
                 } else {
                     Stage::Resolution
@@ -1199,7 +1211,11 @@ fn status<'a>(loaded: &'a Loaded, grid: CellCounts, broken: Vec<BrokenReference>
     counts.insert("facts", facts);
     counts.insert(
         "scenes_in_sequence",
-        counts[NodeType::Scene.folder()] - scenes_outside,
+        counts
+            .get(NodeType::Scene.folder())
+            .copied()
+            .unwrap_or(0)
+            .saturating_sub(scenes_outside),
     );
     counts.insert("scenes_outside_sequence", scenes_outside);
 

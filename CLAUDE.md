@@ -41,6 +41,7 @@ chmod +x ~/.local/bin/cargo && which cargo
 
 - `crates/skaldsaga-core`: all logic, kept portable (file access goes through `fsio`). `crates/skaldsaga`: the thin command-line front end.
 - `plugin/`: the Claude Code plugin (manifest, marketplace file, skills, hooks, launcher). `ci/assemble-dist.sh` adds the binary to make the installable folder; CI validates and smoke-tests it on every push, and the Release workflow publishes it to the `dist` branch. Keep `plugin.json`'s version equal to the crate version.
+- **Production code never panics on its input (Decided October 25, 2026; enforced by `[workspace.lints.clippy]`):** no `unwrap`, `expect`, `panic!`, `unreachable!`, bracket indexing or slicing, string slicing by byte offset, or lossy `as` casts. Use `get`, `split_once`, `split_at_checked`, `try_from` and `?`; when a position comes from an earlier lookup, read it back through a checked accessor that returns an error (`ops.rs` has `node_at`). Tests may unwrap: unit tests through `clippy.toml`, integration test files through one file-level `#![expect(..., reason = "...")]` listing only the lints that file uses.
 - `json` wraps `serde_json` with `preserve_order`, so settings files we edit for the writer keep their key order.
 - Anything that runs automatically (status line, hooks) does nothing unless `.harness/` exists, and never shows the writer an error.
 

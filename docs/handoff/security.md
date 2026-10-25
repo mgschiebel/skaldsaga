@@ -53,7 +53,7 @@
 
 ## Application security tooling (Decided October 25, 2026)
 
-*Added October 25, 2026. Reasons, tool comparison and the planned pull-request sequence: [`docs/security/appsec-tooling-research.md`](../security/appsec-tooling-research.md). Extends SR-43 (Dependabot plus `cargo audit` or `cargo deny`). First part built October 25, 2026 (branch `build/appsec-tooling`): cargo-deny, `ci/presubmit.sh`, the license checks, zizmor and CodeQL (report-only). Still to build: tightened Clippy lints, cargo-auditable with the SBOM and notices, fuzzing, the exception-expiry check; then baselining.*
+*Added October 25, 2026. Reasons, tool comparison and the planned pull-request sequence: [`docs/security/appsec-tooling-research.md`](../security/appsec-tooling-research.md). Extends SR-43 (Dependabot plus `cargo audit` or `cargo deny`). First part built October 25, 2026 (branch `build/appsec-tooling`): cargo-deny, `ci/presubmit.sh`, the license checks, zizmor and CodeQL (report-only); then the tightened Clippy lints (branch `build/clippy-lints`). Still to build: cargo-auditable with the SBOM and notices, fuzzing, the exception-expiry check; then baselining.*
 
 - **Goal (Decided):** no pull request merges with an open security finding of any severity; exceptions only as a written, reasoned, expiring entry the author approves.
 - **Advisories (Decided):** `cargo deny check` blocks pull requests that change dependencies; on all other pull requests the advisory check runs as a non-blocking warning. No weekly sweep: Dependabot alerts and security updates on, Dependabot version updates daily, and a daily non-blocking advisory check that opens an issue.
@@ -62,6 +62,6 @@
 - **Baselining first (Decided):** after the tooling pull request, a baselining pull request runs every check over the existing code, fixes each finding or records a formal exception in `docs/security/baseline.md`, and only then are the checks made required. Feature work resumes after that.
 - **Licenses (Decided, updated October 25, 2026):** the project is `AGPL-3.0-or-later` (`delivery.md`, "License and attribution"). Everything shipped is either AGPL-3.0-or-later or on the allowlist in [`license-policy.md`](../security/license-policy.md), the one place the list is written; any other license is a one-off decision. Contributors are told in `CONTRIBUTING.md`. Pipeline tools and dev-dependencies are outside the rule.
 - **Elected licenses and SBOM (Decided October 25, 2026):** `docs/security/license-elections.toml` records, for every shipped dependency, the declared license and the one we elect, checked in CI; each release carries an SPDX JSON SBOM with declared and concluded licenses, and a third-party notices file. Details: `appsec-tooling-research.md`, Decided items 8, 9 and 11.
-- **Tools (Decided):** cargo-deny, cargo-auditable for releases, CodeQL for Rust, zizmor, tightened Clippy lints, fuzzing of the loaders. Deferred: cargo-vet. Skipped for now: OSV-Scanner. Not applicable: Sighthound (no Rust support).
+- **Tools (Decided):** cargo-deny, cargo-auditable for releases, CodeQL for Rust, zizmor, tightened Clippy lints (built: production code never panics on its input, see `CLAUDE.md`, Code), fuzzing of the loaders. Deferred: cargo-vet. Skipped for now: OSV-Scanner. Not applicable: Sighthound (no Rust support).
 
 

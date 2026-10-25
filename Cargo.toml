@@ -18,6 +18,19 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+# Parsing code that panics is a denial of service, because the release build
+# uses panic = "abort" (docs/security/appsec-tooling-research.md, "Other tools
+# worth considering"). These lints keep new code from panicking on its input;
+# they are not applied to tests (clippy.toml and the test files).
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+unreachable = "warn"
+indexing_slicing = "warn"
+string_slice = "warn"
+cast_possible_truncation = "warn"
+cast_possible_wrap = "warn"
+cast_sign_loss = "warn"
 
 [profile.release]
 opt-level = "z"

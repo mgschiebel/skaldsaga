@@ -303,7 +303,7 @@ fn shorten(text: &str, max: usize) -> String {
     let head: String = text.chars().take(max - 3).collect();
     // Only cut at a space if it leaves a reasonable amount of text.
     let cut = match head.rfind(' ') {
-        Some(i) if i >= head.len() / 2 => &head[..i],
+        Some(i) if i >= head.len() / 2 => head.get(..i).unwrap_or(head.as_str()),
         _ => head.as_str(),
     };
     format!("{}...", cut.trim_end_matches([' ', ',', ';', ':']))
@@ -754,7 +754,10 @@ mod tests {
         assert!(text.starts_with(short.trim_end_matches("...")));
         let before = short.trim_end_matches("...");
         // The next character in the original is a space: no word was split.
-        assert_eq!(text[before.len()..].chars().next(), Some(' '));
+        assert_eq!(
+            text.get(before.len()..).and_then(|t| t.chars().next()),
+            Some(' ')
+        );
         assert_eq!(shorten("short enough", 72), "short enough");
         // One very long word is still cut.
         let long = "x".repeat(100);

@@ -809,7 +809,7 @@ fn uniqueness(spec: &Spec, registry: &Registry, graph: &TimeGraph, out: &mut Vec
     }
     for ((subject, key, _), facts) in groups {
         for (i, (a, a_ends)) in facts.iter().enumerate() {
-            for (b, b_ends) in &facts[i + 1..] {
+            for (b, b_ends) in facts.iter().skip(i + 1) {
                 let a_first = *a_ends
                     && graph.at_or_before(&Point::End(a.to_string()), &Point::Start(b.to_string()));
                 let b_first = *b_ends

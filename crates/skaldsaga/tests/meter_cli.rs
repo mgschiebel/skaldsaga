@@ -1,5 +1,9 @@
 //! End-to-end tests for `skaldsaga meter ...`, running the real binary the
 //! way Claude Code and the skills will.
+#![expect(
+    clippy::unwrap_used,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};

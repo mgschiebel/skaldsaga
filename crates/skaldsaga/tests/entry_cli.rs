@@ -1,6 +1,11 @@
 //! End-to-end tests for `skaldsaga route` and `skaldsaga session`: one fixture
 //! folder per entry condition, built with the program's own commands.
 //! Routing is deterministic and never runs `init`, so story text can't steer it.
+#![expect(
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

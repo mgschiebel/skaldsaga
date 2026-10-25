@@ -90,17 +90,19 @@ impl Blocker {
 
     fn to_value(&self) -> Value {
         let mut v = json!({"code": self.code});
-        if let Some(arc) = &self.arc {
-            v["arc"] = json!(arc);
-        }
-        if !self.ids.is_empty() {
-            v["ids"] = json!(self.ids);
-        }
-        if let Some(detail) = &self.detail {
-            v["detail"] = json!(detail);
-        }
-        if let Some(count) = self.count {
-            v["count"] = json!(count);
+        if let Value::Object(m) = &mut v {
+            if let Some(arc) = &self.arc {
+                m.insert("arc".into(), json!(arc));
+            }
+            if !self.ids.is_empty() {
+                m.insert("ids".into(), json!(self.ids));
+            }
+            if let Some(detail) = &self.detail {
+                m.insert("detail".into(), json!(detail));
+            }
+            if let Some(count) = self.count {
+                m.insert("count".into(), json!(count));
+            }
         }
         v
     }
@@ -181,14 +183,16 @@ impl Reported {
             "fan_out": self.fan_out,
             "touches_confirmed": self.touches_confirmed,
         });
-        if let Some(detail) = &f.detail {
-            v["detail"] = json!(detail);
-        }
-        if let Some(decision) = &self.decision {
-            v["decision"] = json!(decision);
-        }
-        if !self.changed.is_empty() {
-            v["changed"] = json!(self.changed);
+        if let Value::Object(m) = &mut v {
+            if let Some(detail) = &f.detail {
+                m.insert("detail".into(), json!(detail));
+            }
+            if let Some(decision) = &self.decision {
+                m.insert("decision".into(), json!(decision));
+            }
+            if !self.changed.is_empty() {
+                m.insert("changed".into(), json!(self.changed));
+            }
         }
         v
     }
@@ -355,7 +359,7 @@ fn outline_blockers(ctx: &Ctx) -> Vec<Blocker> {
         .filter_map(|k| ctx.landmark_pos(arc, k))
         .collect();
     // The four are placed in story order: commits, midpoint, low point, climax.
-    if at.len() == BLOCKING_LANDMARKS.len() && !at.windows(2).all(|w| w[0] < w[1]) {
+    if at.len() == BLOCKING_LANDMARKS.len() && !at.is_sorted_by(|a, b| a < b) {
         out.push(Blocker::new("landmarks_out_of_order").arc(&node.id));
     }
     out
@@ -568,7 +572,10 @@ fn open_assumptions(project: &Project) -> Result<Vec<String>, FsError> {
         };
         let open = serde_json::from_str::<Value>(&text)
             .ok()
-            .and_then(|v| v["committed"]["open_assumption"].as_bool())
+            .and_then(|v| {
+                v.pointer("/committed/open_assumption")
+                    .and_then(Value::as_bool)
+            })
             .unwrap_or(false);
         if open {
             out.push(stem.to_string());

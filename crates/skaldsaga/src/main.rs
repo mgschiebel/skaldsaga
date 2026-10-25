@@ -485,7 +485,7 @@ fn check_cmd(rest: &[&str]) -> Result<(), CliError> {
                 v.set("id", id.as_str().into());
                 let r = report.to_value();
                 for key in ["status", "lane", "fan_out", "touches_confirmed", "findings"] {
-                    v.set(key, r[key].clone());
+                    v.set(key, r.get(key).cloned().unwrap_or_default());
                 }
             }
             InboxEntry::Unreadable { file, message } => {
@@ -535,7 +535,7 @@ fn require_project(parsed: &[(&str, &str)]) -> Result<Project, CliError> {
 fn verdict_into(v: &mut Value, report: &check::Report) {
     let r = report.to_value();
     for key in ["status", "lane", "fan_out", "touches_confirmed", "findings"] {
-        v.set(key, r[key].clone());
+        v.set(key, r.get(key).cloned().unwrap_or_default());
     }
 }
 

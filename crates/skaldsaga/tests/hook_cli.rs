@@ -1,5 +1,9 @@
 //! End-to-end tests for `skaldsaga hook session-start`, run the way Claude
 //! Code runs a plugin hook: JSON on stdin, plugin variables in the environment.
+#![expect(
+    clippy::unwrap_used,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};

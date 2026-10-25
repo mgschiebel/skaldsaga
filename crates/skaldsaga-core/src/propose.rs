@@ -164,9 +164,8 @@ fn fill_placeholders(
 fn fill_in_text(text: &str, made: &mut HashMap<String, String>) -> Result<String, ProposeError> {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
-    while let Some(at) = rest.find('@') {
-        out.push_str(&rest[..at]);
-        let tail = &rest[at + 1..];
+    while let Some((before, tail)) = rest.split_once('@') {
+        out.push_str(before);
         let Some((prefix, after)) = tail.split_once(':') else {
             out.push('@');
             rest = tail;
@@ -186,7 +185,11 @@ fn fill_in_text(text: &str, made: &mut HashMap<String, String>) -> Result<String
                 "a placeholder like @{prefix}:name needs a short name of lowercase letters, digits or underscores"
             ));
         }
-        let key = format!("{prefix}:{}", &after[..len]);
+        // The name is ASCII, so `len` bytes always end on a character boundary.
+        let Some((name, remainder)) = after.split_at_checked(len) else {
+            return invalid("a placeholder name couldn't be read");
+        };
+        let key = format!("{prefix}:{name}");
         let id = match made.get(&key) {
             Some(id) => id.clone(),
             None => {
@@ -196,7 +199,7 @@ fn fill_in_text(text: &str, made: &mut HashMap<String, String>) -> Result<String
             }
         };
         out.push_str(&id);
-        rest = &after[len..];
+        rest = remainder;
     }
     out.push_str(rest);
     Ok(out)

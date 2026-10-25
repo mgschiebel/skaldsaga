@@ -477,7 +477,8 @@ fn scene_count_pacing(ctx: &Ctx, settings: &CheckSettings, soft: &mut Soft) {
         let expected_share = 0.25;
         let expected = total as f64 * expected_share;
         for stage in Stage::ALL {
-            let n = m.movements.stage(stage).len() as f64;
+            let scenes = m.movements.stage(stage).len();
+            let n = scenes as f64;
             let direction = if n < settings.under_share * expected {
                 "short"
             } else if n > settings.over_share * expected {
@@ -492,7 +493,7 @@ fn scene_count_pacing(ctx: &Ctx, settings: &CheckSettings, soft: &mut Soft) {
                 json!({
                     "movement": stage_name(stage),
                     "direction": direction,
-                    "scenes": n as usize,
+                    "scenes": scenes,
                     "scenes_in_arc": total,
                     "expected_share": expected_share,
                 }),
@@ -565,14 +566,19 @@ fn distance(a: &str, b: &str) -> usize {
     let b: Vec<char> = b.chars().collect();
     let mut prev: Vec<usize> = (0..=b.len()).collect();
     for (i, ca) in a.chars().enumerate() {
-        let mut cur = vec![i + 1];
-        for (j, cb) in b.iter().enumerate() {
-            let cost = usize::from(ca != *cb);
-            cur.push((prev[j] + cost).min(prev[j + 1] + 1).min(cur[j] + 1));
+        let mut cur = Vec::with_capacity(prev.len());
+        cur.push(i + 1);
+        // `left` is the cell just written; `diag` and `up` are the two cells
+        // above it in the previous row.
+        let mut left = i + 1;
+        for ((&cb, &diag), &up) in b.iter().zip(prev.iter()).zip(prev.iter().skip(1)) {
+            let cost = usize::from(ca != cb);
+            left = (diag + cost).min(up + 1).min(left + 1);
+            cur.push(left);
         }
         prev = cur;
     }
-    prev[b.len()]
+    prev.last().copied().unwrap_or(0)
 }
 
 /// Two attribute keys that look alike, when at least one is the story's own
@@ -598,7 +604,7 @@ fn similar_attribute_keys(ctx: &Ctx, settings: &CheckSettings, soft: &mut Soft) 
     }
     let keys: Vec<&String> = keys.iter().collect();
     for (i, a) in keys.iter().enumerate() {
-        for b in &keys[i + 1..] {
+        for b in keys.iter().skip(i + 1) {
             if starter_keys.contains(*a) && starter_keys.contains(*b) {
                 continue;
             }
@@ -1091,5 +1097,10 @@ mod tests {
         assert_eq!(version_of("nope"), None);
         assert_eq!(distance("kitten", "sitting"), 3);
         assert_eq!(distance("", "abc"), 3);
+        assert_eq!(distance("abc", ""), 3);
+        assert_eq!(distance("same", "same"), 0);
+        assert_eq!(distance("flaw", "lawn"), 2);
+        // Characters, not bytes.
+        assert_eq!(distance("café", "cafe"), 1);
     }
 }
