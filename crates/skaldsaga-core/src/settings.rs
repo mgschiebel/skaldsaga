@@ -8,9 +8,9 @@ use crate::json::{self, Value, ValueExt as _};
 use crate::project::Project;
 
 /// Default: suggest wrapping up at 50% of the context window (HANDOFF, Default settings).
-pub const DEFAULT_SUGGEST_WRAP_UP_PERCENT: f64 = 50.0;
+pub const DEFAULT_SUGGEST_WRAP_UP_PERCENT: u8 = 50;
 /// Default: wrap up regardless at 70%.
-pub const DEFAULT_WRAP_UP_PERCENT: f64 = 70.0;
+pub const DEFAULT_WRAP_UP_PERCENT: u8 = 70;
 
 /// The session meter's settings.
 #[derive(Debug, Clone, PartialEq)]
@@ -27,8 +27,8 @@ pub struct MeterSettings {
 impl Default for MeterSettings {
     fn default() -> Self {
         MeterSettings {
-            suggest_wrap_up_percent: DEFAULT_SUGGEST_WRAP_UP_PERCENT,
-            wrap_up_percent: DEFAULT_WRAP_UP_PERCENT,
+            suggest_wrap_up_percent: f64::from(DEFAULT_SUGGEST_WRAP_UP_PERCENT),
+            wrap_up_percent: f64::from(DEFAULT_WRAP_UP_PERCENT),
             wrapped_statusline: None,
         }
     }
@@ -79,11 +79,11 @@ pub fn default_meter_section() -> Value {
     let mut meter = json::object();
     meter.set(
         "suggest_wrap_up_percent",
-        Value::from(DEFAULT_SUGGEST_WRAP_UP_PERCENT as u64),
+        Value::from(u64::from(DEFAULT_SUGGEST_WRAP_UP_PERCENT)),
     );
     meter.set(
         "wrap_up_percent",
-        Value::from(DEFAULT_WRAP_UP_PERCENT as u64),
+        Value::from(u64::from(DEFAULT_WRAP_UP_PERCENT)),
     );
     meter
 }
@@ -115,7 +115,8 @@ impl SessionSettings {
             .and_then(|d| d.get_path(&["session", "save_offer_after_answers"]))
             .and_then(Value::as_u64)
             .filter(|n| (1..=1000).contains(n))
-            .map_or(DEFAULT_SAVE_OFFER_AFTER_ANSWERS, |n| n as u32);
+            .and_then(|n| u32::try_from(n).ok())
+            .unwrap_or(DEFAULT_SAVE_OFFER_AFTER_ANSWERS);
         SessionSettings {
             save_offer_after_answers,
         }
@@ -154,7 +155,8 @@ impl RoutingSettings {
             .and_then(|d| d.get_path(&["routing", "strict_fan_out"]))
             .and_then(Value::as_u64)
             .filter(|n| *n >= 1)
-            .map_or(DEFAULT_STRICT_FAN_OUT, |n| n as usize);
+            .and_then(|n| usize::try_from(n).ok())
+            .unwrap_or(DEFAULT_STRICT_FAN_OUT);
         RoutingSettings { strict_fan_out }
     }
 
@@ -233,8 +235,9 @@ impl CheckSettings {
             .and_then(|d| d.get_path(&["checks", "similar_key_max_distance"]))
             .and_then(Value::as_u64)
             .filter(|n| *n <= 5)
+            .and_then(|n| usize::try_from(n).ok())
         {
-            s.similar_key_max_distance = n as usize;
+            s.similar_key_max_distance = n;
         }
         s
     }
@@ -288,7 +291,9 @@ const DEFAULT_SETTINGS: &str = r#"{
 
 /// The default settings document.
 pub fn default_settings() -> Value {
-    json::parse(DEFAULT_SETTINGS).expect("default settings are valid JSON")
+    // A test parses the built-in text; if it were ever broken, every setting
+    // falls back to its default in code.
+    json::parse(DEFAULT_SETTINGS).unwrap_or_else(|_| json::object())
 }
 
 /// Adds any default settings missing from `doc` (top-level keys, and keys
@@ -470,7 +475,7 @@ mod tests {
             parse(r#"{"meter":{"suggest_wrap_up_percent":40,"wrap_up_percent":"lots"}}"#).unwrap();
         let s = MeterSettings::from_settings(Some(&doc));
         assert_eq!(s.suggest_wrap_up_percent, 40.0);
-        assert_eq!(s.wrap_up_percent, DEFAULT_WRAP_UP_PERCENT);
+        assert_eq!(s.wrap_up_percent, f64::from(DEFAULT_WRAP_UP_PERCENT));
 
         let doc =
             parse(r#"{"meter":{"suggest_wrap_up_percent":0,"wrap_up_percent":150}}"#).unwrap();

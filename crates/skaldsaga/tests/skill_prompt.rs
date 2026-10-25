@@ -6,6 +6,12 @@
 //! word, so the writer never meets the program's own vocabulary. The same
 //! file's tool permissions and commands are checked too, so a later edit
 //! can't quietly widen what the skill may do (SR-24, SR-31, SR-32).
+#![expect(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::string_slice,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 
 use std::path::PathBuf;
 

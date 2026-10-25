@@ -2,7 +2,10 @@
 //! instructions and shell tricks in story text, links, a program, a
 //! traversal ID and a committed status line command. Skaldsaga must refuse,
 //! ignore or report every one, and run nothing.
-
+#![expect(
+    clippy::unwrap_used,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 #![cfg(unix)]
 
 use std::io::Write as _;

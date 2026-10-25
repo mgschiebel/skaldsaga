@@ -305,7 +305,8 @@ pub fn remove(project: &Project, id: &str) -> Result<Option<String>, DecisionErr
 
 /// Today's date (UTC) as `YYYY-MM-DD`, from seconds since the Unix epoch.
 pub fn date_from_unix(secs: u64) -> String {
-    let z = (secs / 86_400) as i64 + 719_468;
+    // secs / 86_400 is at most about 2e14, which always fits an i64.
+    let z = i64::try_from(secs / 86_400).unwrap_or_default() + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z.rem_euclid(146_097);
     let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;

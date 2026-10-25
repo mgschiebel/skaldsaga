@@ -58,8 +58,10 @@ pub fn split_front_matter(text: &str) -> Result<(&str, &str), NodeError> {
     let mut pos = start;
     for line in lines {
         if line.trim_end() == DELIMITER {
-            let front = &text[start..pos];
-            let notes = &text[pos + line.len()..];
+            let (Some(front), Some(notes)) = (text.get(start..pos), text.get(pos + line.len()..))
+            else {
+                return Err(err("the front matter couldn't be split from the notes"));
+            };
             return Ok((front, notes));
         }
         pos += line.len();

@@ -1,4 +1,9 @@
 //! End-to-end tests for `skaldsaga complete` and `skaldsaga decisions`.
+#![expect(
+    clippy::unwrap_used,
+    clippy::panic,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

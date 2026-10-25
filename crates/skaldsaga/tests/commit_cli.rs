@@ -1,5 +1,9 @@
 //! End-to-end tests for `skaldsaga scenario basics` and `skaldsaga commit`, following
 //! the same steps as the skill's demo.
+#![expect(
+    clippy::unwrap_used,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

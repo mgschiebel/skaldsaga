@@ -40,7 +40,7 @@ impl Spec {
         self.nodes
             .binary_search_by(|n| n.id.as_str().cmp(id))
             .ok()
-            .map(|i| &self.nodes[i])
+            .and_then(|i| self.nodes.get(i))
     }
 }
 

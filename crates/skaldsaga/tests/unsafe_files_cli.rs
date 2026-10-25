@@ -1,6 +1,11 @@
 //! SR-11: links, executable files and special files in a story folder are
 //! reported by init, check, index and complete, and never followed.
-
+#![expect(
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 #![cfg(unix)]
 
 use std::os::unix::fs::PermissionsExt as _;

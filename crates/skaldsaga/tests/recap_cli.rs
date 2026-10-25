@@ -3,6 +3,11 @@
 //! its own unit tests; these check the real binary: that the recap only reads,
 //! that the marker never makes a snapshot of its own, and that the save offer
 //! comes due at the setting.
+#![expect(
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
+)]
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

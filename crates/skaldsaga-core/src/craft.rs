@@ -125,9 +125,10 @@ fn invalid<T>(m: impl Into<String>) -> Result<T, CraftError> {
 
 /// The concepts shipped with the program.
 pub fn built_in() -> Vec<Concept> {
+    // A test checks that data/concepts.json parses and is not empty.
     serde_json::from_str::<ConceptFile>(BUILT_IN)
-        .expect("data/concepts.json is checked by a test")
-        .concepts
+        .map(|file| file.concepts)
+        .unwrap_or_default()
 }
 
 /// True for a well-formed concept ID: lowercase letters, digits and

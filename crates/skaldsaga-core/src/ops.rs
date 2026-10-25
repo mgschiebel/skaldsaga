@@ -167,7 +167,22 @@ fn with_revision(v: &Value) -> Value {
     v
 }
 
+/// A node position that no longer points at a node. The positions come from
+/// lookups made a moment earlier, so this should never happen; it is an error
+/// the proposal reports instead of a crash.
+fn stale() -> Fail {
+    ("internal: a node position went stale".to_string(), vec![])
+}
+
 impl Work {
+    fn node_at(&self, i: usize) -> Result<&Node, Fail> {
+        self.spec.nodes.get(i).ok_or_else(stale)
+    }
+
+    fn node_at_mut(&mut self, i: usize) -> Result<&mut Node, Fail> {
+        self.spec.nodes.get_mut(i).ok_or_else(stale)
+    }
+
     fn idx(&self, id: &str) -> Option<usize> {
         self.spec
             .nodes
@@ -192,16 +207,14 @@ impl Work {
         let Some(home) = self.fact_home(fact) else {
             return fail(format!("fact '{fact}' doesn't exist"), &[fact]);
         };
-        if let Some(node) = node
-            && self.spec.nodes[home].id != node
-        {
-            return fail(
-                format!(
-                    "fact '{fact}' is on '{}', not '{node}'",
-                    self.spec.nodes[home].id
-                ),
-                &[fact, node],
-            );
+        if let Some(node) = node {
+            let home_id = &self.node_at(home)?.id;
+            if home_id != node {
+                return fail(
+                    format!("fact '{fact}' is on '{home_id}', not '{node}'"),
+                    &[fact, node],
+                );
+            }
         }
         Ok(home)
     }
@@ -219,18 +232,19 @@ impl Work {
         self.spec.nodes.insert(at, node);
     }
 
-    fn replace_node(&mut self, i: usize, node: Node) {
-        self.spec.nodes[i] = node;
+    fn replace_node(&mut self, i: usize, node: Node) -> Result<(), Fail> {
+        *self.node_at_mut(i)? = node;
+        Ok(())
     }
 
     fn rewrite_all(&mut self, old: &str, new: &str) -> Result<(), Fail> {
         for i in 0..self.spec.nodes.len() {
-            let node = &self.spec.nodes[i];
+            let node = self.node_at(i)?;
             let mut map = front_of(node).map_err(|e| (e, vec![]))?;
             let mut v = Yaml::Mapping(std::mem::take(&mut map));
             if rewrite(&mut v, old, new) {
                 let Yaml::Mapping(map) = v else {
-                    unreachable!()
+                    return fail("internal: front matter isn't a mapping", &[]);
                 };
                 let notes = node.notes.clone();
                 let id = node.id.clone();
@@ -240,7 +254,7 @@ impl Work {
                         vec![id.clone()],
                     )
                 })?;
-                self.replace_node(i, rebuilt);
+                self.replace_node(i, rebuilt)?;
             }
         }
         Ok(())
@@ -265,7 +279,7 @@ impl Work {
             Op::AddFact { node, fact } => {
                 let i = self.need(node)?;
                 let fact = self.parse_fact(fact)?;
-                self.spec.nodes[i].facts.push(fact);
+                self.node_at_mut(i)?.facts.push(fact);
                 Ok(())
             }
             Op::AddItem {
@@ -287,15 +301,16 @@ impl Work {
                 if from == to_i {
                     return fail(format!("fact '{fact}' is already on '{to}'"), &[fact, to]);
                 }
-                let pos = self.spec.nodes[from]
-                    .facts
-                    .iter()
-                    .position(|f| f.id == *fact)
-                    .unwrap_or_default();
-                let moving = self.spec.nodes[from].facts.remove(pos);
-                self.moved.insert(self.spec.nodes[from].id.clone());
+                self.node_at(to_i)?;
+                let from_node = self.node_at_mut(from)?;
+                let Some(pos) = from_node.facts.iter().position(|f| f.id == *fact) else {
+                    return Err(stale());
+                };
+                let moving = from_node.facts.remove(pos);
+                let from_id = from_node.id.clone();
+                self.moved.insert(from_id);
                 self.moved.insert(to.clone());
-                self.spec.nodes[to_i].facts.push(moving);
+                self.node_at_mut(to_i)?.facts.push(moving);
                 Ok(())
             }
             Op::Reclassify {
@@ -347,7 +362,7 @@ impl Work {
         if let Some(fact) = fact {
             self.need_fact(Some(node_id), fact)?;
         }
-        let node = &self.spec.nodes[i];
+        let node = self.node_at(i)?;
         let mut map = front_of(node).map_err(|e| (e, vec![]))?;
         let notes = node.notes.clone();
         let ids: Vec<&str> = std::iter::once(node_id).chain(fact).collect();
@@ -377,7 +392,7 @@ impl Work {
                 ids.iter().map(|s| s.to_string()).collect(),
             )
         })?;
-        self.replace_node(i, rebuilt);
+        self.replace_node(i, rebuilt)?;
         Ok(())
     }
 
@@ -410,7 +425,7 @@ impl Work {
                 Value::String(s) => s.clone(),
                 _ => return fail("notes are plain text", &[node]),
             };
-            self.spec.nodes[i].notes = text;
+            self.node_at_mut(i)?.notes = text;
             return Ok(());
         }
         let yaml = to_yaml(value).map_err(|e| (e, vec![]))?;
@@ -440,9 +455,12 @@ impl Work {
                 let Some(scene) = value.as_str() else {
                     return fail("the reading order holds scene IDs", &[]);
                 };
-                let is_scene = self
-                    .idx(scene)
-                    .is_some_and(|i| matches!(self.spec.nodes[i].body, NodeBody::Scene(_)));
+                let is_scene = self.idx(scene).is_some_and(|i| {
+                    self.spec
+                        .nodes
+                        .get(i)
+                        .is_some_and(|n| matches!(n.body, NodeBody::Scene(_)))
+                });
                 if !is_scene {
                     return fail(format!("'{scene}' isn't a scene"), &[scene]);
                 }
@@ -474,7 +492,7 @@ impl Work {
                 if after.is_some() || before.is_some() {
                     return fail("'after' and 'before' only apply to the reading order", &[]);
                 }
-                let (node, fact, field) = Self::field_parts(&t);
+                let (node, fact, field) = Self::field_parts(&t)?;
                 let item = to_yaml(value).map_err(|e| (e, vec![]))?;
                 self.edit(&node, fact.as_deref(), &field, |map| {
                     let list = map
@@ -508,7 +526,7 @@ impl Work {
                 Ok(())
             }
             t => {
-                let (node, fact, field) = Self::field_parts(&t);
+                let (node, fact, field) = Self::field_parts(&t)?;
                 let item = to_yaml(value).map_err(|e| (e, vec![]))?;
                 self.edit(&node, fact.as_deref(), &field, |map| {
                     let items = map
@@ -529,12 +547,12 @@ impl Work {
         }
     }
 
-    fn field_parts(t: &Target) -> (String, Option<String>, String) {
+    fn field_parts(t: &Target) -> Result<(String, Option<String>, String), Fail> {
         match t {
-            Target::Sequence => unreachable!("handled by the caller"),
-            Target::NodeField { node, field } => (node.clone(), None, field.clone()),
+            Target::Sequence => fail("the reading order has no fields", &[]),
+            Target::NodeField { node, field } => Ok((node.clone(), None, field.clone())),
             Target::FactField { node, fact, field } => {
-                (node.clone(), Some(fact.clone()), field.clone())
+                Ok((node.clone(), Some(fact.clone()), field.clone()))
             }
         }
     }
@@ -554,9 +572,15 @@ impl Work {
         let home = self.need_fact(node.as_deref(), &old)?;
         let new = self.parse_fact(replacement)?;
         let new_id = new.id.clone();
-        let facts = &mut self.spec.nodes[home].facts;
-        let pos = facts.iter().position(|f| f.id == old).unwrap_or_default();
-        facts[pos] = new;
+        let Some(slot) = self
+            .node_at_mut(home)?
+            .facts
+            .iter_mut()
+            .find(|f| f.id == old)
+        else {
+            return Err(stale());
+        };
+        *slot = new;
         self.rewrite_all(&old, &new_id)?;
         self.superseded.push((old, new_id));
         Ok(())
@@ -571,7 +595,7 @@ impl Work {
             }
             ItemRef::Fact { node, fact } => {
                 let home = self.need_fact(node.as_deref(), &fact)?;
-                self.spec.nodes[home].facts.retain(|f| f.id != fact);
+                self.node_at_mut(home)?.facts.retain(|f| f.id != fact);
                 Ok(())
             }
         }
@@ -583,10 +607,7 @@ impl Work {
         }
         let s = self.need(survivor)?;
         let m = self.need(merged)?;
-        let (st, mt) = (
-            self.spec.nodes[s].node_type(),
-            self.spec.nodes[m].node_type(),
-        );
+        let (st, mt) = (self.node_at(s)?.node_type(), self.node_at(m)?.node_type());
         if st != mt {
             return fail(
                 format!("a {} can't be merged into a {}", mt.as_str(), st.as_str()),
@@ -595,7 +616,7 @@ impl Work {
         }
         let gone = self.spec.nodes.remove(m);
         let s = self.need(survivor)?;
-        let target = &mut self.spec.nodes[s];
+        let target = self.node_at_mut(s)?;
         for alias in std::iter::once(&gone.name).chain(&gone.aliases) {
             if *alias != target.name && !target.aliases.contains(alias) {
                 target.aliases.push(alias.clone());
@@ -608,7 +629,9 @@ impl Work {
             if self.spec.sequence.iter().any(|x| x == survivor) {
                 self.spec.sequence.remove(pos);
             } else {
-                self.spec.sequence[pos] = survivor.to_string();
+                if let Some(slot) = self.spec.sequence.get_mut(pos) {
+                    *slot = survivor.to_string();
+                }
             }
             self.sequence_changed = true;
         }
@@ -624,11 +647,14 @@ impl Work {
     ) -> Result<(), Fail> {
         let (node, fact) = Self::fact_ref(target)?;
         let home = self.need_fact(node.as_deref(), &fact)?;
-        let f = self.spec.nodes[home]
+        let Some(f) = self
+            .node_at_mut(home)?
             .facts
             .iter_mut()
             .find(|f| f.id == fact)
-            .expect("found above");
+        else {
+            return Err(stale());
+        };
         if f.kind == kind {
             return fail(
                 format!("fact '{fact}' is already a {}", kind_word(kind)),
