@@ -1,6 +1,14 @@
 # Application security tooling for the Rust code: research and strategy
 
-*Research session of October 25, 2026. Label for everything below: **Research** (from web pages read this session; verify before relying on it) unless marked **Proposed** (my suggestion, not yet confirmed by the author). Nothing here is **Decided**. This is meant to become its own isolated pull request, separate from the handoff work.*
+*Research session of October 25, 2026. Label for everything below: **Research** (from web pages read this session; verify before relying on it), **Proposed** (suggested, not yet confirmed by the author) or **Decided** (confirmed by the author on October 25, 2026). The tooling itself is built in its own isolated pull request, separate from the handoff work; this file is the plan for it.*
+
+## Decided (October 25, 2026)
+
+1. **Blocking rule for advisories.** Only pull requests that change dependencies (`Cargo.toml` or `Cargo.lock`) are blocked by `cargo deny check`. On every other pull request the same advisory check runs but does not block; it shows as a warning.
+2. **No weekly sweep.** Not waiting on a schedule: exploitation can follow disclosure within hours. Instead: Dependabot alerts and security updates turned on (they open the fix pull request as soon as GitHub's advisory database has the advisory), Dependabot version updates daily instead of weekly, and a **daily non-blocking advisory check** that opens an issue when it finds something.
+3. **Remediation comes first.** While the project is in active development, every session starts by looking for open advisory issues, Dependabot pull requests and code-scanning alerts, and spins off a focused remediation pull request for each before any new feature build or planning work. The rule is in `HANDOFF.md` ("How to use").
+4. **License policy.** Crates in the normal dependency graph are compiled into what ships, so for them an Apache-2.0-only license is not allowed while the workspace is `GPL-2.0-only` (the FSF does not consider Apache-2.0 compatible with GPLv2; it does with GPLv3). `MIT OR Apache-2.0` crates are fine (take MIT). Pipeline tools (cargo-deny, cargo-audit, zizmor, CodeQL, gitleaks) are not in `Cargo.lock`, are not shipped, and are not subject to the rule. Dev-dependencies are left out of the license check (`exclude-dev = true`); build-dependencies are checked as if shipped. Not legal advice.
+5. **Tool choices** as listed under "Strategy" and "Suggested pull-request plan": adopt cargo-deny, cargo-auditable (releases), CodeQL for Rust, zizmor, tightened Clippy lints and fuzzing of the loaders; defer cargo-vet; skip OSV-Scanner for now; Sighthound does not apply (no Rust support).
 
 ## Goal
 
@@ -44,14 +52,13 @@ The gaps are: no license, ban or source policy for dependencies; no static analy
 
 Things I could not confirm this session: cargo-geiger's current status, the present state of Semgrep's Rust rules (the only page I could read was from 2021, so I left Semgrep out), and Trivy and Grype behaviour on stripped binaries.
 
-## Strategy (**Proposed**)
+## Strategy
 
-**1. Two lanes, so a new advisory never blocks unrelated work.**
+**1. Two lanes, so a new advisory never blocks unrelated work (Decided).**
 
-- *PR gate* (required checks, run on every pull request): `cargo deny check` for all four checks, CodeQL, zizmor, Clippy with the tightened lints, tests, a short fuzz pass, gitleaks.
-- *Scheduled sweep* (weekly, plus on `main`): the same dependency and CodeQL scans against the whole tree, because new advisories appear for code that has not changed. A failure opens an issue and is fixed in its own pull request. The Dependabot update that fixes it must be able to merge, so the gate must pass on that PR.
-
-The open question for the author is whether a brand-new advisory should block every pull request (strictest reading of the goal) or only the one that fixes it (what the cargo-deny docs recommend). My recommendation: block only pull requests that change dependencies; the weekly sweep catches the rest.
+- *Blocking gate* (required checks): `cargo deny check` for all four checks on pull requests that change dependencies; CodeQL, zizmor, Clippy with the tightened lints, tests, a short fuzz pass and gitleaks on every pull request.
+- *Non-blocking advisory lane:* on pull requests that do not change dependencies, the advisory check still runs and reports as a warning. A **daily** run (and a run on pushes to `main`) does the same for the whole tree and opens or updates one issue when it finds something. The fix arrives as a separate dependency-update pull request, which Dependabot security updates can open within hours of the advisory reaching GitHub's database; that pull request changes dependencies, so it is gated and must pass.
+- *The limit:* any scan is only as fast as the advisory databases (RustSec, GitHub). A schedule cannot find what has not been published yet. Updating quickly also cuts both ways, since a malicious release reaches us as an update pull request; that is the case cargo-vet and build-script review address, and why cargo-vet is deferred rather than dropped.
 
 **2. "Any severity" has to be configured in each tool, because the defaults do not do it.**
 
@@ -66,11 +73,12 @@ The open question for the author is whether a brand-new advisory should block ev
 
 **5. Release hardening.** Build releases with `cargo auditable build --release --locked`, run `cargo audit bin` on the tarball's binary before publishing, and keep the existing checksum step. Provenance (`actions/attest-build-provenance`) stays on its current SR-44 plan.
 
-**6. Licence policy needs an author decision.** The workspace is `GPL-2.0-only`. As far as I know, Apache-2.0 is not compatible with GPLv2-only (it is with GPLv3). Most Rust crates are `MIT OR Apache-2.0`, which is fine because MIT can be chosen, but an Apache-2.0-only crate would not be. The `deny.toml` license allowlist should reflect that; please confirm the rule you want. Verify the compatibility point before relying on it.
+**6. License policy (Decided).** See Decided item 4. The `deny.toml` license allowlist lists the permissive licenses we accept for shipped crates and leaves out Apache-2.0 on its own; `[graph]` sets `exclude-dev = true`. Research: the Apache Software Foundation's page on GPL compatibility says the FSF has never considered Apache-2.0 compatible with GPLv2 (patent termination and indemnification terms) and does consider it compatible with GPLv3. If the project's own license changes, revisit the allowlist.
 
-## Suggested pull-request plan (**Proposed**)
+## Suggested pull-request plan (**Proposed**; the policy above is Decided)
 
-1. **deny.toml and the cargo-deny job.** Replaces the advisories part of `audit.yml` (same data) and adds bans, licenses and sources. Keep the weekly schedule. Pin the Action by commit and the tool by version (SR-40, SR-42).
+0. **Author actions in GitHub settings** (no pull request): turn on Dependabot alerts and security updates (`github-settings-checklist.md`, section 3); later, make the new jobs required in the "Main protect" ruleset.
+1. **deny.toml and the cargo-deny jobs.** Replaces `cargo audit` in `audit.yml` (same data) and adds bans, licenses and sources. Blocking job for dependency-changing pull requests; non-blocking warning job for the rest; a daily scheduled run that opens or updates a labelled issue (`security-advisory`). Change Dependabot's cargo and Actions schedules to daily. Pin the Action by commit and the tool by version (SR-40, SR-42). Keep `cargo audit bin` for the release binary (step 4).
 2. **CodeQL and zizmor workflows.** Per-job minimal permissions; pin everything.
 3. **Tightened Clippy lints**, fixing or justifying what they flag.
 4. **cargo-auditable in `release.yml`**, with the stripped-binary test.

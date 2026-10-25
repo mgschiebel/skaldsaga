@@ -56,6 +56,7 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 | SR-44 (provenance) | Build provenance for the tarball and `dist` binary (`actions/attest-build-provenance`) before public release; signing is planned for the public-release phase |
 | SR-12, SR-25, SR-46, SR-47, SR-51, SR-62 | Before public release |
 | SR-23 (rest), SR-21 (rest) | As readers and importers are built |
+| SR-43 (extension) | Planned October 25, 2026, not built: cargo-deny (advisories, bans, licenses, sources), a daily non-blocking advisory check, CodeQL for Rust, zizmor, cargo-auditable for releases. Plan: `appsec-tooling-research.md` |
 
 ## Threat model: inputs, runners, outputs
 

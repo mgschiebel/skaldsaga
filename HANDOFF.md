@@ -5,9 +5,10 @@
 ## How to use
 
 1. Read this file. Don't load anything else yet.
-2. Read `CLAUDE.md` if the session will build.
-3. Load only the reference file the topic needs (File map below). Never load `docs/background.md` (it keeps outside story-theory terms out of prompts and code) or `docs/handoff/build-log.md` unless you are looking for the history behind something.
-4. Source-code comments say things like "see HANDOFF, Node format". Use the lookup table at the bottom to find the file.
+2. **Security check first (Decided October 25, 2026, while the project is in active development).** Before any feature build or planning work, look for open items that need remediation: issues labelled `security-advisory`, open Dependabot pull requests, and open code-scanning alerts (`gh api repos/mgschiebel/skaldsaga/issues?labels=security-advisory`, `.../pulls` for Dependabot, `.../code-scanning/alerts?state=open`). Tell the author what is open, and spin off one focused remediation pull request per item, before moving on. If nothing is open, say so in one line and continue. Until the tooling in `docs/security/appsec-tooling-research.md` is built, the only source is Dependabot and the weekly `cargo audit` run.
+3. Read `CLAUDE.md` if the session will build.
+4. Load only the reference file the topic needs (File map below). Never load `docs/background.md` (it keeps outside story-theory terms out of prompts and code) or `docs/handoff/build-log.md` unless you are looking for the history behind something.
+5. Source-code comments say things like "see HANDOFF, Node format". Use the lookup table at the bottom to find the file.
 
 Suggested opening prompts:
 
@@ -40,6 +41,7 @@ Planning sessions do the same: decisions go into the matching reference file as 
 - **Scenario rename built and merged** (#40, branch `build/scenario-rename`; version 0.4.1): `skaldsaga scenario <name>` replaces `demo` (the old name is gone, no alias); `basics` is the old demo. It is developer-only; to try it from the phone, run `/skaldsaga scenario basics` in an empty set-up folder. Notes: `docs/commit.md`; log: `build-log.md`, Build progress.
 - **Slice 2 (the mid-thread recap) is built, in review** (#41, branch `build/slice-2-recap`; version 0.5.0 after merge). `/skaldsaga` with no text in a story left mid-thread gives a short summary and one question and changes nothing until the writer answers; the marker gains the topic last asked and a count for the save offer; marker writes never get a snapshot of their own; new `recap`, `session ask` and `session save`; the `resume` scenario. Interface notes: `docs/entry.md`; what was built and the *Proposed* choices to confirm: `build-log.md`, Build progress, and `design-story.md` (end of "Resuming with no input").
 - **Security work built:** SR-10, SR-11, SR-20, SR-22, SR-24, SR-30 to SR-33, SR-40 to SR-45 (except provenance and signing), SR-04, SR-43, SR-52, SR-60, SR-61. Live status per requirement: `docs/security/status.md`.
+- **Application security tooling planned (October 25, 2026, doc-only pull request):** research and decisions for stronger Rust security checks (cargo-deny, CodeQL for Rust, zizmor, cargo-auditable, fuzzing; daily non-blocking advisory check; sessions check for open advisories first). Decisions: `docs/handoff/security.md`, "Application security tooling"; reasons and plan: `docs/security/appsec-tooling-research.md`. Not built yet.
 - **Not built yet:** the stopping-point recap, stopping-point detection and the natural-pause offer, the drift guard and parking, the brainstorm path, the orchestrator and the sub-agent prompts, and the entries for stages and landmarks in the craft record.
 - **Author actions still open** (details in `docs/handoff/build-log.md` and `docs/security/github-settings-checklist.md`): review and merge the slice 2 pull request (#41); then start the Release workflow, sync the marketplace in the testing Project (Project plugin settings > Manage Marketplaces > Sync), start a fresh session, run `/skaldsaga scenario resume` in an empty set-up folder, then start another fresh session and try `/skaldsaga` with nothing after it. Also still open: activate the "Main protect" ruleset (SR-50), GitHub email privacy (SR-02), the other GitHub settings in the checklist, delete merged branches from a computer (or turn on automatic deletion of head branches), and the meter gate test in local Claude Code on a real machine.
 - **Open from planning session 1:** when the fuller at-a-glance picture of the story appears (item 20), and the *Proposed* slice 1 choices listed in `design-story.md` (opener for text in an empty story, content with no marker reads as mid-thread, the scratch file `.harness/draft.txt`, the marker committed, the demo now `flagged` and kept with `keep_anyway`, the damaged-folder default).
@@ -47,6 +49,8 @@ Planning sessions do the same: decisions go into the matching reference file as 
 ## Ready to build
 
 Nothing is ready to build. The scenario rename (A) is merged and slice 2 (B) is built and in review (see Status). The author's open question for B is the list of *Proposed* choices at the end of "Resuming with no input" in `design-story.md`; confirm or change them, then plan the next slice.
+
+**C. Application security tooling (its own isolated pull request, not part of the slice work).** Build from `docs/security/appsec-tooling-research.md`, "Suggested pull-request plan": steps 1 and 2 first (cargo-deny with `deny.toml` and the blocking, non-blocking and daily jobs; CodeQL and zizmor), then the rest as separate small pull requests. Author actions first: turn on Dependabot alerts and security updates. Ask the author before choosing the exact `deny.toml` license allowlist.
 
 **Later candidates** (to be planned with the author first):
 
@@ -78,7 +82,8 @@ All files are in `docs/handoff/`.
 | `design-story.md` | The project, name, audience and interaction principles, story-shape layer (the 12 shape decisions), completeness bar, story model, coverage grid and movements, weaver, outliner and frameworks | Planning the interviewer, outliner or weaver |
 | `design-system.md` | Architecture, governance, spec and storage (including editions), node format, and who catches what (checks) | Anything that reads or writes the spec |
 | `delivery.md` | Build, release and delivery, default settings, testing and evals | Pipeline, settings or test work |
-| `security.md` | Principles and the SR table from the October 20 review | A pull request that touches security |
+| `security.md` | Principles and the SR table from the October 20 review; application security tooling decisions (October 25) | A pull request that touches security |
+| `../security/appsec-tooling-research.md` (in `docs/`) | Rust security tool comparison, strategy and pull-request plan | Building the security tooling |
 | `open-items.md` | Open and closed items 1 to 20, including craft teaching (19) and the story map (20) | Checking what is still undecided |
 | `future-phases.md` | Recorded ideas that are not in scope | Only when someone asks about later phases |
 | `research-notes.md` | Research findings to verify before relying on them | Before relying on an outside fact |
@@ -95,7 +100,7 @@ All files are in `docs/handoff/`.
 | Node format (every node type, Fact entry, Relationship vocabulary, Scene, Shape decision, Thread, Viewpoint and style, Arc, Proposal, Backlinks index) | `design-system.md` |
 | Checks: who catches what | `design-system.md` |
 | Build, release and delivery; Default settings; Testing and evals | `delivery.md` |
-| Security requirements | `security.md` |
+| Security requirements; Application security tooling | `security.md` (tooling research: `docs/security/appsec-tooling-research.md`) |
 | Open items (1 to 20) | `open-items.md` |
 | Future phases; Research notes | `future-phases.md`; `research-notes.md` |
 | Current stage; Step 9 planning; Build progress (Steps 1 to 10 and every fix); What changed since v8, in v8, v7 and v6; Suggested next steps (old) | `build-log.md` |

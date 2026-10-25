@@ -51,4 +51,14 @@
 
 **Before public release:** SR-12, SR-23, SR-25, SR-44 (provenance), SR-46, SR-47, SR-51, SR-62. **Low:** SR-53.
 
+## Application security tooling (Decided October 25, 2026)
+
+*Added October 25, 2026. Reasons, tool comparison and the planned pull-request sequence: [`docs/security/appsec-tooling-research.md`](../security/appsec-tooling-research.md). Extends SR-43 (Dependabot plus `cargo audit` or `cargo deny`). Not built yet; it is its own isolated pull request.*
+
+- **Goal (Decided):** no pull request merges with an open security finding of any severity; exceptions only as a written, reasoned, expiring entry the author approves.
+- **Advisories (Decided):** `cargo deny check` blocks pull requests that change dependencies; on all other pull requests the advisory check runs as a non-blocking warning. No weekly sweep: Dependabot alerts and security updates on, Dependabot version updates daily, and a daily non-blocking advisory check that opens an issue.
+- **Remediation first (Decided):** while the project is in active development, every session starts by checking for open advisory issues, Dependabot pull requests and code-scanning alerts, and spins off a focused remediation pull request for each before new feature or planning work (see HANDOFF.md, "How to use").
+- **Licenses (Decided):** no Apache-2.0-only crates in the shipped dependency graph while the workspace is `GPL-2.0-only`; pipeline tools and dev-dependencies are outside the rule.
+- **Tools (Decided):** cargo-deny, cargo-auditable for releases, CodeQL for Rust, zizmor, tightened Clippy lints, fuzzing of the loaders. Deferred: cargo-vet. Skipped for now: OSV-Scanner. Not applicable: Sighthound (no Rust support).
+
 
