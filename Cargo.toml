@@ -5,7 +5,7 @@ members = ["crates/skaldsaga-core", "crates/skaldsaga"]
 [workspace.package]
 version = "0.5.0"
 edition = "2024"
-license = "GPL-2.0-only"
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/mgschiebel/skaldsaga"
 rust-version = "1.88"
 

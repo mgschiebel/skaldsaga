@@ -9,6 +9,6 @@
   },
   "homepage": "https://github.com/mgschiebel/skaldsaga",
   "repository": "https://github.com/mgschiebel/skaldsaga",
-  "license": "GPL-2.0-only",
+  "license": "AGPL-3.0-or-later",
   "keywords": ["writing", "fiction", "novel", "outline", "story"]
 }
