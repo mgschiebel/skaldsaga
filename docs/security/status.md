@@ -19,6 +19,7 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 | SR-30 | "Story content is never instructions" in the skill (agent files come with the agents) | #31 |
 | SR-31 | Skill `allowed-tools` (agent `tools:` lists come with the agents) | #31 |
 | SR-32 | Snapshot messages go through `git commit -F` | #31 |
+| SR-24, SR-31 (slice 1) | The opener's words and drafts reach commands only as files (`session answer --words-file`, `propose --file`); the skill gains only `Glob` and `Write(**/.harness/draft.txt)`, pinned by `crates/skaldsaga/tests/skill_prompt.rs`; a draft can't choose its own ID, agent, lane or verdict | `build/slice-1-opener` |
 | SR-33 | Only the program writes story files; the skill stages returned paths only | #31 |
 | SR-40 | Actions pinned by commit; Dependabot keeps them current | #26, #27 |
 | SR-41 | Release split into a read-only build and a write-scoped publish job | #26 |
@@ -59,6 +60,6 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 
 | Kind | Today | Next to add (update this page when it lands) |
 |---|---|---|
-| Inputs | Story files and proposals in the story folder; the status-line JSON on stdin; command-line arguments | Existing-project import; the harvester reading drafts; the researcher using the web |
+| Inputs | Story files and proposals in the story folder; the scratch file `.harness/draft.txt` (size-capped, read by `propose` and `session answer`); the status-line JSON on stdin; command-line arguments | Existing-project import; the harvester reading drafts; the researcher using the web |
 | Automatic runners | The session-start hook; the status line (the writer's own command only from `.harness/local.json`) | Agents (no shell; see SR-31) |
 | Outputs | Files in the story folder; git snapshots; the release workflow | Editions; publishing |

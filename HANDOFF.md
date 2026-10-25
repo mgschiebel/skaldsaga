@@ -32,27 +32,26 @@ Build steps are counted as **steps** (Step 1, Step 2 …), not pull requests; ea
 
 Planning sessions do the same: decisions go into the matching reference file as they are made, with a one-line pointer here only when the Status or Next block changes. The reason: a session that starts after the merge, possibly on another device, has only the repository, so anything not in the handoff is lost.
 
-## Status (last updated October 24, 2026, evening)
+## Status (last updated October 25, 2026)
 
 - **Phase 1, deterministic half: built.** Steps 1 to 10 are done (meter pilot, serde, plugin, cloud setup, spec model and `init`, `index`, `check` and the operation engine, `commit` and the demo, `complete`, and the craft record). Crate version on `main`: 0.3.7.
+- **Slice 1 (the new-story path) is built, in review** (branch `build/slice-1-opener`, PR number added once it is open; version 0.4.0 after merge). The author approved the plan on October 25. It adds entry routing (`route`), the last-session marker (`session answer`, `session stop`), the `scene_untied` check, the `propose` command, the opener path in the skill, five interview evals and a script test that scans writer-facing text for internal words. Interface notes: `docs/entry.md`; what was built and which choices are still *Proposed*: `build-log.md`, Build progress, and `design-story.md`.
 - **Security work built:** SR-10, SR-11, SR-20, SR-22, SR-24, SR-30 to SR-33, SR-40 to SR-45 (except provenance and signing), SR-04, SR-43, SR-52, SR-60, SR-61. Live status per requirement: `docs/security/status.md`.
-- **Not built yet:** the interviewer, the orchestrator and the sub-agent prompts, and the entries for stages and landmarks in the craft record. These turn on choices only the author can make, so planning comes first (see Next).
-- **Author actions still open** (details in `docs/handoff/build-log.md` and `docs/security/github-settings-checklist.md`): activate the "Main protect" ruleset (SR-50), GitHub email privacy (SR-02), the other GitHub settings in the checklist, delete merged branches from a computer (or turn on automatic deletion of head branches), and the meter gate test in local Claude Code on a real machine.
-- **Planning session 1 (interviewer) in progress, October 25.** Destination: one vertical slice, from `/skaldsaga` to the first story fact committed through `check` and `commit`. **Decided:** the interviewer sounds like a curious first reader (`design-story.md`, Audience and interaction principles). Also decided: the three-way opening funnel, the about/begins/ends opening, following the writer's focus afterward, the stopping point with its drift guard, and confirm-back after every answer (all in `design-story.md`). The session-start recap also depends on how the last session ended (mid-thread, stopping point, or no story found). **Slice 1 (Proposed):** the full conversation for the new-story path only, no sub-agents, with entry routing for every entry condition built and tested first (`delivery.md`, Testing and evals, part 3). Entry conditions decided (`design-story.md`): no story found, idea given, brainstorm, mid-thread, stopping point, story exists plus text (ask "new story or more about this one?"), and a story folder with nothing committed (go straight to the opener). The opening commits the premise, the main plot's Setup and Resolution summaries, and named people and places; a scene is created only for a concrete moment. Every scene must be tied to a thread and stage (soft flag at proposal time, blocker at "complete"). The slice 1 plan is written under Ready to build for the author's review; the damaged-folder default (say so plainly, change nothing) is Proposed. Still open from item 20: when the fuller at-a-glance picture of the story appears.
+- **Not built yet:** recap prose for mid-thread and stopping-point sessions, stopping-point detection and the offer, the drift guard and parking, the brainstorm path, the orchestrator and the sub-agent prompts, and the entries for stages and landmarks in the craft record.
+- **Author actions still open** (details in `docs/handoff/build-log.md` and `docs/security/github-settings-checklist.md`): review and merge the slice 1 pull request; then start the Release workflow, sync the marketplace in the testing Project (Project plugin settings > Manage Marketplaces > Sync), start a fresh session and try `/skaldsaga` in an empty folder. Also still open: activate the "Main protect" ruleset (SR-50), GitHub email privacy (SR-02), the other GitHub settings in the checklist, delete merged branches from a computer (or turn on automatic deletion of head branches), and the meter gate test in local Claude Code on a real machine.
+- **Open from planning session 1:** when the fuller at-a-glance picture of the story appears (item 20), and the *Proposed* slice 1 choices listed in `design-story.md` (opener for text in an empty story, content with no marker reads as mid-thread, the scratch file `.harness/draft.txt`, the marker committed, the demo now `flagged` and kept with `keep_anyway`, the damaged-folder default).
 
 ## Ready to build
 
-**Slice 1: the new-story path (Proposed October 25, 2026; the author reviews this section before a build session starts).** One pass through a new story, no sub-agents. Decisions: `design-story.md`, Audience and interaction principles and Coverage grid and movements. Test approach: `delivery.md`, Testing and evals, part 3. Build in this order, tests first:
+Nothing is approved yet. Slice 1 waits on the author's review and the phone test. Candidates for slice 2, to be planned with the author first (each came out of slice 1's "not built" list):
 
-1. **Entry routing (program).** Map folder state plus "did the writer type text" to one of `no_story_bare`, `no_story_with_text`, `story_mid_thread`, `story_stopping_point`, `story_with_text`, `story_empty`, `story_damaged`. Fixture folders and script tests for every condition come first. The model, not the program, tells an idea from a brainstorm request. Routing never runs `init`.
-2. **Last-session marker.** A small data file under `.harness/` (writer state, not the spec), written after every answer: the last answer and whether it was confirmed, or a stopping-point flag. Exact name and shape are settled in the build session against Spec and storage.
-3. **Untied-scene check.** A soft flag (`scene_untied`) at proposal time and a blocker for "complete" for any scene with no thread and stage.
-4. **The opener path** for `no_story_bare`, `no_story_with_text` and `story_empty`: confirm a new story, then `init`; ask what it's about, how it begins and where it ends, in loose plain words; reword and confirm after every answer; commit only confirmed facts (arc premise, main plot Setup and Resolution summaries, named people and places); one follow-the-focus question, creating a scene (with its thread and stage, inferred and confirmed in the reword) only for a concrete moment. `story_with_text` asks "new story or more about this one?" and `story_damaged` says so plainly and changes nothing (Proposed default). The other conditions say plainly that they are not built yet.
-5. **Tests:** interview evals for the three opener conditions (one question per turn, no internal terms, a reword after each answer, no `init` before confirmation, only confirmed facts committed), plus a script test that scans writer-facing prompt text for internal terms.
+1. **Recaps:** the session-start recap for `story_mid_thread` and `story_stopping_point` (both are routed already and say "not built yet"), using the last-session marker.
+2. **Stopping point:** detection, the offer, and the drift guard with parking.
+3. **Brainstorm path** and its holding area.
+4. **At-a-glance story picture** (open item 20).
+5. **Orchestrator and sub-agents** (planning agenda items 2 and 4 below).
 
-**Not in slice 1:** recap prose for mid-thread and stopping-point, stopping-point detection and the offer, the drift guard and parking, the brainstorm path and its holding area, the at-a-glance story picture (item 20), sub-agents.
-
-**Release:** the slice changes a skill, so bump the version in both files and release for phone tests (see `CLAUDE.md`).
+A build session starts on one of these only after the author picks it and its questions are answered in the reference files.
 
 ## Working mode from here (Decided October 24, 2026)
 
@@ -81,6 +80,7 @@ All files are in `docs/handoff/`.
 | `open-items.md` | Open and closed items 1 to 20, including craft teaching (19) and the story map (20) | Checking what is still undecided |
 | `future-phases.md` | Recorded ideas that are not in scope | Only when someone asks about later phases |
 | `research-notes.md` | Research findings to verify before relying on them | Before relying on an outside fact |
+| `../entry.md` (in `docs/`) | Interface notes for `route`, `session`, `propose` and the `scene_untied` check | Touching entry routing, the marker or the opener |
 | `build-log.md` | Old Current stage, Step 9 planning, build progress for every step and fix, and the "What changed" summaries for v6 to v9 | Looking for the history behind a decision or a step |
 
 ## Lookup: section to file

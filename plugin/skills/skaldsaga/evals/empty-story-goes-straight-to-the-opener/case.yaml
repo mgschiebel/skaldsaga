@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: empty-story-goes-straight-to-the-opener
+expected_outcome: |
+  A story folder was set up but nothing is saved in it. The skill goes straight to the
+  opening question with a light acknowledgement that things were set up but nothing is down
+  yet. It does not ask whether the writer wants a story, and does not say it cannot find
+  one. It does not run setup again.
+context:
+  scaffold_script: place-files.sh

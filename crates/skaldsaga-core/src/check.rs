@@ -426,7 +426,29 @@ fn problems(spec: &Spec, registry: &Registry, deleted: &BTreeSet<String>) -> Vec
     let graph = TimeGraph::build(spec);
     ordering(spec, &graph, &mut out);
     uniqueness(spec, registry, &graph, &mut out);
+    untied_scenes(spec, &mut out);
     out
+}
+
+/// A scene with no thread and stage (every scene is tied to one; HANDOFF,
+/// Coverage grid and movements). Soft, so a writer can still draft scenes
+/// before any structure exists; raised while the answer that made the scene
+/// is still the topic, and a blocker only for "complete".
+fn untied_scenes(spec: &Spec, out: &mut Vec<Finding>) {
+    for node in &spec.nodes {
+        if let NodeBody::Scene(s) = &node.body
+            && s.coverage.is_none()
+        {
+            out.push(Finding::soft(
+                "scene_untied",
+                format!(
+                    "{} isn't tied to a storyline and a part of it yet; say which one it belongs to",
+                    label(spec, &node.id)
+                ),
+                &[&node.id],
+            ));
+        }
+    }
 }
 
 /// What kind of thing a reference may point at, by the field it's in.
@@ -963,6 +985,49 @@ mod tests {
         assert_eq!(v["status"], "passed");
         assert!(v.get("checked").is_none());
         assert!(v["checked_by"].as_str().unwrap().starts_with("skaldsaga "));
+    }
+
+    const NEW_SCENE: &str =
+        r#"{"id": "s-qtmrnaaa", "type": "scene", "name": "A quiet morning", "status": "slot""#;
+
+    #[test]
+    fn a_new_scene_with_no_thread_and_stage_is_flagged_softly() {
+        let r = run(&format!(r#"[{{"op": "create", "node": {NEW_SCENE}}}}}]"#));
+        assert_eq!(r.status, Status::Flagged, "{:?}", r.findings);
+        let untied: Vec<_> = r
+            .findings
+            .iter()
+            .filter(|f| f.code == "scene_untied")
+            .collect();
+        assert_eq!(untied.len(), 1, "{:?}", r.findings);
+        assert_eq!(untied[0].severity, Severity::Soft);
+        assert_eq!(untied[0].ids, vec!["s-qtmrnaaa".to_string()]);
+    }
+
+    #[test]
+    fn a_new_scene_tied_to_a_thread_and_stage_is_not_flagged() {
+        let r = run(&format!(
+            r#"[{{"op": "create", "node": {NEW_SCENE}, "coverage": {{"thread": "t-mainthrb", "stage": "setup"}}}}}}]"#
+        ));
+        assert!(!codes(&r).contains(&"scene_untied"), "{:?}", r.findings);
+    }
+
+    #[test]
+    fn an_untied_scene_the_story_already_had_is_not_flagged_again() {
+        // Only what the answer introduces counts.
+        let mut spec = harbor();
+        let id = "s-harbaxtx";
+        let node = spec.nodes.iter_mut().find(|n| n.id == id).unwrap();
+        let NodeBody::Scene(s) = &mut node.body else {
+            panic!("{id} isn't a scene");
+        };
+        s.coverage = None;
+        let p = proposal_of(
+            "interviewer",
+            r#"[{"op": "set", "target": "p-dadsharb.summary", "value": "Ada's father"}]"#,
+        );
+        let r = check(&spec, &p, &RoutingSettings::default());
+        assert!(!codes(&r).contains(&"scene_untied"), "{:?}", r.findings);
     }
 
     #[test]

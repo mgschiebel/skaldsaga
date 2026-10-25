@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: idea-in-empty-folder-asks-before-starting
+expected_outcome: |
+  There is no story here and the writer typed an idea. The skill asks one question, whether
+  to start a new story for this idea, and sets nothing up until the writer says yes. It
+  saves nothing from the idea yet.

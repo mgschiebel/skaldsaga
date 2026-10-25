@@ -156,7 +156,7 @@ Two separate concerns, kept distinct:
   ```
 
   Cuts, alternative scenes, per-grouping release status and pinned versions, and review snapshots are added in the phases that need them; the format leaves room for them.
-- **Harness machinery (new in v5)** lives in a hidden `.harness/` folder at the project root: `inbox/` (pending proposals), `settings.json`, `meter.json` (written by the status line), and `sessions/` (one plain-language recap per session). First run creates it alongside the four visible folders. Recaps could later be surfaced to the writer as a journal.
+- **Harness machinery (new in v5)** lives in a hidden `.harness/` folder at the project root: `inbox/` (pending proposals), `settings.json`, `meter.json` (written by the status line), and `sessions/` (one plain-language recap per session), and `writer/` (writer state, committed: `craft.json`, and since slice 1 `last-session.json`, how the last session ended). `draft.txt` is the skill's gitignored scratch file for words and drafts a command reads. First run creates it alongside the four visible folders. Recaps could later be surfaced to the writer as a journal.
 - Phase 1 captures a **viewpoint and style node**, asked in plain language and held as provisional (fields in Node format).
 - **What-if scene prototypes** are visible variant files inside the project folder, promoted by an explicit step (promotion runs the harvest step). Git stays hidden underneath for history and the agents' parallel workspaces.
 
@@ -394,6 +394,7 @@ Keyed by target ID: whatever is referenced (corrected in step 6; an earlier vers
 **Script soft checks** (in `complete`, run on every commit; no model, no tokens):
 
 - Missing landmarks (empty entries in an arc's landmark map)
+- A scene with no thread and stage (`scene_untied`): a soft finding when an answer introduces it (`check`), and a blocker for the `complete` gate only (built in slice 1)
 - Scene-count pacing per movement
 - Unearned twist (a reveal with no earlier hint) and dangling setup (a hint never revealed or used)
 - Early pivot (the pivot belief ends well before the climax)

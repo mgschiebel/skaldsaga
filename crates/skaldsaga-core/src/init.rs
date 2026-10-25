@@ -47,6 +47,8 @@ meter.json
 local.json
 # The text of the next git snapshot, which can hold the writer's own words.
 commit-message.txt
+# The scratch file the skill writes the writer's words into for a command to read.
+draft.txt
 ";
 
 /// What the story folder's top-level `.gitignore` keeps out of git: personal

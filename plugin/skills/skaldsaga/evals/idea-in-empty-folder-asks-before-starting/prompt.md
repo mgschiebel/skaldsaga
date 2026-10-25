@@ -1,0 +1,8 @@
+---
+tags: [skaldsaga, interview, opener]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga A courier smuggles letters past a blockade, and gets caught at the end.

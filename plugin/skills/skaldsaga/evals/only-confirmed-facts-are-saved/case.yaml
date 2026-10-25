@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: only-confirmed-facts-are-saved
+expected_outcome: |
+  The writer confirmed the reword and named the main person. The skill saves what was
+  confirmed (what it is about, how it begins, the person Mara) and nothing the writer has
+  not said: it makes up no ending, and no moment becomes a scene. It saves it through the
+  program, then asks one follow-up question about the part not yet covered (where it ends)
+  or follows what the writer focused on.
+context:
+  scaffold_script: place-files.sh

@@ -23,6 +23,8 @@ fi
 rm -rf "$out"
 mkdir -p "$out"
 cp -a "$root/plugin/." "$out/"
+# The skill's eval cases are for building it, not for writers.
+rm -rf "$out/skills/skaldsaga/evals"
 mkdir -p "$out/scripts/bin/$platform"
 cp "$binary" "$out/scripts/bin/$platform/skaldsaga"
 chmod +x "$out/scripts/skaldsaga" "$out/scripts/bin/$platform/skaldsaga"
