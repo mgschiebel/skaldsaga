@@ -11,7 +11,7 @@ Prints `found`, `path`, `name` (and `several`) as `locate` does, plus:
 | Field | Meaning |
 |---|---|
 | `condition` | One of the seven below, or `null` when several story folders were found and the writer must choose first |
-| `built` | Whether the conversation for that condition exists yet (`false` for `story_mid_thread` and `story_stopping_point`) |
+| `built` | Whether the conversation for that condition exists yet (`false` only for `story_stopping_point`; the mid-thread recap is built in slice 2) |
 | `damage` | For `story_damaged` only: codes (`spec_unreadable`, `spec_problems`, `marker_unusable`), never paths or story text |
 
 | Condition | When |
@@ -24,9 +24,28 @@ Prints `found`, `path`, `name` (and `several`) as `locate` does, plus:
 | `story_stopping_point` | Last session ended at a stopping point |
 | `story_damaged` | A story file or the record below can't be read. Checked first, whatever was typed |
 
-## `skaldsaga session answer --words-file FILE --confirmed yes|no` and `session stop`
+## `skaldsaga session answer --words-file FILE --confirmed yes|no`, `session ask`, `session save` and `session stop`
 
-Record how the session stands, in `.harness/writer/last-session.json` (format 1; writer state, not story meaning; committed like the craft record so it follows the story between sessions). Either `mid_thread` with the writer's last answer and whether they confirmed the reword (at most 2,000 characters), or `stopping_point`. A file that can't be used is an error and is never overwritten. Saying the same thing again changes nothing. Returns `add_paths` and `message_file` when something changed. The command never prints the writer's words back.
+Record how the session stands, in `.harness/writer/last-session.json` (format 1; writer state, not story meaning; committed like the craft record so it follows the story between sessions). Either `mid_thread` with the writer's last answer and whether they confirmed the reword (at most 2,000 characters), or `stopping_point`. A file that can't be used is an error and is never overwritten. Saying the same thing again changes nothing. The command never prints the writer's words back.
+
+Slice 2 adds two small fields, both only for `mid_thread`: `topic` (the topic last asked about, one of `premise`, `people`, `setup`, `complications`, `crisis`, `resolution`, never text) and `answers_since_offer` (confirmed answers since the last save offer, left out when zero). A `mid_thread` marker needs a last answer or a topic. A stopping point has neither.
+
+| Command | What it does |
+|---|---|
+| `session answer ...` | Records the answer. Keeps the topic. A newly confirmed answer adds one to the count (confirming the same words again does not). |
+| `session ask --topic CODE` | Records the topic being asked about. Keeps the last answer and the count. Starts a mid-thread marker if there is none. Refused at a stopping point. A topic that isn't one of the six codes is a usage error. |
+| `session save --taken yes\|no` | Records that a save offer was made: the count starts over. With `yes` it returns the marker's path and a message file for a snapshot; with `no` it saves nothing. |
+| `session stop` | Records a stopping point (clears the topic and the count). |
+
+**A marker write never makes a snapshot of its own** (*Decided October 25, 2026*). `session answer` and `session ask` return `outcome`, `add_paths` (the marker's path, to stage with the next real save) and `save_offer` (true when the count has reached `session.save_offer_after_answers` in `.harness/settings.json`, default 10), and no message file. Only `session save --taken yes` and `session stop` return a message file. If a session ends abruptly the newest marker state may be uncommitted and a resume can be one step behind; accepted.
+
+## `skaldsaga recap [--project DIR]`
+
+Read-only (*name Proposed*). What a story left mid-thread has so far, and the one topic to ask about next; the skill words the summary and the question from it. Prints `premise`, `people` (alphabetical, at most 12), `stages_without_summary` (codes, for the skill only), `loose_idea` (the writer's unconfirmed last answer, in their own words), `last_topic`, `topic` (`null` when nothing is left to ask in this slice), `answers_since_offer`, `save_offer_after` and `save_offer`. It never prints a question or writes anything. An unusable marker is an error and is left alone.
+
+**Ranking rule** (*Decided October 25, 2026*): if the topic last asked about still has nothing in the story (a premise, a person, or a summary for that part of the main plot), ask it again; the skill finds a fresh angle. Otherwise ask for the premise if there is none, then the earliest part of the main plot with no summary, starting with how it begins. Unit tests cover the rule in `crates/skaldsaga-core/src/recap.rs`.
+
+**The topic is recorded when the writer answers, not when the question is asked** (*Proposed*, an implementation choice): the design says both "nothing on disk changes until the writer answers" and "the topic is written when the question is asked". The first is the acceptance check, so the skill runs `session ask` as the first step of handling the answer, alongside the answer itself. The recap stays read-only, and a topic still shows as asked-but-unsettled when the writer answered but never confirmed.
 
 ## `skaldsaga propose --file FILE [--project DIR]`
 

@@ -6,7 +6,7 @@ allowed-tools: Read, Glob, Write(**/.harness/draft.txt), Bash(sh "${CLAUDE_PLUGI
 
 # Skaldsaga (test build)
 
-This is an early test build. One part of the story conversation works: opening a **new** story. Everything after the opening isn't built yet. Keep every reply short and in plain language, with no file paths or command names unless the person asks.
+This is an early test build. Two parts of the story conversation work: opening a **new** story, and picking a story back up when the last session ended in the middle of something (the recap). Everything else isn't built yet. Keep every reply short and in plain language, with no file paths or command names unless the person asks.
 
 If the person typed `/skaldsaga scenario <name>` (a developer-only test setup), follow **Scenarios** below. If they typed `/skaldsaga check` (or ask to check the install), follow **Install check** below. Anything else after `/skaldsaga` is the writer's own text. Otherwise follow steps 0 to 3, then the opener.
 
@@ -89,9 +89,40 @@ Something in the story folder can't be read safely (`damage` lists codes only). 
 Something in this story's files can't be read, so I'm not going to change anything until that's sorted out.
 ```
 
-### story_mid_thread and story_stopping_point
+### story_mid_thread
 
-`built` is false: picking a story back up isn't built yet. Say so plainly, change nothing, and stop.
+The last session ended in the middle of something, or the story has content and no record of how the last session ended. Pick it up with a short recap and one question. **Nothing on disk changes until the writer answers:** the recap runs only commands that read, writes no file and saves no snapshot.
+
+1. Run `skaldsaga recap` (add `--project` when needed). It only reads. Read `premise`, `people`, `loose_idea` (the writer's own words, kept exactly), `last_topic` and `topic`. `stages_without_summary` is for you; never list it to the writer. If the command fails, say plainly that something in the story's files can't be read, change nothing and stop.
+2. Say two or three plain sentences of what is decided: what the story is (from `premise`, in the writer's own words) and who is in it (`people`). If `loose_idea` isn't null, mention it in the writer's own words as something they floated, not something decided. Never list what's missing; a gap shows only through the question. Then ask **one** question, the one for `topic`:
+
+   | `topic` | The question, in plain words |
+   |---|---|
+   | `premise` | What's the story about? |
+   | `people` | Who's in it? |
+   | `setup` | How does it begin? What happens first? |
+   | `complications` | What gets in the way as it goes on? |
+   | `crisis` | What's the worst moment, where it all falls apart? |
+   | `resolution` | Where do you see it ending? |
+   | `null` | No question: the basic shape is down. Say so, and that carrying on from here isn't built yet. Stop. |
+
+   If `topic` is the same as `last_topic`, it was asked before and didn't get settled: ask it again from a fresh angle, in different words. Never repeat the earlier sentence.
+
+   A loose idea is never the question. At most, add it as a way to answer: "or we can come back to <their idea>". That is still the turn's only question.
+
+```say
+You're writing a modern Jack and Jill, set in a city at night, and Jack and Jill are in it. You also floated a dark alley. Let's start with how it begins: what happens first?
+```
+
+```say
+Last time we were circling how it begins. Picture the very first scene: where are we, and who's there?
+```
+
+3. Wait for the answer. When the writer answers the question you asked, first run `skaldsaga session ask --topic <topic>` (the code you asked about; skip it when they took the loose idea instead). Then handle their answer exactly as in **After every answer** and **On a yes** in the opener: record it, reword it, wait for their yes, and save only what they confirmed. An answer about how the story begins becomes the main plot's first summary; one about the middle, the worst moment or the ending fills that part of the main plot, using the small-draft rule in **On a yes**. Then follow **Following the writer's focus**.
+
+### story_stopping_point
+
+`built` is false: picking a story back up from a stopping point isn't built yet. Say so plainly, change nothing, and stop.
 
 ```say
 Picking a story back up where we left off isn't built yet, so I'll leave everything as it is.
@@ -197,7 +228,7 @@ Where do you see it ending?
 
 Each time the writer answers:
 
-1. Write their words to `.harness/draft.txt` (a plain text file, replacing what was there) and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed no`. Keep `add_paths` for the next snapshot.
+1. Write their words to `.harness/draft.txt` (a plain text file, replacing what was there) and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed no`. It writes the note of where things stand but never makes a snapshot of its own; the next real save carries it. If it reports `save_offer` true, see **Offering to save** once this answer is dealt with.
 2. Reword the answer back in slightly more craft-like prose (a first reader saying what they understood), and ask whether that's what they meant. **That question is the turn's only question.** The next question waits for their yes or correction. A long answer or pasted draft gets one reword covering the two or three facts that matter most. Name a craft term once, in the reword, if it helps; never an internal word.
 
 ```say
@@ -266,17 +297,38 @@ Then check it and save it:
    - `passed`: go on.
    - `flagged`: explain each finding in your own plain words (`message` is for you, not to read out) and let the writer decide. To keep it, run `commit` with `--decision keep_anyway`; if they want to think about it, `--decision not_sure`; if they want to change it, reword and file again.
    - `failed`: nothing was saved. Explain the problem plainly, say what you'll change, and ask the one question that would fix it.
-2. `skaldsaga commit --proposal <id>` (with the decision if flagged). If `outcome` is `committed`, save a snapshot with exactly the paths it lists, plus the path `session answer` returned if it hasn't been saved yet:
+2. `skaldsaga commit --proposal <id>` (with the decision if flagged). If `outcome` is `committed`, mark the answer confirmed first: write the same words to `.harness/draft.txt` and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed yes`. It returns the path of the note of where things stand, and no message of its own, so the message file `commit` returned is still the one to use. Then save one snapshot with exactly the paths `commit` lists plus that note's path:
 
    ```sh
    git rm --cached --ignore-unmatch -q -- <each path in remove_paths>
-   git add -- <each path in add_paths>
+   git add -- <each path in add_paths> <the path session answer returned>
    git commit -q -F <message_file>
    ```
 
-3. Mark the answer confirmed: write the same words to `.harness/draft.txt` and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed yes`. Stage and commit the path it returns with `git commit -q -F <message_file>`.
+   The note of where things stand is saved only this way (with a real save), when the writer takes an offer to save, or at a stop. A held answer saves nothing, not even the note.
 
 If git is missing or a commit fails, explain in one plain sentence; the story files are saved either way.
+
+### Offering to save
+
+Now and then, offer to save where the story stands, so the writer has a safe point to come back to. It is always a plain question, never an order.
+
+- **After many answers:** when `session answer` or `session ask` reports `save_offer` true (ten confirmed answers since the last offer, by default), ask once the current answer is dealt with.
+- **When the session meter says so:** after each saved answer, run `skaldsaga meter check`. When `state` becomes `suggest_wrap_up` (or `wrap_up`) and you haven't yet offered at that level this session, interrupt whatever is going on and recommend saving, strongly. (`unknown` means no reading; say nothing.)
+
+```say
+Want me to save where we are, so there's a safe point to come back to?
+```
+
+```say
+We've covered a lot, and this conversation is getting long. I'd recommend saving where we are now so nothing gets lost. Shall I?
+```
+
+```say
+This conversation is getting too long to keep going well. I'd save where we are right now, and then start a fresh session to carry on. Shall I save?
+```
+
+On a yes, run `skaldsaga session save --taken yes`, then `git add -- <each path in add_paths>` and, if anything is staged (`git diff --cached --quiet` exits non-zero), `git commit -q -F <message_file>`. On a no, run `skaldsaga session save --taken no`: it starts the count over and saves nothing.
 
 ### Following the writer's focus
 
@@ -301,7 +353,7 @@ Used when the person asks to check the install. Do steps 1 and 0 (find the folde
 
 ## Scenarios
 
-`/skaldsaga scenario <name>` is a developer-only test setup, for the person testing Skaldsaga (it is not part of the writer's experience, and you never offer it to a writer). The name after `scenario` picks the setup; the program knows the names. If there is no name, or `skaldsaga scenario <name>` says the name is unknown, tell them the names it lists (exit code 64, usage) and stop. Today the only name is `basics`: follow **Scenario: basics** below.
+`/skaldsaga scenario <name>` is a developer-only test setup, for the person testing Skaldsaga (it is not part of the writer's experience, and you never offer it to a writer). The name after `scenario` picks the setup; the program knows the names. If there is no name, or `skaldsaga scenario <name>` says the name is unknown, tell them the names it lists (exit code 64, usage) and stop. The names are `basics` (follow **Scenario: basics** below) and `resume` (follow **Scenario: resume** below).
 
 ### Scenario: basics
 
@@ -328,3 +380,14 @@ The `basics` scenario files two sample answers, the way the interviewer will onc
 8. **Wrap up** in three or four short lines: what was saved, what was refused and why, what the final check said, and that the snapshot is in git. If the folder has a git remote (`git remote` prints something), offer to push the snapshot so it can be seen on GitHub; push only on a yes.
 
 If git is missing or a commit fails, explain in one plain sentence; the story files are saved either way. Don't change git settings without asking.
+
+### Scenario: resume
+
+The `resume` scenario sets up the Jack and Jill story, left in the middle of something, so the mid-thread recap can be tried. It is a test setup, so it's fine to use the program's own words.
+
+1. **Program and folder:** do steps 0 and 1. If there's no `.harness` folder, do steps 2 and 3 first, then come back here.
+2. **Set it up:** run `skaldsaga scenario resume`.
+   - `spec_not_empty`: say a scenario only runs in an empty story folder. Stop.
+   - `already_written`: say this scenario has already run here. Stop.
+   - `written`: save a snapshot so the folder is clean: `git add -- <each path in add_paths>`, then `git commit -q -F <message_file>` if anything is staged.
+3. **Say what to try next, then stop.** Don't run the recap yourself; the test is a fresh session. Tell them to start a new session in this folder and type `/skaldsaga` with nothing after it, and what to expect (`expect` in the result): a short summary that names the story and Jack and Jill, the dark alley mentioned as something floated, one question about how the story begins, and nothing in the folder changed.

@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: mid-thread-answer-saves-one-snapshot-with-the-note
+expected_outcome: |
+  The recap asked how the story begins. The writer answered and confirmed the reword. The skill
+  saves the confirmed answer as the first summary of the main plot, through the program, and
+  saves exactly one git snapshot that holds the story change and the note of where things stand
+  together. The loose dark alley is not saved as part of the story. It then asks one follow-up.
+
+context:
+  scaffold_script: place-files.sh

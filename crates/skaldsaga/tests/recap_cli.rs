@@ -244,6 +244,10 @@ fn the_save_offer_comes_due_after_ten_confirmed_answers_and_can_start_over() {
                 ],
             ));
             assert!(v.get("message_file").is_none());
+            // The answer's own report says when the offer is due.
+            if confirmed == "yes" {
+                assert_eq!(v["save_offer"], n >= 10, "after {n} answers");
+            }
         }
         let r = json_of(&skaldsaga(p, &["recap"]));
         assert_eq!(r["answers_since_offer"], n);

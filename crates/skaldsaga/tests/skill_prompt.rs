@@ -136,7 +136,8 @@ fn every_entry_condition_has_a_section_and_a_writer_line() {
         "### story_empty",
         "### story_with_text",
         "### story_damaged",
-        "### story_mid_thread and story_stopping_point",
+        "### story_mid_thread",
+        "### story_stopping_point",
     ] {
         let at = text
             .find(heading)
@@ -219,6 +220,65 @@ fn commands_never_carry_the_writers_words() {
         assert!(
             l.contains("--file .harness/draft.txt"),
             "a draft must come from the scratch file: {l}"
+        );
+    }
+}
+
+/// The text of one `###` section of the skill, heading excluded.
+fn section(text: &str, heading: &str) -> String {
+    let at = text
+        .find(heading)
+        .unwrap_or_else(|| panic!("{heading} is missing"));
+    let rest = &text[at + heading.len()..];
+    rest[..rest.find("\n##").unwrap_or(rest.len())].to_string()
+}
+
+#[test]
+fn the_recap_itself_runs_only_commands_that_read() {
+    let text = skill_text();
+    let mid = section(&text, "### story_mid_thread");
+    let before_answer = &mid[..mid
+        .find("3. Wait for the answer")
+        .expect("the step that waits for the answer")];
+    assert!(before_answer.contains("skaldsaga recap"));
+    for writes in [
+        "skaldsaga session",
+        "skaldsaga propose",
+        "skaldsaga commit",
+        "git ",
+        "draft.txt",
+    ] {
+        assert!(
+            !before_answer.contains(writes),
+            "the recap must change nothing on disk, but mentions {writes}"
+        );
+    }
+    // The topic is recorded only once the writer answers, and only as a code.
+    let after = &mid[mid.find("3. Wait for the answer").unwrap()..];
+    assert!(after.contains("skaldsaga session ask --topic <topic>"));
+}
+
+#[test]
+fn the_note_of_where_things_stand_never_gets_a_snapshot_of_its_own() {
+    let text = skill_text();
+    assert!(
+        text.contains("git add -- <each path in add_paths> <the path session answer returned>"),
+        "a real save carries the note with it"
+    );
+    assert!(
+        !text.contains("Stage and commit the path it returns"),
+        "the note must not be committed on its own after an answer"
+    );
+    // The two moments it is saved alone are an accepted offer and a stop.
+    let offer = section(&text, "### Offering to save");
+    assert!(offer.contains("session save --taken yes"));
+    assert!(offer.contains("session save --taken no"));
+    assert!(offer.contains("meter check"));
+    // Offers are plain questions, never orders, and say what they save.
+    for (line, body) in say_blocks(&offer) {
+        assert!(
+            body.trim_end().ends_with('?'),
+            "an offer is a question (line {line}): {body}"
         );
     }
 }
