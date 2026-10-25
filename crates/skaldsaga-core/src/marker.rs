@@ -239,7 +239,7 @@ fn save(project: &Project, marker: &Marker) -> Result<Recorded, MarkerError> {
     let mut text =
         serde_json::to_string_pretty(marker).map_err(|e| MarkerError::Invalid(e.to_string()))?;
     text.push('\n');
-    fsio::write_atomic(&marker_path(project), &text)?;
+    project.write_atomic(&marker_path(project), &text)?;
     Ok(Recorded {
         changed: true,
         path: marker_rel(),

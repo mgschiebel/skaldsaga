@@ -397,7 +397,7 @@ fn save(project: &Project, record: &Record) -> Result<String, CraftError> {
     let mut text =
         serde_json::to_string_pretty(record).map_err(|e| CraftError::Invalid(e.to_string()))?;
     text.push('\n');
-    fsio::write_atomic(&record_path(project), &text)?;
+    project.write_atomic(&record_path(project), &text)?;
     Ok(record_rel())
 }
 
@@ -618,7 +618,7 @@ pub fn add_researched(project: &Project, mut concept: Concept) -> Result<Recorde
         return invalid("the concept is too big");
     }
     let id = concept.id.clone();
-    fsio::write_atomic(&concept_dir(project).join(format!("{id}.json")), &text)?;
+    project.write_atomic(&concept_dir(project).join(format!("{id}.json")), &text)?;
     Ok(Recorded {
         changed: true,
         path: concept_rel(&id),

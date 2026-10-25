@@ -283,7 +283,7 @@ pub fn acknowledge(
         .map_err(|e| DecisionError::Invalid(e.to_string()))?;
     text.push('\n');
     let path = kind_dir(project, KIND_FINDING_ACK).join(format!("{id}.json"));
-    fsio::write_atomic(&path, &text)?;
+    project.write_atomic(&path, &text)?;
     Ok(Acknowledged {
         path: relative_path(KIND_FINDING_ACK, &id),
         decision,
@@ -300,7 +300,9 @@ pub fn remove(project: &Project, id: &str) -> Result<Option<String>, DecisionErr
         )));
     }
     let path = kind_dir(project, KIND_FINDING_ACK).join(format!("{id}.json"));
-    Ok(fsio::remove_optional(&path)?.then(|| relative_path(KIND_FINDING_ACK, id)))
+    Ok(project
+        .remove_optional(&path)?
+        .then(|| relative_path(KIND_FINDING_ACK, id)))
 }
 
 /// Today's date (UTC) as `YYYY-MM-DD`, from seconds since the Unix epoch.

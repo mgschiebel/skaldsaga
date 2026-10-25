@@ -928,7 +928,7 @@ pub fn check_inbox(
         let report = check(&loaded.spec, &proposal, &routing);
         proposal.check = Some(report.to_value());
         proposal.revisions.checked = report.checked.clone();
-        fsio::write_atomic(&path, &crate::proposal::render(&proposal))?;
+        project.write_atomic(&path, &crate::proposal::render(&proposal))?;
         entries.push(InboxEntry::Checked {
             id: proposal.id,
             report,

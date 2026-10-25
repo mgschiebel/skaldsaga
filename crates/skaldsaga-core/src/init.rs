@@ -186,22 +186,22 @@ pub fn init(project: &Project) -> Result<InitReport, FsError> {
     };
 
     // The hidden folder first: once it exists, this is a Skaldsaga project.
-    note(fsio::ensure_dir(&project.harness_dir())?, ".harness");
+    note(project.ensure_dir(&project.harness_dir())?, ".harness");
     let settings_path = project.settings_path();
     let mut doc = fsio::read_json_object(&settings_path)?.unwrap_or(Value::Null);
     if settings::fill_missing(&mut doc) {
-        fsio::write_json(&settings_path, &doc)?;
+        project.write_json(&settings_path, &doc)?;
         note(true, ".harness/settings.json");
     }
     for sub in ["inbox", "sessions"] {
         let keep = project.harness_dir().join(sub).join(".gitkeep");
         note(
-            fsio::write_if_missing(&keep, "")?,
+            project.write_if_missing(&keep, "")?,
             &format!(".harness/{sub}"),
         );
     }
     note(
-        fsio::write_if_missing(&project.harness_dir().join(".gitignore"), HARNESS_GITIGNORE)?,
+        project.write_if_missing(&project.harness_dir().join(".gitignore"), HARNESS_GITIGNORE)?,
         ".harness/.gitignore",
     );
     // A folder set up by an earlier version lacks the line for local.json.
@@ -220,20 +220,20 @@ pub fn init(project: &Project) -> Result<InitReport, FsError> {
 
     let gitignore = project.gitignore_path();
     if let Some(text) = merged_gitignore(fsio::read_optional(&gitignore)?.as_deref()) {
-        fsio::write_atomic(&gitignore, &text)?;
+        project.write_atomic(&gitignore, &text)?;
         note(true, ".gitignore");
     }
 
     for (name, text) in FOLDERS {
         let dir = root.join(name);
-        note(fsio::ensure_dir(&dir)?, name);
+        note(project.ensure_dir(&dir)?, name);
         note(
-            fsio::write_if_missing(&dir.join("README.md"), &readme(text))?,
+            project.write_if_missing(&dir.join("README.md"), &readme(text))?,
             &format!("{name}/README.md"),
         );
     }
     note(
-        fsio::write_if_missing(
+        project.write_if_missing(
             &root.join("spec").join(spec::SEQUENCE_FILE),
             &spec::render_sequence(&[]),
         )?,

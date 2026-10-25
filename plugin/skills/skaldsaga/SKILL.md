@@ -1,7 +1,7 @@
 ---
 name: skaldsaga
 description: Skaldsaga story mentor (test build). Use when the person types /skaldsaga or asks to start or test Skaldsaga.
-allowed-tools: Read, Glob, Write(**/.harness/draft.txt), Bash(sh "${CLAUDE_PLUGIN_ROOT}/scripts/skaldsaga":*), Bash(git init:*), Bash(git add:*), Bash(git rm:*), Bash(git ls-files:*), Bash(git diff:*), Bash(git commit:*), Bash(git remote:*)
+allowed-tools: 'Read, Glob, Write(**/.harness/draft.txt), Bash(sh "${CLAUDE_PLUGIN_ROOT}/scripts/skaldsaga":*), Bash(git init -q), Bash(git add -- :*), Bash(git rm --cached --ignore-unmatch -q -- :*), Bash(git ls-files --error-unmatch -- :*), Bash(git diff --cached --quiet), Bash(git commit -q -F :*), Bash(git commit -q -m "Skaldsaga: set up the story folders"), Bash(git commit -q -m "Skaldsaga: move the session meter to personal settings"), Bash(git remote)'
 ---
 
 # Skaldsaga (test build)
@@ -178,7 +178,7 @@ Skaldsaga keeps its history in git, so the person can always go back.
    For each file in `meter.cleaned`, stage the change only if git already tracks that file (it may have been edited or removed):
 
    ```sh
-   git ls-files --error-unmatch -- <path> >/dev/null 2>&1 && git add -A -- <path>
+   git ls-files --error-unmatch -- <path> >/dev/null 2>&1 && git add -- <path>
    ```
 
 3. If anything is staged (`git diff --cached --quiet` exits non-zero), commit it. Use exactly "Skaldsaga: set up the story folders" when setup added folders, or exactly "Skaldsaga: move the session meter to personal settings" when only `meter.cleaned` changed (these two fixed messages are the only ones you type yourself):

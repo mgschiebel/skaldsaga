@@ -23,18 +23,18 @@
 //! (no timestamps, sorted keys), so the same spec always gives the same files.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::path::Path;
 
 use indexmap::IndexMap;
 use serde::Serialize;
 
-use crate::fsio::{self, FsError};
+use crate::fsio::FsError;
 use crate::ids;
 use crate::json::Value;
 use crate::model::{
     ArcStatus, Confidence, Coverage, LearnedHow, MOVEMENT_BOUNDARIES, Node, NodeBody, NodeType,
     RevealLevel, Review, SceneStatus, Stage, ThreadKind, TimeAnchor,
 };
+use crate::project::Project;
 use crate::registry::{AttributeDef, Cardinality, Registry, Relation, Source};
 use crate::spec::{self, INDEX_DIR, Loaded, SEQUENCE_FILE, Spec};
 
@@ -87,8 +87,9 @@ pub struct Rebuilt {
 }
 
 /// Loads the spec and rewrites every file in `spec/_index/`.
-pub fn rebuild(spec_dir: &Path) -> Result<Rebuilt, FsError> {
-    let loaded = spec::load(spec_dir)?;
+pub fn rebuild(project: &Project) -> Result<Rebuilt, FsError> {
+    let spec_dir = project.spec_dir();
+    let loaded = spec::load(&spec_dir)?;
     let index = build(&loaded);
     let dir = spec_dir.join(INDEX_DIR);
     let mut files = Vec::new();
@@ -96,10 +97,10 @@ pub fn rebuild(spec_dir: &Path) -> Result<Rebuilt, FsError> {
         // Serializing a Value cannot fail.
         let mut text = serde_json::to_string_pretty(value).unwrap_or_default();
         text.push('\n');
-        fsio::write_atomic(&dir.join(name), &text)?;
+        project.write_atomic(&dir.join(name), &text)?;
         files.push(format!("{INDEX_DIR}/{name}"));
     }
-    fsio::write_atomic(&dir.join(".gitignore"), GITIGNORE)?;
+    project.write_atomic(&dir.join(".gitignore"), GITIGNORE)?;
     let count = |key: &str| {
         index
             .status
@@ -1244,6 +1245,7 @@ mod tests {
     use super::*;
     use crate::model::BeatPlacement;
     use crate::testutil::TempDir;
+    use std::path::Path;
     use std::path::PathBuf;
 
     fn fixture(name: &str) -> PathBuf {
@@ -1597,9 +1599,10 @@ mod tests {
     fn rebuild_writes_every_file_and_can_always_be_restored() {
         let dir = TempDir::new();
         let spec_dir = dir.path().join("spec");
+        let project = Project::new(dir.path());
         copy_dir(&fixture("harbor"), &spec_dir);
 
-        let first = rebuild(&spec_dir).unwrap();
+        let first = rebuild(&project).unwrap();
         assert_eq!(first.files.len(), FILES.len());
         assert_eq!(first.nodes, 27);
         assert_eq!(first.problems, 1);
@@ -1616,11 +1619,11 @@ mod tests {
         assert!(ignore.lines().any(|l| l == "*"));
 
         // The index itself is never loaded as part of the spec.
-        assert_eq!(rebuild(&spec_dir).unwrap(), first);
+        assert_eq!(rebuild(&project).unwrap(), first);
         assert_eq!(read_all(), before, "same spec, same files");
 
         std::fs::remove_dir_all(&index_dir).unwrap();
-        rebuild(&spec_dir).unwrap();
+        rebuild(&project).unwrap();
         assert_eq!(read_all(), before, "deleting the folder loses nothing");
     }
 
@@ -1628,7 +1631,8 @@ mod tests {
     fn empty_spec_builds_an_empty_index() {
         let dir = TempDir::new();
         let spec_dir = dir.path().join("spec");
-        let rebuilt = rebuild(&spec_dir).unwrap();
+        let project = Project::new(dir.path());
+        let rebuilt = rebuild(&project).unwrap();
         assert_eq!(rebuilt.nodes, 0);
         let status = std::fs::read_to_string(spec_dir.join(INDEX_DIR).join("status.json")).unwrap();
         assert!(status.contains("\"broken_references\": []"));

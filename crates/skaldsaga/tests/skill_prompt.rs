@@ -198,6 +198,46 @@ fn the_skill_may_write_only_its_scratch_file_and_never_edit_story_files() {
 }
 
 #[test]
+fn the_skill_may_run_only_the_git_commands_it_uses() {
+    let text = skill_text();
+    let allowed = text
+        .lines()
+        .find_map(|l| l.strip_prefix("allowed-tools:"))
+        .expect("allowed-tools");
+    // SR-31: no whole-command grants. `git diff --output=<file>` writes any file,
+    // `git remote add` changes where a push goes, and `git commit -m` takes any text.
+    for wide in [
+        "Bash(git init:*)",
+        "Bash(git add:*)",
+        "Bash(git rm:*)",
+        "Bash(git ls-files:*)",
+        "Bash(git diff:*)",
+        "Bash(git commit:*)",
+        "Bash(git remote:*)",
+    ] {
+        assert!(!allowed.contains(wide), "{wide} is too wide");
+    }
+    for exact in [
+        "Bash(git init -q)",
+        "Bash(git add -- :*)",
+        "Bash(git rm --cached --ignore-unmatch -q -- :*)",
+        "Bash(git ls-files --error-unmatch -- :*)",
+        "Bash(git diff --cached --quiet)",
+        "Bash(git commit -q -F :*)",
+        "Bash(git remote)",
+    ] {
+        assert!(allowed.contains(exact), "{exact} is missing");
+    }
+    // `-m` is allowed for the two fixed setup messages only.
+    assert_eq!(allowed.matches("git commit -q -m").count(), 2);
+    assert!(allowed.contains("-m \"Skaldsaga: set up the story folders\")"));
+    assert!(allowed.contains("-m \"Skaldsaga: move the session meter to personal settings\")"));
+    // Every git command the steps show is one of those forms.
+    assert!(!text.contains("git add -A"), "git add -A is not allowed");
+    assert!(!text.contains("git diff --cached --quiet -"));
+}
+
+#[test]
 fn commands_never_carry_the_writers_words() {
     let text = skill_text();
     // Only the two fixed setup messages are typed after `-m`.

@@ -21,7 +21,7 @@
 //! question about how the story begins, and changes nothing on disk.
 
 use crate::commit::{self, CommitOptions, Outcome};
-use crate::fsio::{self, FsError};
+use crate::fsio::FsError;
 use crate::marker::{self, MarkerError, Topic};
 use crate::project::Project;
 use crate::propose::{self, ProposeError};
@@ -227,7 +227,7 @@ pub fn write(
     match scenario {
         Scenario::Basics => {
             for (id, text) in scenario.proposals().iter().zip(scenario.texts()) {
-                fsio::write_atomic(&project.inbox_dir().join(format!("{id}.json")), text)?;
+                project.write_atomic(&project.inbox_dir().join(format!("{id}.json")), text)?;
             }
             Ok(Filed::only(ScenarioOutcome::Written))
         }

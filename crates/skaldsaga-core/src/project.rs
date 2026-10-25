@@ -2,6 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::fsio::{self, FsError};
+use crate::json::Value;
+
 /// The hidden folder that marks a folder as a Skaldsaga project.
 /// The per-machine settings file inside `.harness/`.
 pub const LOCAL_SETTINGS_FILE: &str = "local.json";
@@ -77,6 +80,50 @@ impl Project {
     /// The project's top-level `.gitignore`.
     pub fn gitignore_path(&self) -> PathBuf {
         self.root.join(".gitignore")
+    }
+
+    // Every write into the story folder goes through these, never straight to
+    // `fsio`: each one first checks that no folder on the way is a link
+    // (SR-21). A test (`tests/guarded_writes.rs` in the command-line crate)
+    // fails if code elsewhere calls the raw writers.
+
+    /// Writes a file atomically, refusing to go through a linked folder.
+    pub fn write_atomic(&self, path: &Path, contents: &str) -> Result<(), FsError> {
+        fsio::refuse_links_under(&self.root, path)?;
+        fsio::write_atomic(path, contents)
+    }
+
+    /// Writes a JSON value atomically, refusing to go through a linked folder.
+    pub fn write_json(&self, path: &Path, value: &Value) -> Result<(), FsError> {
+        fsio::refuse_links_under(&self.root, path)?;
+        fsio::write_json(path, value)
+    }
+
+    /// Removes a file (already gone is fine), refusing to go through a linked folder.
+    pub fn remove_optional(&self, path: &Path) -> Result<bool, FsError> {
+        fsio::refuse_links_under(&self.root, path)?;
+        fsio::remove_optional(path)
+    }
+
+    /// Makes a folder, refusing if it or a folder on the way is a link.
+    pub fn ensure_dir(&self, path: &Path) -> Result<bool, FsError> {
+        fsio::refuse_links_in(&self.root, path)?;
+        fsio::ensure_dir(path)
+    }
+
+    /// Writes a file only if nothing is there yet, refusing to go through a
+    /// linked folder.
+    pub fn write_if_missing(&self, path: &Path, contents: &str) -> Result<bool, FsError> {
+        fsio::refuse_links_under(&self.root, path)?;
+        fsio::write_if_missing(path, contents)
+    }
+
+    /// Checks that none of these folders is a link, before anything is
+    /// written, so a job that writes in several places stops before it has
+    /// changed anything instead of half way.
+    pub fn refuse_links_in(&self, dirs: &[PathBuf]) -> Result<(), FsError> {
+        dirs.iter()
+            .try_for_each(|dir| fsio::refuse_links_in(&self.root, dir))
     }
 }
 

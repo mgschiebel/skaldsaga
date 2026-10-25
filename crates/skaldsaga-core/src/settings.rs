@@ -364,7 +364,7 @@ pub fn store_wrapped_statusline(project: &Project, wrapped: Option<Value>) -> Re
             doc.remove_key("wrapped_statusline");
         }
     }
-    fsio::write_json(&path, &doc)
+    project.write_json(&path, &doc)
 }
 
 /// Adds `local.json` to `.harness/.gitignore` when it is missing, keeping the
@@ -394,7 +394,7 @@ pub fn ensure_harness_ignored(
         out.push('\n');
     }
     out.push_str(&format!("# {comment}\n{name}\n"));
-    fsio::write_atomic(&path, &out)?;
+    project.write_atomic(&path, &out)?;
     Ok(true)
 }
 
@@ -420,7 +420,7 @@ pub fn retire_committed_wrapped(project: &Project) -> Result<bool, FsError> {
     }
     meter.remove_key("wrapped_statusline");
     doc.set("meter", meter);
-    fsio::write_json(&path, &doc)?;
+    project.write_json(&path, &doc)?;
     Ok(true)
 }
 
