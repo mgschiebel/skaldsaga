@@ -1,11 +1,13 @@
 # Keeps dependencies and pinned Actions current (SR-43, SR-40). Each update
 # arrives as a pull request for the author to review; nothing merges itself.
+# Daily, not weekly: exploitation can follow an advisory within hours
+# (appsec-tooling-research.md, Decided item 2).
 version: 2
 updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
     open-pull-requests-limit: 5
     commit-message:
       prefix: "Dependencies:"
@@ -13,7 +15,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
     open-pull-requests-limit: 5
     commit-message:
       prefix: "Actions:"

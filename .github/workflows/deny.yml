@@ -1,0 +1,173 @@
+name: Dependency policy
+
+# cargo-deny over the locked dependencies (SR-43). It replaces the old Audit
+# workflow: the advisories check reads the same RustSec data as `cargo audit`,
+# and the bans, licenses and sources checks are new. The policy is in
+# deny.toml; the reasons are in docs/security/appsec-tooling-research.md
+# (Decided items 1 to 4).
+#
+#   policy      bans, licenses and sources. They only change when the
+#               dependencies or deny.toml change, so this always blocks.
+#   advisories  pull requests only. Blocks when the pull request changes
+#               dependencies; otherwise shows a warning (a new advisory must
+#               not stop unrelated work).
+#   report      daily, on pushes to main and on demand. Never blocks a pull
+#               request; opens or updates one `security-advisory` issue when
+#               the whole tree has a finding, and closes it when clean.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  schedule:
+    - cron: "43 13 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  policy:
+    name: Bans, licenses, sources
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The runner already has rustup; the version is pinned here and in ci.yml (SR-42).
+      - name: Install the Rust toolchain
+        run: rustup toolchain install 1.97.0 --profile minimal --no-self-update && rustup default 1.97.0
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      # Built from the locked, checksummed crates.io release of this exact version.
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version 0.20.2
+
+      - name: Check
+        run: cargo deny --locked check bans licenses sources
+
+  advisories:
+    name: Advisories
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # The runner already has rustup; the version is pinned here and in ci.yml (SR-42).
+      - name: Install the Rust toolchain
+        run: rustup toolchain install 1.97.0 --profile minimal --no-self-update && rustup default 1.97.0
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version 0.20.2
+
+      # The checkout is the merge of the pull request into its base, so its
+      # first parent is the base and the diff is exactly what the pull request changes.
+      - name: Does this pull request change dependencies?
+        id: changed
+        run: |
+          set -eu
+          if git diff --name-only HEAD^1 HEAD | grep -Eq '^(Cargo\.lock|Cargo\.toml|deny\.toml|crates/[^/]+/Cargo\.toml)$'; then
+            echo "deps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deps=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check advisories
+        id: check
+        env:
+          DEPS_CHANGED: ${{ steps.changed.outputs.deps }}
+        run: |
+          set +e
+          cargo deny --locked check advisories
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$DEPS_CHANGED" != "true" ]; then
+            echo "::warning title=Dependency advisory::This pull request does not change dependencies, so the advisory below does not block it. Fix it in its own pull request (see the security-advisory issue)."
+            exit 0
+          fi
+          exit "$rc"
+
+  report:
+    name: Advisory report
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # check out the code
+      issues: write # open, update and close the security-advisory issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The runner already has rustup; the version is pinned here and in ci.yml (SR-42).
+      - name: Install the Rust toolchain
+        run: rustup toolchain install 1.97.0 --profile minimal --no-self-update && rustup default 1.97.0
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version 0.20.2
+
+      - name: Check advisories
+        id: check
+        run: |
+          set +e
+          cargo deny --locked --color never check advisories > "$RUNNER_TEMP/advisories.txt" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/advisories.txt"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
+      # The advisory text is data from the RustSec database; it goes into the
+      # issue as a file, never into a command line.
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RC: ${{ steps.check.outputs.rc }}
+        run: |
+          set -eu
+          label=security-advisory
+          num=$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')
+          if [ "$RC" = "0" ]; then
+            if [ -n "$num" ]; then
+              gh issue close "$num" --comment "The daily advisory check is clean again."
+            fi
+            exit 0
+          fi
+          gh label create "$label" --description "Open dependency advisory found by cargo-deny" --color B60205 2>/dev/null || true
+          {
+            echo "The advisory check found a problem in the locked dependencies. Fix it in its own pull request (a Dependabot security update may already be open)."
+            echo
+            echo '~~~~'
+            cat "$RUNNER_TEMP/advisories.txt"
+            echo '~~~~'
+          } > "$RUNNER_TEMP/issue.md"
+          if [ -n "$num" ]; then
+            gh issue edit "$num" --body-file "$RUNNER_TEMP/issue.md"
+          else
+            gh issue create --title "Dependency advisory found" --label "$label" --body-file "$RUNNER_TEMP/issue.md"
+          fi
+
+      - name: Fail the run so it shows red
+        env:
+          RC: ${{ steps.check.outputs.rc }}
+        run: exit "$RC"

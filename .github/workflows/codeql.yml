@@ -1,0 +1,51 @@
+name: CodeQL
+
+# GitHub's code-scanning engine over the Rust source (generally available since
+# October 2025; no build needed). Results appear under Security > Code scanning
+# and on the pull request. The `security-extended` suite adds lower-precision
+# security queries to the default ones.
+#
+# REPORT-ONLY until the baselining pull request: nothing here blocks a merge.
+# The author makes code scanning blocking by setting the ruleset's "Code
+# scanning results" rule to every severity, after baselining
+# (appsec-tooling-research.md, Strategy items 2 and 4).
+#
+# Author action: this is the "advanced" setup. If code scanning "default setup"
+# is switched on in the repository settings, turn it off first, or GitHub
+# refuses the results this workflow uploads.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  schedule:
+    - cron: "29 15 * * 3"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (Rust)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # check out the code
+      security-events: write # upload the results to code scanning
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: rust
+          build-mode: none
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: "/language:rust"

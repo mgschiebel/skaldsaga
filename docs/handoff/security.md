@@ -53,7 +53,7 @@
 
 ## Application security tooling (Decided October 25, 2026)
 
-*Added October 25, 2026. Reasons, tool comparison and the planned pull-request sequence: [`docs/security/appsec-tooling-research.md`](../security/appsec-tooling-research.md). Extends SR-43 (Dependabot plus `cargo audit` or `cargo deny`). Not built yet; it is its own isolated pull request.*
+*Added October 25, 2026. Reasons, tool comparison and the planned pull-request sequence: [`docs/security/appsec-tooling-research.md`](../security/appsec-tooling-research.md). Extends SR-43 (Dependabot plus `cargo audit` or `cargo deny`). First part built October 25, 2026 (branch `build/appsec-tooling`): cargo-deny, `ci/presubmit.sh`, the license checks, zizmor and CodeQL (report-only). Still to build: tightened Clippy lints, cargo-auditable with the SBOM and notices, fuzzing, the exception-expiry check; then baselining.*
 
 - **Goal (Decided):** no pull request merges with an open security finding of any severity; exceptions only as a written, reasoned, expiring entry the author approves.
 - **Advisories (Decided):** `cargo deny check` blocks pull requests that change dependencies; on all other pull requests the advisory check runs as a non-blocking warning. No weekly sweep: Dependabot alerts and security updates on, Dependabot version updates daily, and a daily non-blocking advisory check that opens an issue.

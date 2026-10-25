@@ -1,0 +1,133 @@
+# License elections: for every dependency that ships in a release, the license
+# expression the crate declares, and the license we elect from it.
+#
+# Why this file exists: many crates are dual-licensed ("MIT OR Apache-2.0").
+# We accept the terms of one side and record which, and why, so a release's
+# notices, its SBOM and anyone reading it use the same answer
+# (docs/security/appsec-tooling-research.md, Decided items 8, 9 and 11).
+# Not legal advice.
+#
+# The check is ci/check-license-elections.py (run by ci/presubmit.sh). It fails
+# when a shipped crate has no entry, an entry names a crate that is gone, the
+# crate's declared license has changed, the elected license is not part of the
+# declared one or not on the allowlist (docs/security/license-policy.md), or a
+# choice has no reason. Adding or updating a dependency means adding or
+# updating its entry in the same pull request. The author approves the
+# elections.
+#
+# Fields: `declared` (copied exactly from the crate), `elected` (one license, or
+# licenses joined with AND when the crate requires several), `reason`
+# (required when the crate offers a choice).
+#
+# How the elections below were made (Proposed, until the author confirms):
+# among the allowed options, take the one with the fewest conditions on
+# redistributing a compiled binary: Unlicense, BSL-1.0 and Zlib first, then
+# MIT, then Apache-2.0 (its NOTICE-file and patent terms add the most work).
+# LGPL options are never elected.
+
+[crates.cfg-if]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.equivalent]
+declared = "Apache-2.0 OR MIT"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.foldhash]
+declared = "Zlib"
+elected = "Zlib"
+
+[crates.getrandom]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.hashbrown]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.indexmap]
+declared = "Apache-2.0 OR MIT"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.itoa]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.libc]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.memchr]
+declared = "Unlicense OR MIT"
+elected = "Unlicense"
+reason = "Public-domain dedication: no conditions on redistributing a binary (rule above)."
+
+[crates.proc-macro2]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.quote]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.r-efi]
+declared = "MIT OR Apache-2.0 OR LGPL-2.1-or-later"
+elected = "MIT"
+reason = "LGPL-2.1-or-later is not on the allowlist; MIT has the fewest conditions of the allowed options. (Only used when building for UEFI targets.)"
+
+[crates.ryu]
+declared = "Apache-2.0 OR BSL-1.0"
+elected = "BSL-1.0"
+reason = "BSL-1.0 asks for no notice in binary form (rule above)."
+
+[crates.serde]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.serde_core]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.serde_derive]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.serde_json]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.serde_norway]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.syn]
+declared = "MIT OR Apache-2.0"
+elected = "MIT"
+reason = "Fewest conditions of the allowed options (rule above)."
+
+[crates.unicode-ident]
+declared = "(MIT OR Apache-2.0) AND Unicode-3.0"
+elected = "MIT AND Unicode-3.0"
+reason = "The crate requires Unicode-3.0 for its data tables as well as one of MIT or Apache-2.0; MIT has the fewest conditions (rule above)."
+
+[crates.unsafe-libyaml-norway]
+declared = "MIT"
+elected = "MIT"
+
+[crates.zmij]
+declared = "MIT"
+elected = "MIT"

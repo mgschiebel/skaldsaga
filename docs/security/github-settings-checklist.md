@@ -50,6 +50,7 @@ Secret scanning and push protection are already on. Add the rest:
 2. Under **Secret Protection**, turn on **Scan for non-provider patterns** and **Validity checks**.
 3. Under **Dependabot**, turn on **Dependabot alerts** and **Dependabot security updates**.
 4. On the same page, turn on **Private vulnerability reporting**, so people can report security problems to you privately (SR-51).
+5. On the same page, under **Code scanning**, leave **CodeQL analysis** on **Advanced** (or off). `codeql.yml` is the advanced setup, and GitHub refuses its results while "default setup" is on. Once the baselining pull request is merged, the ruleset's "Code scanning results" rule is set to block on every severity, and the new jobs (Dependency policy, Workflow security, CodeQL) are made required (SR-50).
 
 ## 4. Tidy merged branches (SR-53)
 

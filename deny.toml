@@ -1,0 +1,63 @@
+# cargo-deny policy (SR-43). Run with `cargo deny --locked check`.
+# Reasons and plan: docs/security/appsec-tooling-research.md (Decided items 1 to 4).
+# Every `ignore` or exception added here needs a written reason, an expiry
+# date and the author's approval, and is listed in docs/security/status.md.
+
+[graph]
+# Dev-dependencies are not shipped, so they are outside the license rule.
+# Build-dependencies are checked as if shipped.
+exclude-dev = true
+all-features = true
+
+[advisories]
+# "Any severity": unmaintained and yanked crates fail the check too.
+unmaintained = "all"
+unsound = "all"
+yanked = "deny"
+# Exceptions go here as { id = "RUSTSEC-...", reason = "...", expiry = "YYYY-MM-DD" }.
+ignore = []
+
+[licenses]
+# The machine-checked copy of the allowlist. The one place the list is written
+# for people is docs/security/license-policy.md; edit both together.
+allow = [
+    "MIT",
+    "X11",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    "NCSA",
+    "Unlicense",
+    "CC0-1.0",
+    "Unicode-3.0",
+    "Apache-2.0",
+]
+confidence-threshold = 0.93
+# The allowlist is policy, not a list of what the tree happens to use today.
+unused-allowed-license = "allow"
+
+# The workspace's own crates are AGPL-3.0-or-later; nothing else is.
+[[licenses.exceptions]]
+crate = "skaldsaga"
+allow = ["AGPL-3.0-or-later"]
+
+[[licenses.exceptions]]
+crate = "skaldsaga-core"
+allow = ["AGPL-3.0-or-later"]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+# Path dependencies between the workspace's own crates carry no version.
+allow-wildcard-paths = true
+highlight = "all"
+deny = []
+skip = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

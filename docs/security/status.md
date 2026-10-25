@@ -2,7 +2,7 @@
 
 Where each requirement from `2026-10-20-review.md` stands. Update this page in any pull request that changes a row, and whenever a phase adds a new input (existing-project import, the harvester reading drafts, the researcher using the web), a new automatic runner (hooks, status line) or a new output channel (editions, publishing). That is what keeps the review's threat model current (SR-61).
 
-*Last updated October 24, 2026.*
+*Last updated October 25, 2026.*
 
 ## Done
 
@@ -25,7 +25,7 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 | SR-40 | Actions pinned by commit; Dependabot keeps them current | #26, #27 |
 | SR-41 | Release split into a read-only build and a write-scoped publish job | #26 |
 | SR-42 | Rust toolchain and the Claude Code validator pinned (no `rust-toolchain.toml`: see HANDOFF) | #26 |
-| SR-43 | Dependabot and `cargo audit` | #27 |
+| SR-43 | Dependabot (daily) and cargo-deny: advisories, bans, licenses and sources (`deny.toml`, `deny.yml`; replaces the weekly `cargo audit`, #27) | `build/appsec-tooling` |
 | SR-44 (checksums) | Each release publishes `skaldsaga-<version>-linux-x64.tar.gz.sha256` beside the tarball; the publish job re-checks it before releasing | this PR |
 | SR-45 | Release only by running the workflow on `main`; tag trigger removed | #26 |
 | SR-52 | Hostile-story test: embedded instructions, shell tricks, links, a program, traversal IDs, a committed status line command | `crates/skaldsaga/tests/hostile_story_cli.rs` |
@@ -56,12 +56,12 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 | SR-44 (provenance) | Build provenance for the tarball and `dist` binary (`actions/attest-build-provenance`) before public release; signing is planned for the public-release phase |
 | SR-12, SR-25, SR-46, SR-47, SR-51, SR-62 | Before public release |
 | SR-23 (rest), SR-21 (rest) | As readers and importers are built |
-| SR-43 (extension) | Planned October 25, 2026, not built: cargo-deny (advisories, bans, licenses, sources), a daily non-blocking advisory check, CodeQL for Rust, zizmor, cargo-auditable for releases, a license elections file with a CI check, an SPDX SBOM per release and a third-party notices file. Plan: `appsec-tooling-research.md` |
+| SR-43 (extension) | Built October 25, 2026 (`build/appsec-tooling`): cargo-deny, the daily advisory issue, the license elections file and its check, `ci/presubmit.sh`; zizmor and CodeQL run report-only until baselining. Not built: tightened Clippy lints, cargo-auditable for releases, an SPDX SBOM per release, a third-party notices file, fuzzing, the exception-expiry check. Plan: `appsec-tooling-research.md` |
 
 ## Threat model: inputs, runners, outputs
 
 | Kind | Today | Next to add (update this page when it lands) |
 |---|---|---|
 | Inputs | Story files and proposals in the story folder; the scratch file `.harness/draft.txt` (size-capped, read by `propose` and `session answer`); the status-line JSON on stdin; command-line arguments | Existing-project import; the harvester reading drafts; the researcher using the web |
-| Automatic runners | The session-start hook; the status line (the writer's own command only from `.harness/local.json`) | Agents (no shell; see SR-31) |
-| Outputs | Files in the story folder; git snapshots; the release workflow | Editions; publishing |
+| Automatic runners | The session-start hook; the status line (the writer's own command only from `.harness/local.json`); scheduled GitHub workflows (the daily advisory report, a weekly CodeQL run), which read the repository and the RustSec data | Agents (no shell; see SR-31) |
+| Outputs | Files in the story folder; git snapshots; the release workflow; the daily advisory job, which can open, edit and close one GitHub issue (`issues: write`, that job only; the issue text is advisory data written to a file, never a command line) | Editions; publishing |

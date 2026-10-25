@@ -1,6 +1,6 @@
 # License policy
 
-*The one place that spells out which licenses Skaldsaga accepts. Every other file refers here and does not repeat the list, so changing the list means editing this file (and `deny.toml`, once it exists) and nothing else. Decided October 25, 2026; the reasoning and research are in [`appsec-tooling-research.md`](appsec-tooling-research.md) (Decided items 4, 8 and 11). Not legal advice.*
+*The one place that spells out which licenses Skaldsaga accepts. Every other file refers here and does not repeat the list, so changing the list means editing this file and `deny.toml` and nothing else. Decided October 25, 2026; the reasoning and research are in [`appsec-tooling-research.md`](appsec-tooling-research.md) (Decided items 4, 8 and 11). Not legal advice.*
 
 ## The rule
 
@@ -15,7 +15,7 @@ Dependencies in the normal graph and build-dependencies count as shipped. Dev-de
 
 ## The allowlist
 
-SPDX ids, as `cargo deny` reads them. For a dual-licensed crate (`A OR B`), one side only needs to be on the list, and the license we choose is recorded in `license-elections.toml` (once it exists).
+SPDX ids, as `cargo deny` reads them. For a dual-licensed crate (`A OR B`), one side only needs to be on the list, and the license we choose is recorded in [`license-elections.toml`](license-elections.toml).
 
 - MIT
 - X11
@@ -30,7 +30,7 @@ SPDX ids, as `cargo deny` reads them. For a dual-licensed crate (`A OR B`), one 
 - Unicode-3.0
 - Apache-2.0
 
-**Where the machine-checked copy lives:** until the cargo-deny pull request lands, this file is the only copy. After it lands, `deny.toml` (`[licenses] allow`) is the enforced list, and a CI check should fail if this section and `deny.toml` disagree (*Proposed*).
+**Where the machine-checked copy lives:** `deny.toml` (`[licenses] allow`) is the list `cargo deny` enforces. `ci/check-license-sync.sh` fails CI when this section and `deny.toml` are not the same set, so edit both together. `ci/check-license-elections.py` checks that every shipped dependency has an entry in `license-elections.toml` whose elected license is allowed here.
 
 ## Why these, and what is left out
 
@@ -42,9 +42,10 @@ SPDX ids, as `cargo deny` reads them. For a dual-licensed crate (`A OR B`), one 
 
 ## Changing the list
 
-Edit the allowlist section above, add a line to the history below, and (once it exists) make the same change in `deny.toml`. The author approves every change.
+Edit the allowlist section above, add a line to the history below, and make the same change in `deny.toml`. The author approves every change.
 
 ## History
 
 - October 25, 2026: first list, eleven permissive licenses, while the project was `GPL-2.0-only` (Apache-2.0 excluded).
 - October 25, 2026: project license changed to AGPL-3.0-or-later; Apache-2.0 added.
+- October 25, 2026: `deny.toml` and the elections file built (tooling pull request); sync and elections checks added to CI.
