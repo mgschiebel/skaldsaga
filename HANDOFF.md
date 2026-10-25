@@ -1145,6 +1145,20 @@ Checks tied to anything opted out with "keep it simple" are skipped. At the gate
 
 20. *Parked (raised by the author October 19, 2026; discuss after the step 9 planning questions):* **a story map in the session-start recap.** Open each session with an overview of where the project stands: in the outlining phase, the outline's shape and its gaps; otherwise overall project status. Worked into the conversation, ending with the writer choosing ("Here's what's still open. What do you want to work on today?"). Claude's note: `complete` (step 9) already produces the data (gate readiness, blockers, empty grid cells, queued findings) as codes and IDs, so this is mostly orchestrator wording plus possibly a compact visual. Questions to settle: how much to show on a phone screen, whether it's text or a picture, how it fits the one-short-question rule, and how it relates to the existing recap.
 
+## Working mode from here (Decided October 24, 2026)
+
+**Planning sessions come before the next build steps.** Steps 1 to 10 (the deterministic half of phase 1, the security work and the craft record) are built. What remains is the interviewer, the orchestrator and the sub-agent prompts, which turn on choices only the author can make. So the next sessions are **wayfinder-style planning sessions** (the method in Research notes and open item 9): the destination is named first, one short question at a time with a sentence of why, each answer shows what to ask next, and decisions are written into this file as they are made. Build steps resume once the answers are enough to build without asking further questions; a build session should not start on this work before then.
+
+Agenda for the planning sessions, in a suggested order:
+
+1. **Interviewer:** voice and tone, how a teaching aside sounds, how the one-sentence why reads, how the starting experience check is asked, when to offer research (uses the `craft` commands from Step 10).
+2. **Orchestrator:** what it does at session start and between questions, how it hands work to sub-agents and takes it back, how the writer chooses what to work on.
+3. **Open item 20:** the story map in the session-start recap (first question already posed: map plus one recommendation, map then open choice, or map only on request or at milestones).
+4. **Sub-agents:** which are phase 1, what each may read and write, and the agent-side security rules (SR-30, SR-31, SR-52).
+5. **Triage the older Proposed bullets** (item 4 under Next session).
+
+Each planning session ends with the decisions written here and a short list of what is now ready to build.
+
 ## Suggested next steps
 
-Build order for the deterministic half of phase 1: `index` (step 6, done), `check` with the proposal format and the operation engine (step 7, done), `commit` (step 8, done: the single committer with the version check, reusing the engine, plus the demo), then a fix pull request for the 0.3.0 phone-test findings (see Current stage), then step 9: `complete` with the script soft checks. Each step that adds something testable from the phone gets a release (see Current stage). After that come the interviewer and orchestrator prompts and the sub-agents, with the craft-teaching primitives (open item 19, added to phase 1 on October 19). Remaining open items are later-phase work (15, 16) and a pre-release legal check (11).
+Build order for the deterministic half of phase 1: `index` (step 6, done), `check` with the proposal format and the operation engine (step 7, done), `commit` (step 8, done: the single committer with the version check, reusing the engine, plus the demo), then a fix pull request for the 0.3.0 phone-test findings (see Current stage), then step 9: `complete` with the script soft checks. Each step that adds something testable from the phone gets a release (see Current stage). After that come planning sessions (see "Working mode from here"), then the interviewer and orchestrator prompts and the sub-agents, with the craft-teaching primitives (open item 19, added to phase 1 on October 19). Remaining open items are later-phase work (15, 16) and a pre-release legal check (11).
