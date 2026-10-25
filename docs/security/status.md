@@ -2,7 +2,7 @@
 
 Where each requirement from `2026-10-20-review.md` stands. Update this page in any pull request that changes a row, and whenever a phase adds a new input (existing-project import, the harvester reading drafts, the researcher using the web), a new automatic runner (hooks, status line) or a new output channel (editions, publishing). That is what keeps the review's threat model current (SR-61).
 
-*Last updated October 25, 2026.*
+*Last updated October 25, 2026 (baselining).*
 
 ## Done
 
@@ -36,8 +36,8 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 
 | SR | Done | Left |
 |---|---|---|
-| SR-21 | Story loader, inbox and committed-proposal reads, the local settings file, the craft record and its input files refuse links | Every other story reader as it is built; a root-containment check on resolved paths |
-| SR-23 | 1 MiB cap on story file reads; smaller caps on decisions, the words file, local settings and the craft record (256 KiB; concepts 32 KiB) | Cap on the status-line JSON from stdin and on files per folder; YAML alias and depth limits |
+| SR-21 | Story loader, inbox and committed-proposal reads, the local settings file, the craft record and its input files refuse links | Every other story reader as it is built; a root-containment check on resolved paths. Baselining found two concrete gaps (`baseline.md`, findings 1 and 2): a commit writes through a linked folder inside a story, and the settings, meter and `.gitignore` readers follow links |
+| SR-23 | 1 MiB cap on story file reads; smaller caps on decisions, the words file, local settings and the craft record (256 KiB; concepts 32 KiB) | Cap on files per folder; YAML alias and depth limits; a cap on the settings, meter and `.gitignore` readers and a race in the capped reader (`baseline.md`, findings 2 and 3). The status-line JSON from stdin is capped at 4 MiB (`MAX_STDIN`) |
 | SR-05 | Rule in `CLAUDE.md` | Review of older test reports |
 
 ## Author actions
@@ -55,8 +55,8 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 |---|---|
 | SR-44 (provenance) | Build provenance for the tarball and `dist` binary (`actions/attest-build-provenance`) before public release; signing is planned for the public-release phase |
 | SR-12, SR-25, SR-46, SR-47, SR-51, SR-62 | Before public release |
-| SR-23 (rest), SR-21 (rest) | As readers and importers are built. Every loader that parses text is fuzzed (`fuzz/`, October 25, 2026): the aim is that no input can make one panic. |
-| SR-43 (extension) | Built October 25, 2026 (`build/appsec-tooling`): cargo-deny, the daily advisory issue, the license elections file and its check, `ci/presubmit.sh`; zizmor and CodeQL run report-only until baselining. Tightened Clippy lints built the same day (`build/clippy-lints`): production code can't `unwrap`, `expect`, `panic`, index or byte-slice (SR-23, a panic is a denial of service under `panic = "abort"`). Release supply-chain files built the same day (`build/release-supply-chain`): cargo-auditable in the release build with the advisory check on the binary, an SPDX SBOM and a third-party notices file per release. Fuzz targets for every loader built the same day (`build/fuzz-targets`): five cargo-fuzz targets, seeds replayed first, a short pass in `ci.yml` and `ci/presubmit.sh fuzz`. The register of suppressions and the expiry check built the same day (`build/exception-expiry`): `docs/security/exceptions.toml`, `ci/check-exceptions.py`. Not built: a long weekly fuzz run, enforcement of dismissed code-scanning alerts. Plan: `appsec-tooling-research.md` |
+| SR-23 (rest), SR-21 (rest) | Findings 1 to 3 of the baseline review are fixed in the pull request after baselining; the rest as readers and importers are built. Every loader that parses text is fuzzed (`fuzz/`, October 25, 2026): the aim is that no input can make one panic. |
+| SR-43 (extension) | Built October 25, 2026 (`build/appsec-tooling`): cargo-deny, the daily advisory issue, the license elections file and its check, `ci/presubmit.sh`; zizmor and CodeQL ran report-only until baselining. Tightened Clippy lints built the same day (`build/clippy-lints`): production code can't `unwrap`, `expect`, `panic`, index or byte-slice (SR-23, a panic is a denial of service under `panic = "abort"`). Release supply-chain files built the same day (`build/release-supply-chain`): cargo-auditable in the release build with the advisory check on the binary, an SPDX SBOM and a third-party notices file per release. Fuzz targets for every loader built the same day (`build/fuzz-targets`): five cargo-fuzz targets, seeds replayed first, a short pass in `ci.yml` and `ci/presubmit.sh fuzz`. The register of suppressions and the expiry check built the same day (`build/exception-expiry`): `docs/security/exceptions.toml`, `ci/check-exceptions.py`. Baselined October 25, 2026 (`build/baselining`, `docs/security/baseline.md`): every zizmor finding fixed, zizmor blocking and part of the presubmit, the plugin validator pinned by a lockfile, Dependabot cooldown of three days; CodeQL alerts still to be confirmed by the author. SR-31 also has an open finding there (finding 4: the skill's git permissions are wider than it needs). Not built: a long weekly fuzz run, enforcement of dismissed code-scanning alerts. Plan: `appsec-tooling-research.md` |
 
 ## Threat model: inputs, runners, outputs
 
