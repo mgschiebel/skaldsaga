@@ -98,7 +98,7 @@ fn a_story_with_no_arc_yet_is_ready_for_nothing() {
     let dir = TempDir::new();
     let p = dir.path();
     assert!(skaldsaga(p, &["init"]).status.success());
-    assert!(skaldsaga(p, &["demo"]).status.success());
+    assert!(skaldsaga(p, &["scenario", "basics"]).status.success());
     let c = json_of(&skaldsaga(
         p,
         &[

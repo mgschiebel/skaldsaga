@@ -1,4 +1,4 @@
-//! End-to-end tests for `skaldsaga demo` and `skaldsaga commit`, following
+//! End-to-end tests for `skaldsaga scenario basics` and `skaldsaga commit`, following
 //! the same steps as the skill's demo.
 
 use std::path::{Path, PathBuf};
@@ -61,9 +61,18 @@ fn the_demo_commits_one_answer_and_refuses_the_other() {
             .success()
     );
 
-    let v = json_of(&skaldsaga(p, &["demo", "--project", &project]));
+    let v = json_of(&skaldsaga(
+        p,
+        &["scenario", "basics", "--project", &project],
+    ));
     assert_eq!(v["outcome"], "written");
-    let again = json_of(&skaldsaga(p, &["demo", "--project", &project]));
+    assert_eq!(v["scenario"], "basics");
+    assert!(v["next_command"].as_str().unwrap().contains("check"));
+    assert!(!v["expect"].as_str().unwrap().is_empty());
+    let again = json_of(&skaldsaga(
+        p,
+        &["scenario", "basics", "--project", &project],
+    ));
     assert_eq!(again["outcome"], "already_written");
 
     let v = json_of(&skaldsaga(
@@ -133,10 +142,13 @@ fn the_demo_commits_one_answer_and_refuses_the_other() {
     assert_eq!(v["reason"], "failed");
     assert_eq!(v["findings"][0]["code"], "learns_before_true");
 
-    // The demo never runs in a story that already has content.
+    // A scenario never runs in a story that already has content.
     std::fs::remove_file(story.join(".harness/inbox/pr-demmixup.json")).unwrap();
     std::fs::remove_dir_all(story.join(".harness/committed")).unwrap();
-    let v = json_of(&skaldsaga(p, &["demo", "--project", &project]));
+    let v = json_of(&skaldsaga(
+        p,
+        &["scenario", "basics", "--project", &project],
+    ));
     assert_eq!(v["outcome"], "spec_not_empty");
 }
 
@@ -165,7 +177,7 @@ fn a_path_like_proposal_id_is_refused_before_any_file_is_touched() {
     let dir = TempDir::new();
     let p = dir.path();
     assert!(skaldsaga(p, &["init"]).status.success());
-    assert!(skaldsaga(p, &["demo"]).status.success());
+    assert!(skaldsaga(p, &["scenario", "basics"]).status.success());
     // A real proposal that sits outside the inbox, reachable with "..".
     let outside = p.join(".harness/pr-escapee.json");
     std::fs::copy(p.join(".harness/inbox/pr-demstart.json"), &outside).unwrap();
@@ -188,4 +200,20 @@ fn a_path_like_proposal_id_is_refused_before_any_file_is_touched() {
             .map(|mut d| d.next().is_some())
             .unwrap_or(false)
     );
+}
+
+#[test]
+fn scenario_needs_a_known_name_and_the_old_demo_name_is_gone() {
+    let dir = TempDir::new();
+    let p = dir.path();
+    assert!(skaldsaga(p, &["init"]).status.success());
+    assert_eq!(skaldsaga(p, &["scenario"]).status.code(), Some(64));
+    assert_eq!(
+        skaldsaga(p, &["scenario", "--project", "."]).status.code(),
+        Some(64)
+    );
+    assert_eq!(skaldsaga(p, &["scenario", "nope"]).status.code(), Some(64));
+    assert_eq!(skaldsaga(p, &["demo"]).status.code(), Some(64));
+    // Nothing was filed by any of the refused calls.
+    assert!(!p.join(".harness/inbox/pr-demstart.json").exists());
 }

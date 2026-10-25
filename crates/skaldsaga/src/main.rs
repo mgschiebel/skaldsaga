@@ -2,7 +2,7 @@
 //!
 //! One binary with subcommands. First-run setup, the session meter, the
 //! session-start hook, the index rebuild, the dependency checker, the
-//! committer, the demo and `complete` (with the writer's stored decisions) are
+//! committer, the test scenarios and `complete` (with the writer's stored decisions) are
 //! built so far.
 
 mod wrapped;
@@ -17,7 +17,6 @@ use skaldsaga_core::commit::{self, CommitOptions, Decision, Outcome};
 use skaldsaga_core::complete;
 use skaldsaga_core::craft::{self, CraftError};
 use skaldsaga_core::decisions::{self, DecisionError};
-use skaldsaga_core::demo::{self, DemoOutcome};
 use skaldsaga_core::entry;
 use skaldsaga_core::fsio::{self, Refused};
 use skaldsaga_core::hooks;
@@ -29,6 +28,7 @@ use skaldsaga_core::meter::{self, StatusInput};
 use skaldsaga_core::project::{self, Location, Project};
 use skaldsaga_core::propose::{self, ProposeError};
 use skaldsaga_core::safety;
+use skaldsaga_core::scenario::{self, Scenario, ScenarioOutcome};
 use skaldsaga_core::settings::{self, MeterSettings};
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
 
@@ -78,8 +78,10 @@ Usage:
                                      Re-checks one proposal and, if it may commit, writes it into
                                      the spec, archives it in .harness/committed and rebuilds the
                                      index. Prints JSON, including the paths to hand to git
-  skaldsaga demo [--project DIR]     Files two sample answers in a set-up project with an empty
-                                     story, for trying check and commit
+  skaldsaga scenario NAME [--project DIR]
+                                     Developer-only test setup: files a named scenario's sample
+                                     answers in a set-up project with an empty story, and prints
+                                     the one command to run next. Names: basics
   skaldsaga complete [--project DIR] Reports how close the whole story is, as codes and IDs:
                                      whether each stage can start (weave, outline, complete)
                                      and what blocks it, plus the soft findings from the
@@ -150,7 +152,7 @@ fn main() -> ExitCode {
         ["index", rest @ ..] => run(index_cmd(rest)),
         ["check", rest @ ..] => run(check_cmd(rest)),
         ["commit", rest @ ..] => run(commit_cmd(rest)),
-        ["demo", rest @ ..] => run(demo_cmd(rest)),
+        ["scenario", rest @ ..] => run(scenario_cmd(rest)),
         ["complete", rest @ ..] => run(complete_cmd(rest)),
         ["craft", sub, rest @ ..] => run(craft_cmd(sub, rest)),
         ["decisions", "acknowledge", rest @ ..] => run(acknowledge_cmd(rest)),
@@ -586,25 +588,44 @@ fn commit_cmd(rest: &[&str]) -> Result<(), CliError> {
     print_json(&v)
 }
 
-/// Files the sample answers.
-fn demo_cmd(rest: &[&str]) -> Result<(), CliError> {
+/// Files a named scenario's sample answers.
+fn scenario_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let names = scenario::NAMES.join(", ");
+    let (name, rest) = match rest.split_first() {
+        Some((name, rest)) if !name.starts_with("--") => (*name, rest),
+        _ => return Err(CliError::Usage(format!("scenario needs a name ({names})"))),
+    };
+    let scenario = Scenario::parse(name)
+        .ok_or_else(|| CliError::Usage(format!("unknown scenario (names: {names})")))?;
     let parsed = flags(rest, &["--project"])?;
     let project = require_project(&parsed)?;
-    let outcome = demo::write(&project).map_err(|e| CliError::Failed(e.to_string()))?;
+    let outcome =
+        scenario::write(&project, scenario).map_err(|e| CliError::Failed(e.to_string()))?;
     let mut v = json::object();
     v.set(
         "outcome",
         match outcome {
-            DemoOutcome::Written => "written",
-            DemoOutcome::SpecNotEmpty => "spec_not_empty",
-            DemoOutcome::AlreadyWritten => "already_written",
+            ScenarioOutcome::Written => "written",
+            ScenarioOutcome::SpecNotEmpty => "spec_not_empty",
+            ScenarioOutcome::AlreadyWritten => "already_written",
         }
         .into(),
     );
+    v.set("scenario", name.into());
     v.set(
         "proposals",
-        Value::Array(demo::PROPOSALS.iter().map(|p| Value::from(*p)).collect()),
+        Value::Array(
+            scenario
+                .proposals()
+                .iter()
+                .map(|p| Value::from(*p))
+                .collect(),
+        ),
     );
+    if outcome == ScenarioOutcome::Written {
+        v.set("next_command", scenario.next_command().into());
+        v.set("expect", scenario.expect().into());
+    }
     print_json(&v)
 }
 

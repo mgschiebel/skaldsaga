@@ -66,11 +66,11 @@ fn empty_story() -> TempDir {
     dir
 }
 
-/// A set-up story holding the demo's first answer.
+/// A set-up story holding the `basics` scenario's first answer.
 fn story_with_content() -> TempDir {
     let dir = empty_story();
     let p = dir.path();
-    assert!(skaldsaga(p, &["demo"]).status.success());
+    assert!(skaldsaga(p, &["scenario", "basics"]).status.success());
     let c = json_of(&skaldsaga(
         p,
         &[

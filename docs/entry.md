@@ -36,7 +36,7 @@ New things are named with placeholders: `@` and a kind letter (`p` person, `l` p
 
 ## `scene_untied`
 
-A scene with no thread and stage is a **soft finding** in `check` (raised only when the answer introduces it, like every finding) and a **blocker** for the `complete` gate only. Weaving and outlining don't wait on it, so scenes can still be drafted, or harvested from a pasted draft, before structure exists. The demo's sample scenes are untied, so its first answer comes back `flagged` and is kept with `--decision keep_anyway`.
+A scene with no thread and stage is a **soft finding** in `check` (raised only when the answer introduces it, like every finding) and a **blocker** for the `complete` gate only. Weaving and outlining don't wait on it, so scenes can still be drafted, or harvested from a pasted draft, before structure exists. The `basics` scenario's sample scenes are untied, so its first answer comes back `flagged` and is kept with `--decision keep_anyway`.
 
 ## Tests
 

@@ -80,7 +80,7 @@ fn links_and_programs_are_reported_and_never_read() {
     let dir = TempDir::new();
     let p = dir.path();
     assert!(skaldsaga(p, &["init"]).status.success());
-    assert!(skaldsaga(p, &["demo"]).status.success());
+    assert!(skaldsaga(p, &["scenario", "basics"]).status.success());
     assert_eq!(
         json_of(&skaldsaga(
             p,
@@ -131,7 +131,7 @@ fn a_linked_proposal_is_not_read() {
     let dir = TempDir::new();
     let p = dir.path();
     assert!(skaldsaga(p, &["init"]).status.success());
-    assert!(skaldsaga(p, &["demo"]).status.success());
+    assert!(skaldsaga(p, &["scenario", "basics"]).status.success());
     let outside = TempDir::new();
     let target = outside.path().join("pr-demwxzqk.json");
     std::fs::copy(p.join(".harness/inbox/pr-demstart.json"), &target).unwrap();
