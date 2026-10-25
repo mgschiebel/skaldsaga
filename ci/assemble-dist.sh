@@ -30,5 +30,8 @@ cp "$binary" "$out/scripts/bin/$platform/skaldsaga"
 chmod +x "$out/scripts/skaldsaga" "$out/scripts/bin/$platform/skaldsaga"
 echo "$crate_version" > "$out/scripts/VERSION"
 cp "$root/LICENSE" "$root/NOTICE" "$out/"
+# The licenses and notices of the crates compiled into the binary, which the
+# permissive licenses require us to pass on with it.
+python3 -I "$root/ci/release-files.py" notices --output "$out/THIRD-PARTY-NOTICES.md"
 
 echo "Assembled Skaldsaga $crate_version ($platform) in $out"

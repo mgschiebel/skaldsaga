@@ -46,8 +46,32 @@ jobs:
       - name: Check the license elections cover the dependencies
         run: sh ci/presubmit.sh license-elections
 
+      # Built from the locked, checksummed crates.io releases of these exact versions (SR-42).
+      - name: Install cargo-auditable and rust-audit-info
+        run: |
+          cargo install cargo-auditable --locked --version 0.7.7
+          cargo install rust-audit-info --locked --version 0.5.4
+
+      # The release binary carries its exact dependency tree, so a later advisory
+      # can be checked against what was shipped.
       - name: Build release binary
-        run: cargo build --release --locked
+        run: cargo auditable build --release --locked
+
+      # `cargo audit bin` only warns when the data is missing, so this is the check
+      # that it is there, survived stripping, and matches the SBOM.
+      - name: Check the binary carries its dependency data
+        run: |
+          set -eu
+          rust-audit-info target/release/skaldsaga > "$RUNNER_TEMP/audit-info.json"
+          python3 -I ci/release-files.py matches --audit-info "$RUNNER_TEMP/audit-info.json"
+
+      - name: Build the SBOM and check it against the SPDX format
+        run: |
+          set -eu
+          python3 -m venv "$RUNNER_TEMP/spdx-venv"
+          "$RUNNER_TEMP/spdx-venv/bin/pip" install --quiet spdx-tools==0.8.5
+          python3 -I ci/release-files.py sbom --output "$RUNNER_TEMP/sbom.spdx.json"
+          "$RUNNER_TEMP/spdx-venv/bin/pyspdxtools" -i "$RUNNER_TEMP/sbom.spdx.json"
 
       - name: Check the shell scripts
         # Findings are turned into annotations so they show on the pull request.
