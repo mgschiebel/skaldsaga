@@ -1,6 +1,10 @@
 # Skaldsaga: notes for build sessions
 
-Read `HANDOFF.md` and `ARCHITECTURE.md` for the design. Don't load `docs/background.md` (it keeps outside story-theory terms out of prompts and code).
+Read `HANDOFF.md` (a short index: status, what's next, a file map) and `ARCHITECTURE.md` for the design, then load only the `docs/handoff/` file the task needs. Don't load `docs/background.md` (it keeps outside story-theory terms out of prompts and code) or `docs/handoff/build-log.md` unless you need the history.
+
+## Keep the handoff current
+
+Every pull request, including doc-only ones, leaves the handoff ready for a fresh session to pick up after the merge: update the Status and Ready-to-build blocks in `HANDOFF.md`, record the change in the matching `docs/handoff/` file (a build step or fix goes under Build progress in `build-log.md`; a design decision goes into its design file with the date and "Decided"), and update the file map or lookup table if a section is added, moved or renamed. The PR template has a checkbox for it.
 
 ## First step in a cloud session: let cargo reach crates.io
 
@@ -20,7 +24,7 @@ chmod +x ~/.local/bin/cargo && which cargo
 ## Pipeline (phase 1)
 
 - One branch per task (for example `build/meter-pilot`); never push to `main`.
-- HANDOFF counts the build plan in **steps**, not pull requests. When a step's pull request is opened, cite its GitHub number and branch next to the step ("Step 7 (#12, branch `build/check`)"). Fix and doc pull requests get no step number.
+- The handoff counts the build plan in **steps**, not pull requests. When a step's pull request is opened, cite its GitHub number and branch next to the step ("Step 7 (#12, branch `build/check`)"). Fix and doc pull requests get no step number.
 - Before every push: `cargo fmt --all`, `cargo clippy --all-targets --locked -- -D warnings`, `cargo test --locked`.
 - Open pull requests with the REST API (`gh api repos/mgschiebel/skaldsaga/pulls --method POST ...`); GraphQL, and so `gh pr create`, is blocked from cloud sessions. The PR summary is in plain language; the author reviews on a phone.
 - After pushing, check CI with `gh api repos/mgschiebel/skaldsaga/commits/<sha>/check-runs` and fix failures in the session. Job logs can't be downloaded from here; read check-run annotations instead.

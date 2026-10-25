@@ -62,7 +62,7 @@ Skaldsaga draws on many story-structure ideas. Its early design was inspired in 
 
 The project is in its planning phase. Start with:
 
-- [`HANDOFF.md`](HANDOFF.md): every decision so far, with its reasoning and open questions
+- [`HANDOFF.md`](HANDOFF.md): the index to every decision so far (status, what's next, and a map of the reference files in [`docs/handoff/`](docs/handoff/) that hold the reasoning and open questions)
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): a one-page sketch of the components and how they fit together
 - [`docs/background.md`](docs/background.md): where the ideas came from, research notes and attribution (kept out of the build documents on purpose)
 
