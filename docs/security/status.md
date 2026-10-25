@@ -20,6 +20,7 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 | SR-31 | Skill `allowed-tools` (agent `tools:` lists come with the agents) | #31 |
 | SR-32 | Snapshot messages go through `git commit -F` | #31 |
 | SR-24, SR-31 (slice 1) | The opener's words and drafts reach commands only as files (`session answer --words-file`, `propose --file`); the skill gains only `Glob` and `Write(**/.harness/draft.txt)`, pinned by `crates/skaldsaga/tests/skill_prompt.rs`; a draft can't choose its own ID, agent, lane or verdict | `build/slice-1-opener` |
+| SR-30, SR-33 (slice 2) | `recap` is read-only and prints story text (premise, names, the writer's loose idea) as data for the skill to quote, never follow; `session ask` takes a topic code from a fixed list, never writer text; the `resume` scenario is fixed text built into the program and goes through the real `propose` and `commit`. The skill's recap step runs only reading commands (pinned in `skill_prompt.rs`) | `build/slice-2-recap` |
 | SR-33 | Only the program writes story files; the skill stages returned paths only | #31 |
 | SR-40 | Actions pinned by commit; Dependabot keeps them current | #26, #27 |
 | SR-41 | Release split into a read-only build and a write-scoped publish job | #26 |

@@ -1,13 +1,13 @@
 # Committer and test scenarios
 
-`skaldsaga commit` is the single committer: it applies one checked proposal to the spec files, archives the proposal in `.harness/committed/`, and rebuilds the index. It reuses the operation engine `check` runs on, so the two can't disagree about what a proposal does. `skaldsaga scenario <name>` files a test scenario's sample answers for trying both before the interviewer exists (developer-only; `basics` is the one that was the demo).
+`skaldsaga commit` is the single committer: it applies one checked proposal to the spec files, archives the proposal in `.harness/committed/`, and rebuilds the index. It reuses the operation engine `check` runs on, so the two can't disagree about what a proposal does. `skaldsaga scenario <name>` sets up a test scenario for trying both, and the recap, before the interviewer exists (developer-only; `basics` is the one that was the demo, `resume` is the Jack and Jill story left mid-thread).
 
 ## Commands
 
 | Command | Output | Notes |
 |---|---|---|
 | `commit --proposal ID [--decision keep_anyway\|not_sure] [--cleared] [--project DIR]` | JSON | Re-checks, then commits or holds. Refuses (exit 1) without `.harness/`; usage mistakes exit 64. |
-| `scenario NAME [--project DIR]` | JSON `outcome`, `scenario`, `proposals`; on `written` also `next_command` and `expect` | `written`, `spec_not_empty` (the story already has content) or `already_written`. An unknown or missing name is a usage error (exit 64). The old `demo` name is gone. |
+| `scenario NAME [--project DIR]` | JSON `outcome`, `scenario`, `proposals`; on `written` also `next_command` and `expect`, and for `resume` also `add_paths` and `message_file` for a snapshot | `written`, `spec_not_empty` (the story already has content) or `already_written`. An unknown or missing name is a usage error (exit 64). The old `demo` name is gone. |
 
 ## What commit needs
 
@@ -70,3 +70,7 @@ Runs only in a set-up project whose story is empty. `pr-demstart` creates Mara, 
 ## The snapshot message (SR-32)
 
 A snapshot message can hold the writer's own words, so no command returns its text. `commit`, `decisions acknowledge`, `decisions withdraw` and `complete` (when it cleans up) write the message to `.harness/commit-message.txt`, which `.harness/.gitignore` keeps out of git, and return `message_file` with that path. The skill runs `git commit -q -F <message_file>` and never builds a message itself.
+
+## Scenario: resume
+
+The Jack and Jill story, left mid-thread (slice 2). It goes through the real steps: a draft filed with `propose`, taken by `commit`, and the marker written by the same code `session answer` and `session ask` use. The story holds a premise ("A modern Jack and Jill, set in a city at night"), two people and a main plot with four empty parts; the marker holds an unconfirmed loose idea ("maybe they enter a dark alley") and `people` as the topic last asked about. Runs only in a set-up project with an empty story and no marker. Acceptance check: `/skaldsaga` with nothing after it, in a fresh session, gives two or three plain sentences naming the story and Jack and Jill, the dark alley as something floated, one question about how the story begins, and changes nothing on disk.

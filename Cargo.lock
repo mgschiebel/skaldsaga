@@ -157,7 +157,7 @@ dependencies = [
 
 [[package]]
 name = "skaldsaga"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "serde_json",
  "skaldsaga-core",
@@ -165,7 +165,7 @@ dependencies = [
 
 [[package]]
 name = "skaldsaga-core"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "getrandom",
  "indexmap",

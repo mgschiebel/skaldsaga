@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: save-offer-comes-after-ten-confirmed-answers
+expected_outcome: |
+  Nine answers have been confirmed since the last save offer. The writer's next answer is
+  confirmed and saved, which is the tenth. After saving it the skill asks, as one plain question,
+  whether the writer wants it to save where the story stands so there is a safe point to come
+  back to. It is a question, never an order. If the writer says yes it saves; it makes no snapshot
+  of its own before that.
+
+context:
+  scaffold_script: place-files.sh

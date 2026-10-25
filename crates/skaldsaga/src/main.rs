@@ -30,7 +30,7 @@ use skaldsaga_core::propose::{self, ProposeError};
 use skaldsaga_core::recap;
 use skaldsaga_core::safety;
 use skaldsaga_core::scenario::{self, Scenario, ScenarioOutcome};
-use skaldsaga_core::settings::{self, MeterSettings};
+use skaldsaga_core::settings::{self, MeterSettings, SessionSettings};
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
 
 const USAGE: &str = "\
@@ -1083,7 +1083,7 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
             let project = require_project(&parsed)?;
             let r =
                 marker::record_answer(&project, &words, confirmed, &date).map_err(marker_error)?;
-            marker_recorded(r)
+            marker_recorded(&project, r)
         }
         "ask" => {
             let parsed = flags(rest, &["--project", "--topic"])?;
@@ -1095,7 +1095,7 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
             })?;
             let project = require_project(&parsed)?;
             let r = marker::record_ask(&project, topic, &date).map_err(marker_error)?;
-            marker_recorded(r)
+            marker_recorded(&project, r)
         }
         "save" => {
             let parsed = flags(rest, &["--project", "--taken"])?;
@@ -1114,7 +1114,7 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
                     },
                 )
             } else {
-                marker_recorded(r)
+                marker_recorded(&project, r)
             }
         }
         "stop" => {
@@ -1129,7 +1129,7 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
 
 /// Prints the result of recording the marker without a snapshot of its own:
 /// the path to stage with the next real save, and no message file.
-fn marker_recorded(recorded: marker::Recorded) -> Result<(), CliError> {
+fn marker_recorded(project: &Project, recorded: marker::Recorded) -> Result<(), CliError> {
     let mut v = json::object();
     if recorded.changed {
         v.set("outcome", "recorded".into());
@@ -1138,7 +1138,22 @@ fn marker_recorded(recorded: marker::Recorded) -> Result<(), CliError> {
         v.set("outcome", "unchanged".into());
         v.set("add_paths", strings(&[]));
     }
+    // Whether it is time to offer to save where the story stands.
+    v.set("save_offer", Value::Bool(save_offer_due(project)));
     print_json(&v)
+}
+
+/// True when enough confirmed answers have come since the last offer.
+fn save_offer_due(project: &Project) -> bool {
+    let count = match marker::load(project) {
+        Ok(Some(m)) => m.answers_since_offer,
+        _ => return false,
+    };
+    let after = SessionSettings::load(project)
+        .map_or(settings::DEFAULT_SAVE_OFFER_AFTER_ANSWERS, |s| {
+            s.save_offer_after_answers
+        });
+    count >= after
 }
 
 /// What a story left mid-thread has so far, and the topic to ask about next.
