@@ -82,7 +82,16 @@ fn links_and_programs_are_reported_and_never_read() {
     assert!(skaldsaga(p, &["init"]).status.success());
     assert!(skaldsaga(p, &["demo"]).status.success());
     assert_eq!(
-        json_of(&skaldsaga(p, &["commit", "--proposal", "pr-demstart"]))["outcome"],
+        json_of(&skaldsaga(
+            p,
+            &[
+                "commit",
+                "--proposal",
+                "pr-demstart",
+                "--decision",
+                "keep_anyway",
+            ]
+        ))["outcome"],
         "committed"
     );
 

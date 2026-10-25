@@ -419,6 +419,13 @@ fn complete_blockers(ctx: &Ctx) -> Vec<Blocker> {
             }
         }
     }
+    // Every scene is tied to a thread and stage. Only this gate blocks on it,
+    // so scenes can be drafted, or harvested from a draft, before structure.
+    for n in &ctx.spec.nodes {
+        if matches!(&n.body, NodeBody::Scene(s) if s.coverage.is_none()) {
+            out.push(Blocker::new("scene_untied").ids(&[&n.id]));
+        }
+    }
     out
 }
 
@@ -703,6 +710,55 @@ mod tests {
         spec.nodes.sort_by(|a, b| a.id.cmp(&b.id));
         edit_arc(&mut spec, "a-main", |a| a.decisions.extend(ids));
         spec
+    }
+
+    #[test]
+    fn a_scene_with_no_thread_and_stage_blocks_complete_and_nothing_earlier() {
+        let mut spec = settled();
+        edit_scene(&mut spec, "s-3", |s| s.coverage = None);
+        let r = eval(&spec);
+        assert!(r.weave.ready, "{:?}", r.weave.blockers);
+        assert!(r.outline.ready, "{:?}", r.outline.blockers);
+        assert!(!r.complete.ready);
+        let untied: Vec<_> = r
+            .complete
+            .blockers
+            .iter()
+            .filter(|b| b.code == "scene_untied")
+            .collect();
+        assert_eq!(untied.len(), 1);
+        assert_eq!(untied[0].ids, vec!["s-3".to_string()]);
+    }
+
+    #[test]
+    fn every_untied_scene_is_listed_and_tying_them_clears_the_blocker() {
+        let mut spec = settled();
+        for id in ["s-1", "s-5"] {
+            edit_scene(&mut spec, id, |s| s.coverage = None);
+        }
+        let r = eval(&spec);
+        let ids: Vec<_> = r
+            .complete
+            .blockers
+            .iter()
+            .filter(|b| b.code == "scene_untied")
+            .map(|b| b.ids[0].as_str())
+            .collect();
+        assert_eq!(ids, ["s-1", "s-5"]);
+        for id in ["s-1", "s-5"] {
+            edit_scene(&mut spec, id, |s| {
+                s.coverage = Some(crate::model::Coverage {
+                    thread: "t-plot".into(),
+                    stage: Stage::Setup,
+                });
+            });
+        }
+        let r = eval(&spec);
+        assert!(
+            r.complete.blockers.iter().all(|b| b.code != "scene_untied"),
+            "{:?}",
+            r.complete.blockers
+        );
     }
 
     #[test]

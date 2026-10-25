@@ -99,7 +99,16 @@ fn a_story_with_no_arc_yet_is_ready_for_nothing() {
     let p = dir.path();
     assert!(skaldsaga(p, &["init"]).status.success());
     assert!(skaldsaga(p, &["demo"]).status.success());
-    let c = json_of(&skaldsaga(p, &["commit", "--proposal", "pr-demstart"]));
+    let c = json_of(&skaldsaga(
+        p,
+        &[
+            "commit",
+            "--proposal",
+            "pr-demstart",
+            "--decision",
+            "keep_anyway",
+        ],
+    ));
     assert_eq!(c["outcome"], "committed");
 
     let v = json_of(&skaldsaga(p, &["complete"]));

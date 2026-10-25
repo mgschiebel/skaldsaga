@@ -70,13 +70,39 @@ fn the_demo_commits_one_answer_and_refuses_the_other() {
         p,
         &["check", "--project", &project, "--proposal", "pr-demstart"],
     ));
-    assert_eq!(v["proposals"][0]["status"], "passed");
+    // The sample scenes aren't tied to a thread and stage yet, which is a
+    // soft flag: the writer decides, so nothing commits until they do.
+    assert_eq!(v["proposals"][0]["status"], "flagged");
+    let codes: Vec<&str> = v["proposals"][0]["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["code"].as_str().unwrap())
+        .collect();
+    assert_eq!(codes, ["scene_untied", "scene_untied"]);
 
     let v = json_of(&skaldsaga(
         p,
         &["commit", "--project", &project, "--proposal", "pr-demstart"],
     ));
+    assert_eq!(v["outcome"], "held");
+    assert_eq!(v["reason"], "needs_decision");
+    assert!(!story.join("spec/people/p-demmara2.md").exists());
+
+    let v = json_of(&skaldsaga(
+        p,
+        &[
+            "commit",
+            "--project",
+            &project,
+            "--proposal",
+            "pr-demstart",
+            "--decision",
+            "keep_anyway",
+        ],
+    ));
     assert_eq!(v["outcome"], "committed");
+    assert_eq!(v["decision"], "keep_anyway");
     assert!(
         v.get("message").is_none(),
         "the text itself is never returned"

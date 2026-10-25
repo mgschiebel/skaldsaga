@@ -18,13 +18,16 @@ use skaldsaga_core::complete;
 use skaldsaga_core::craft::{self, CraftError};
 use skaldsaga_core::decisions::{self, DecisionError};
 use skaldsaga_core::demo::{self, DemoOutcome};
+use skaldsaga_core::entry;
 use skaldsaga_core::fsio::{self, Refused};
 use skaldsaga_core::hooks;
 use skaldsaga_core::index;
 use skaldsaga_core::init::{self, InitOutcome, InitReport};
 use skaldsaga_core::json::{self, Value, ValueExt as _};
+use skaldsaga_core::marker::{self, MarkerError};
 use skaldsaga_core::meter::{self, StatusInput};
 use skaldsaga_core::project::{self, Location, Project};
+use skaldsaga_core::propose::{self, ProposeError};
 use skaldsaga_core::safety;
 use skaldsaga_core::settings::{self, MeterSettings};
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
@@ -49,6 +52,20 @@ Usage:
                                      (.claude/settings.local.json)
   skaldsaga locate [--project DIR]   Finds the story folder: DIR itself, or the one child
                                      folder that is a project. Prints JSON
+  skaldsaga route --text yes|no [--project DIR]
+                                     Says how the session opens: finds the story folder like
+                                     locate, then names the entry condition from the folder's
+                                     state and whether the writer typed text with the command.
+                                     Only looks; never sets anything up. Prints JSON
+  skaldsaga propose --file FILE [--project DIR]
+                                     Files the writer's confirmed answer, drafted in FILE, as a
+                                     proposal in .harness/inbox. The program chooses the ID and
+                                     the agent, so a draft can't. Prints the new ID as JSON
+  skaldsaga session answer --words-file FILE --confirmed yes|no [--project DIR]
+  skaldsaga session stop [--project DIR]
+                                     Records how the session stands: the writer's last answer
+                                     (and whether they confirmed the reword), or a stopping
+                                     point. Prints JSON, including paths for git
   skaldsaga hook session-start       SessionStart hook: reads Claude Code's JSON on stdin;
                                      in a Skaldsaga project, prepares the session and adds
                                      context for Claude. Elsewhere it prints nothing. With
@@ -126,6 +143,9 @@ fn main() -> ExitCode {
         ["meter", "wire", rest @ ..] => run(meter_wire(rest)),
         ["hook", "session-start", ..] => hook_session_start(),
         ["locate", rest @ ..] => run(locate_cmd(rest)),
+        ["route", rest @ ..] => run(route_cmd(rest)),
+        ["propose", rest @ ..] => run(propose_cmd(rest)),
+        ["session", sub, rest @ ..] => run(session_cmd(sub, rest)),
         ["init", rest @ ..] => run(init_cmd(rest)),
         ["index", rest @ ..] => run(index_cmd(rest)),
         ["check", rest @ ..] => run(check_cmd(rest)),
@@ -911,15 +931,11 @@ fn withdraw_cmd(rest: &[&str]) -> Result<(), CliError> {
     print_json(&v)
 }
 
-/// Finds the story folder from the session's folder (or `--project`), with
-/// the same rule the session-start hook uses.
-fn locate_cmd(rest: &[&str]) -> Result<(), CliError> {
-    let parsed = flags(rest, &["--project"])?;
-    let start = flag(&parsed, "--project").map_or_else(default_project_dir, PathBuf::from);
-    let found = project::locate(&start);
-    let mut v = json::object();
+/// Writes where the story folder is (the `found`, `path`, `name` and
+/// `several` fields) into `v`.
+fn location_into(v: &mut Value, found: &Location) {
     v.set("found", found.as_str().into());
-    let (path, name) = match &found {
+    let (path, name) = match found {
         Location::Here(p) => (Some(p.clone()), None),
         Location::Below { path, name } | Location::Candidate { path, name } => {
             (Some(path.clone()), Some(name.clone()))
@@ -931,8 +947,116 @@ fn locate_cmd(rest: &[&str]) -> Result<(), CliError> {
         path.map_or(Value::Null, |p| p.display().to_string().into()),
     );
     v.set("name", name.map_or(Value::Null, Value::from));
-    if let Location::Several(names) = &found {
+    if let Location::Several(names) = found {
         v.set("several", strings(names));
+    }
+}
+
+/// Finds the story folder from the session's folder (or `--project`), with
+/// the same rule the session-start hook uses.
+fn locate_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let parsed = flags(rest, &["--project"])?;
+    let start = flag(&parsed, "--project").map_or_else(default_project_dir, PathBuf::from);
+    let mut v = json::object();
+    location_into(&mut v, &project::locate(&start));
+    print_json(&v)
+}
+
+/// Says how the session opens. Only the yes/no of "did the writer type
+/// anything" comes in, never the text, so story text can't steer the routing.
+fn route_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let parsed = flags(rest, &["--project", "--text"])?;
+    let has_text = yes_no(&parsed, "--text")?;
+    let start = flag(&parsed, "--project").map_or_else(default_project_dir, PathBuf::from);
+    let routed = entry::route(&start, has_text);
+    let mut v = json::object();
+    location_into(&mut v, &routed.location);
+    match routed.condition {
+        Some(c) => {
+            v.set("condition", c.as_str().into());
+            v.set("built", Value::Bool(c.is_built()));
+        }
+        None => {
+            v.set("condition", Value::Null);
+            v.set("built", Value::Null);
+        }
+    }
+    let damage: Vec<String> = routed.damage.iter().map(|d| d.to_string()).collect();
+    v.set("damage", strings(&damage));
+    print_json(&v)
+}
+
+/// Files a drafted answer as a proposal. The draft comes from a file the
+/// skill wrote, never from the command line (SR-24).
+fn propose_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let parsed = flags(rest, &["--project", "--file"])?;
+    let draft = read_input_file(required(&parsed, "--file")?, "answer")?;
+    let project = require_project(&parsed)?;
+    let secs = now();
+    let created = format!(
+        "{}T{:02}:{:02}",
+        decisions::date_from_unix(secs),
+        secs % 86_400 / 3_600,
+        secs % 3_600 / 60
+    );
+    match propose::file(&project, &draft, &created) {
+        Ok(id) => {
+            let mut v = json::object();
+            v.set("outcome", "filed".into());
+            v.set("id", id.into());
+            print_json(&v)
+        }
+        Err(ProposeError::Invalid(m)) => Err(CliError::Usage(m)),
+        Err(ProposeError::Fs(e)) => Err(CliError::Failed(e.to_string())),
+    }
+}
+
+fn marker_error(e: MarkerError) -> CliError {
+    match e {
+        MarkerError::Invalid(m) => CliError::Usage(m),
+        MarkerError::Fs(e) => CliError::Failed(e.to_string()),
+    }
+}
+
+/// Records how the session stands, for the next session's recap.
+fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
+    let date = decisions::date_from_unix(now());
+    match sub {
+        "answer" => {
+            let parsed = flags(rest, &["--project", "--words-file", "--confirmed"])?;
+            let confirmed = yes_no(&parsed, "--confirmed")?;
+            let words = read_input_file(required(&parsed, "--words-file")?, "words")?;
+            let project = require_project(&parsed)?;
+            let r =
+                marker::record_answer(&project, &words, confirmed, &date).map_err(marker_error)?;
+            marker_written(&project, r)
+        }
+        "stop" => {
+            let parsed = flags(rest, &["--project"])?;
+            let project = require_project(&parsed)?;
+            let r = marker::record_stopping_point(&project, &date).map_err(marker_error)?;
+            marker_written(&project, r)
+        }
+        _ => Err(CliError::Usage(format!("unknown session command '{sub}'"))),
+    }
+}
+
+/// Prints the result of recording the marker: the path for git when it changed.
+fn marker_written(project: &Project, recorded: marker::Recorded) -> Result<(), CliError> {
+    let mut v = json::object();
+    if recorded.changed {
+        v.set("outcome", "recorded".into());
+        v.set("add_paths", strings(&[recorded.path]));
+        v.set(
+            "message_file",
+            message_file(
+                project,
+                "Skaldsaga: note where the story conversation stands",
+            )?,
+        );
+    } else {
+        v.set("outcome", "unchanged".into());
+        v.set("add_paths", strings(&[]));
     }
     print_json(&v)
 }

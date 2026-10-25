@@ -63,5 +63,6 @@
 - **Every vertical slice gets a short test plan, written before building,** naming the one thing the slice must prove. Tests come first where they can (TDD).
 - **Entry routing is deterministic and tested with script tests.** The program, not the model, decides which entry condition applies, from the folder state and whether the command had text, so story text never steers the routing. Fixture folders cover every entry condition, including ones whose conversation is not built yet (marked pending until their slice).
 - **Interview evals score properties, not exact words,** using scripted writer inputs for each entry condition: one question per turn; no internal terms in anything the writer sees; the right closing move for the condition (reword of the last answer, one recommendation, or "I'm not finding a story"); no `init` before the writer confirms a new story. A deterministic scan for internal terms in writer-facing prompt text can run as an ordinary script test.
+- *Built in slice 1 (0.4.0):* routing fixtures and the scan are script tests (`entry_cli.rs`, `skill_prompt.rs`; writer-facing lines are the ```say blocks in `SKILL.md`); five opener evals sit in `plugin/skills/skaldsaga/evals/` in `claude plugin eval` case format and are run on request, not in CI.
 
 
