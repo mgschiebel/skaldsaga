@@ -43,16 +43,18 @@ Planning sessions do the same: decisions go into the matching reference file as 
 
 ## Ready to build
 
-Nothing is approved yet. Slice 1 waits on the author's review and the phone test. Candidates for slice 2, to be planned with the author first (each came out of slice 1's "not built" list):
+Planning session 2 (October 25, 2026) settled slice 2. Build in this order, one pull request each (the first is small and goes first):
 
-0. **Before slice 2, a small rename pull request:** `demo` becomes `scenario <name>`, a developer-only test-story setup tool, with the current demo kept as `basics` (`delivery.md`, Testing and evals). Slice 2 then adds the `resume` scenario.
-1. **Recaps (slice 2 covers mid-thread only; stopping-point waits for slice 3):** the session-start recap for `story_mid_thread` and `story_stopping_point` (both are routed already and say "not built yet"), using the last-session marker. *Direction decided October 25, 2026 (planning session 2):* the next question is chosen fresh from what is on disk, and the marker gains one small field for the topic last asked about. Details and open points: `design-story.md`, "Resuming with no input". Ranking, tentative ideas and marker commits are decided. The save offer (pause, N answers, meter points) is decided; only trigger 1 waits for slice 3. Summary wording is decided. Only the *Proposed* topic codes and default N remain to confirm.
-2. **Stopping point:** detection, the offer, and the drift guard with parking.
-3. **Brainstorm path** and its holding area. Reassess how loose ideas (like "maybe a dark alley") are kept: slice 2 keeps them only in the marker and recap (`design-story.md`, "Resuming with no input").
-4. **At-a-glance story picture** (open item 20).
-5. **Orchestrator and sub-agents** (planning agenda items 2 and 4 below).
+**A. Rename `demo` to `scenario <name>`** (developer-only test setup; the current demo stays as `basics`; no alias; skill option renamed; old notes untouched). Details: `delivery.md`, Testing and evals.
 
-A build session starts on one of these only after the author picks it and its questions are answered in the reference files.
+**B. Slice 2, the mid-thread recap.** `/skaldsaga` with no text in a story that was left mid-thread gives two or three plain sentences of what is decided (plus any loose idea in the writer's words), then one question, and changes nothing on disk until the writer answers. Decided details are in `design-story.md`, "Resuming with no input": the program picks the topic (new read-only `skaldsaga recap`), the skill words it; ranking rule; tentative ideas stay out of the premise and live only in the marker and recap; marker gains a topic-last-asked field (codes `premise`, `people`, `setup`, `complications`, `crisis`, `resolution`); marker commits only with real saves or at a stop; save offer after 10 confirmed answers and at the meter points (the natural-pause offer waits for slice 3). Add the `resume` scenario (Jack and Jill, empty stages, marker mid-thread) and use the 0.4.0 acceptance check from the test report: summary names the story and Jack and Jill, one question, nothing changes on disk.
+
+**Later candidates** (to be planned with the author first):
+
+1. **Stopping point:** the stopping-point recap, detection, the offer, the natural-pause save offer, and the drift guard with parking (slice 3).
+2. **Brainstorm path** and its holding area. Reassess how loose ideas (like "maybe a dark alley") are kept: slice 2 keeps them only in the marker and recap.
+3. **At-a-glance story picture** (open item 20).
+4. **Orchestrator and sub-agents** (planning agenda items 2 and 4 below).
 
 ## Working mode from here (Decided October 24, 2026)
 
