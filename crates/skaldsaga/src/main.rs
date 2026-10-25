@@ -27,6 +27,7 @@ use skaldsaga_core::marker::{self, MarkerError};
 use skaldsaga_core::meter::{self, StatusInput};
 use skaldsaga_core::project::{self, Location, Project};
 use skaldsaga_core::propose::{self, ProposeError};
+use skaldsaga_core::recap;
 use skaldsaga_core::safety;
 use skaldsaga_core::scenario::{self, Scenario, ScenarioOutcome};
 use skaldsaga_core::settings::{self, MeterSettings};
@@ -62,10 +63,21 @@ Usage:
                                      proposal in .harness/inbox. The program chooses the ID and
                                      the agent, so a draft can't. Prints the new ID as JSON
   skaldsaga session answer --words-file FILE --confirmed yes|no [--project DIR]
+  skaldsaga session ask --topic CODE [--project DIR]
+  skaldsaga session save --taken yes|no [--project DIR]
   skaldsaga session stop [--project DIR]
                                      Records how the session stands: the writer's last answer
-                                     (and whether they confirmed the reword), or a stopping
-                                     point. Prints JSON, including paths for git
+                                     (and whether they confirmed the reword), the topic last
+                                     asked about (premise, people, setup, complications,
+                                     crisis, resolution), that a save offer was made (and
+                                     taken), or a stopping point. Prints JSON, including paths
+                                     for git. Answers and questions never get a snapshot of
+                                     their own: stage the path with the next real save;
+                                     save --taken yes and stop return a message file
+  skaldsaga recap [--project DIR]    Read-only. What a story left mid-thread has so far (premise,
+                                     people, stages with no summary, a loose idea in the
+                                     writer's words, the last topic asked) and the one topic to
+                                     ask about next. Prints JSON; never writes
   skaldsaga hook session-start       SessionStart hook: reads Claude Code's JSON on stdin;
                                      in a Skaldsaga project, prepares the session and adds
                                      context for Claude. Elsewhere it prints nothing. With
@@ -79,9 +91,11 @@ Usage:
                                      the spec, archives it in .harness/committed and rebuilds the
                                      index. Prints JSON, including the paths to hand to git
   skaldsaga scenario NAME [--project DIR]
-                                     Developer-only test setup: files a named scenario's sample
-                                     answers in a set-up project with an empty story, and prints
-                                     the one command to run next. Names: basics
+                                     Developer-only test setup: sets up a named scenario in a
+                                     set-up project with an empty story, and prints the one
+                                     command to run next. basics files two sample answers in the
+                                     inbox; resume commits the Jack and Jill story, left
+                                     mid-thread, and returns paths and a message file for git
   skaldsaga complete [--project DIR] Reports how close the whole story is, as codes and IDs:
                                      whether each stage can start (weave, outline, complete)
                                      and what blocks it, plus the soft findings from the
@@ -148,6 +162,7 @@ fn main() -> ExitCode {
         ["route", rest @ ..] => run(route_cmd(rest)),
         ["propose", rest @ ..] => run(propose_cmd(rest)),
         ["session", sub, rest @ ..] => run(session_cmd(sub, rest)),
+        ["recap", rest @ ..] => run(recap_cmd(rest)),
         ["init", rest @ ..] => run(init_cmd(rest)),
         ["index", rest @ ..] => run(index_cmd(rest)),
         ["check", rest @ ..] => run(check_cmd(rest)),
@@ -588,7 +603,7 @@ fn commit_cmd(rest: &[&str]) -> Result<(), CliError> {
     print_json(&v)
 }
 
-/// Files a named scenario's sample answers.
+/// Sets up a named scenario.
 fn scenario_cmd(rest: &[&str]) -> Result<(), CliError> {
     let names = scenario::NAMES.join(", ");
     let (name, rest) = match rest.split_first() {
@@ -599,12 +614,26 @@ fn scenario_cmd(rest: &[&str]) -> Result<(), CliError> {
         .ok_or_else(|| CliError::Usage(format!("unknown scenario (names: {names})")))?;
     let parsed = flags(rest, &["--project"])?;
     let project = require_project(&parsed)?;
-    let outcome =
-        scenario::write(&project, scenario).map_err(|e| CliError::Failed(e.to_string()))?;
+    let secs = now();
+    let date = decisions::date_from_unix(secs);
+    let created = format!(
+        "{date}T{:02}:{:02}",
+        secs % 86_400 / 3_600,
+        secs % 3_600 / 60
+    );
+    let filed = scenario::write(
+        &project,
+        scenario,
+        scenario::When {
+            created: &created,
+            date: &date,
+        },
+    )
+    .map_err(|e| CliError::Failed(e.to_string()))?;
     let mut v = json::object();
     v.set(
         "outcome",
-        match outcome {
+        match filed.outcome {
             ScenarioOutcome::Written => "written",
             ScenarioOutcome::SpecNotEmpty => "spec_not_empty",
             ScenarioOutcome::AlreadyWritten => "already_written",
@@ -622,9 +651,13 @@ fn scenario_cmd(rest: &[&str]) -> Result<(), CliError> {
                 .collect(),
         ),
     );
-    if outcome == ScenarioOutcome::Written {
+    if filed.outcome == ScenarioOutcome::Written {
         v.set("next_command", scenario.next_command().into());
         v.set("expect", scenario.expect().into());
+        if let Some(message) = &filed.message {
+            v.set("add_paths", strings(&filed.add_paths));
+            v.set("message_file", message_file(&project, message)?);
+        }
     }
     print_json(&v)
 }
@@ -1050,7 +1083,39 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
             let project = require_project(&parsed)?;
             let r =
                 marker::record_answer(&project, &words, confirmed, &date).map_err(marker_error)?;
-            marker_written(&project, r)
+            marker_recorded(r)
+        }
+        "ask" => {
+            let parsed = flags(rest, &["--project", "--topic"])?;
+            let topic = marker::Topic::parse(required(&parsed, "--topic")?).ok_or_else(|| {
+                CliError::Usage(
+                    "--topic must be premise, people, setup, complications, crisis or resolution"
+                        .into(),
+                )
+            })?;
+            let project = require_project(&parsed)?;
+            let r = marker::record_ask(&project, topic, &date).map_err(marker_error)?;
+            marker_recorded(r)
+        }
+        "save" => {
+            let parsed = flags(rest, &["--project", "--taken"])?;
+            let taken = yes_no(&parsed, "--taken")?;
+            let project = require_project(&parsed)?;
+            let r = marker::record_offer(&project, &date).map_err(marker_error)?;
+            if taken && marker::exists(&project) {
+                // The writer wants a safe point: hand back the marker for a
+                // snapshot even if this call didn't change it, since earlier
+                // writes may not be saved yet.
+                marker_written(
+                    &project,
+                    marker::Recorded {
+                        changed: true,
+                        path: r.path,
+                    },
+                )
+            } else {
+                marker_recorded(r)
+            }
         }
         "stop" => {
             let parsed = flags(rest, &["--project"])?;
@@ -1062,7 +1127,33 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
     }
 }
 
-/// Prints the result of recording the marker: the path for git when it changed.
+/// Prints the result of recording the marker without a snapshot of its own:
+/// the path to stage with the next real save, and no message file.
+fn marker_recorded(recorded: marker::Recorded) -> Result<(), CliError> {
+    let mut v = json::object();
+    if recorded.changed {
+        v.set("outcome", "recorded".into());
+        v.set("add_paths", strings(&[recorded.path]));
+    } else {
+        v.set("outcome", "unchanged".into());
+        v.set("add_paths", strings(&[]));
+    }
+    print_json(&v)
+}
+
+/// What a story left mid-thread has so far, and the topic to ask about next.
+fn recap_cmd(rest: &[&str]) -> Result<(), CliError> {
+    let parsed = flags(rest, &["--project"])?;
+    let project = require_project(&parsed)?;
+    let recap = recap::run(&project).map_err(|e| match e {
+        recap::RecapError::Marker(m) => marker_error(m),
+        other => CliError::Failed(other.to_string()),
+    })?;
+    print_json(&recap.to_value())
+}
+
+/// Prints the result of recording the marker for a snapshot: the path for git
+/// and the message file.
 fn marker_written(project: &Project, recorded: marker::Recorded) -> Result<(), CliError> {
     let mut v = json::object();
     if recorded.changed {

@@ -11,9 +11,20 @@
 //! the second has Mara learn about Jonah's arrest in a scene that happens
 //! before the arrest, which the checker refuses. It stays because it is the
 //! only way to see a conflict refused until the interviewer can produce one.
+//!
+//! `resume` (slice 2): the Jack and Jill story, left mid-thread: a premise,
+//! two people, a main plot with empty stages, and a marker holding a loose
+//! idea. It goes through the real `propose` and `commit` steps and seeds the
+//! marker through the marker code `session answer` and `session ask` use, so
+//! it can't drift from the real file formats. Its acceptance check: `/skaldsaga`
+//! with no text gives a short summary naming the story and Jack and Jill, one
+//! question about how the story begins, and changes nothing on disk.
 
+use crate::commit::{self, CommitOptions, Outcome};
 use crate::fsio::{self, FsError};
+use crate::marker::{self, MarkerError, Topic};
 use crate::project::Project;
+use crate::propose::{self, ProposeError};
 use crate::spec;
 
 /// A named test setup.
@@ -21,24 +32,29 @@ use crate::spec;
 pub enum Scenario {
     /// Mara and Jonah: one answer that is kept, one that is refused.
     Basics,
+    /// Jack and Jill, left mid-thread: the setup for the mid-thread recap.
+    Resume,
 }
 
 /// Every scenario name, for usage messages.
-pub const NAMES: [&str; 1] = ["basics"];
+pub const NAMES: [&str; 2] = ["basics", "resume"];
 
 impl Scenario {
     /// Looks a scenario up by name; `None` for an unknown name.
     pub fn parse(name: &str) -> Option<Scenario> {
         match name {
             "basics" => Some(Scenario::Basics),
+            "resume" => Some(Scenario::Resume),
             _ => None,
         }
     }
 
-    /// The sample answers, in the order to try them.
+    /// The sample answers filed in the inbox, in the order to try them. A
+    /// scenario that commits its own content (`resume`) leaves none.
     pub fn proposals(self) -> &'static [&'static str] {
         match self {
             Scenario::Basics => &["pr-demstart", "pr-demmixup"],
+            Scenario::Resume => &[],
         }
     }
 
@@ -46,6 +62,7 @@ impl Scenario {
     pub fn next_command(self) -> &'static str {
         match self {
             Scenario::Basics => "skaldsaga check --proposal pr-demstart --proposal pr-demmixup",
+            Scenario::Resume => "/skaldsaga (type nothing after it)",
         }
     }
 
@@ -56,12 +73,18 @@ impl Scenario {
                 "pr-demstart comes back flagged (its scenes are not tied to a thread and stage); \
                  pr-demmixup is refused with learns_before_true"
             }
+            Scenario::Resume => {
+                "two or three plain sentences that name the story (a modern Jack and Jill, set \
+                 in a city at night) and Jack and Jill, the dark alley mentioned as a loose \
+                 idea, then one question about how the story begins; nothing on disk changes"
+            }
         }
     }
 
     fn texts(self) -> &'static [&'static str] {
         match self {
             Scenario::Basics => &[START, MIXUP],
+            Scenario::Resume => &[],
         }
     }
 }
@@ -109,31 +132,156 @@ const MIXUP: &str = r#"{
 /// What `write` did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScenarioOutcome {
-    /// The sample answers are in the inbox.
+    /// The scenario is in place.
     Written,
     /// The spec already holds nodes; a scenario only runs in an empty story.
     SpecNotEmpty,
-    /// A sample answer is already in the inbox or the archive.
+    /// The scenario has already been set up here.
     AlreadyWritten,
 }
 
-/// Writes the sample answers into the inbox.
-pub fn write(project: &Project, scenario: Scenario) -> Result<ScenarioOutcome, FsError> {
+/// The time to stamp on what a scenario files.
+#[derive(Debug, Clone, Copy)]
+pub struct When<'a> {
+    /// `YYYY-MM-DDTHH:MM`.
+    pub created: &'a str,
+    /// `YYYY-MM-DD`.
+    pub date: &'a str,
+}
+
+/// What `write` did, and what to save.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Filed {
+    pub outcome: ScenarioOutcome,
+    /// Paths for `git add`: what the scenario committed and the marker. Empty
+    /// for a scenario that only files answers in the inbox.
+    pub add_paths: Vec<String>,
+    /// A one-line snapshot message, when there are paths to save.
+    pub message: Option<String>,
+}
+
+impl Filed {
+    fn only(outcome: ScenarioOutcome) -> Filed {
+        Filed {
+            outcome,
+            add_paths: Vec::new(),
+            message: None,
+        }
+    }
+}
+
+/// Why a scenario couldn't be set up.
+#[derive(Debug)]
+pub enum ScenarioError {
+    Fs(FsError),
+    Marker(MarkerError),
+    /// A step of the real pipeline refused the scenario's own content; that
+    /// is a bug in the scenario, so the message says which step.
+    Pipeline(String),
+}
+
+impl std::fmt::Display for ScenarioError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScenarioError::Fs(e) => e.fmt(f),
+            ScenarioError::Marker(e) => e.fmt(f),
+            ScenarioError::Pipeline(m) => f.write_str(m),
+        }
+    }
+}
+
+impl std::error::Error for ScenarioError {}
+
+impl From<FsError> for ScenarioError {
+    fn from(e: FsError) -> Self {
+        ScenarioError::Fs(e)
+    }
+}
+
+impl From<MarkerError> for ScenarioError {
+    fn from(e: MarkerError) -> Self {
+        ScenarioError::Marker(e)
+    }
+}
+
+/// Sets a scenario up in a set-up project with an empty story.
+pub fn write(
+    project: &Project,
+    scenario: Scenario,
+    when: When<'_>,
+) -> Result<Filed, ScenarioError> {
     let loaded = spec::load(&project.spec_dir())?;
     let archive = project.harness_dir().join(crate::commit::COMMITTED_DIR);
     for id in scenario.proposals() {
         let name = format!("{id}.json");
         if project.inbox_dir().join(&name).exists() || archive.join(&name).exists() {
-            return Ok(ScenarioOutcome::AlreadyWritten);
+            return Ok(Filed::only(ScenarioOutcome::AlreadyWritten));
         }
     }
+    if scenario == Scenario::Resume && marker::exists(project) {
+        return Ok(Filed::only(ScenarioOutcome::AlreadyWritten));
+    }
     if !loaded.spec.nodes.is_empty() || !loaded.spec.sequence.is_empty() {
-        return Ok(ScenarioOutcome::SpecNotEmpty);
+        return Ok(Filed::only(ScenarioOutcome::SpecNotEmpty));
     }
-    for (id, text) in scenario.proposals().iter().zip(scenario.texts()) {
-        fsio::write_atomic(&project.inbox_dir().join(format!("{id}.json")), text)?;
+    match scenario {
+        Scenario::Basics => {
+            for (id, text) in scenario.proposals().iter().zip(scenario.texts()) {
+                fsio::write_atomic(&project.inbox_dir().join(format!("{id}.json")), text)?;
+            }
+            Ok(Filed::only(ScenarioOutcome::Written))
+        }
+        Scenario::Resume => write_resume(project, when),
     }
-    Ok(ScenarioOutcome::Written)
+}
+
+/// The Jack and Jill answer: the premise, two people, and a main plot with
+/// four empty stages. Filed through `propose`, so the program names the IDs.
+const RESUME_DRAFT: &str = r#"{
+  "answer": "A modern Jack and Jill, set in a city at night. Jack and Jill.",
+  "ops": [
+    {"op": "create", "node": {"id": "@a:main", "type": "arc", "name": "Main story",
+      "status": "main", "threads": ["@t:main"],
+      "premise": {"current": "A modern Jack and Jill, set in a city at night"}}},
+    {"op": "create", "node": {"id": "@t:main", "type": "thread", "name": "The main plot",
+      "kind": "big_picture", "arc": "@a:main",
+      "stages": [{"stage": "setup"}, {"stage": "complications"},
+                 {"stage": "crisis"}, {"stage": "resolution"}]}},
+    {"op": "create", "node": {"id": "@p:jack", "type": "person", "name": "Jack"}},
+    {"op": "create", "node": {"id": "@p:jill", "type": "person", "name": "Jill"}}
+  ]
+}"#;
+
+/// What the writer floated after the second answer: a tentative idea, never
+/// confirmed, so it stays out of the story and lives in the marker only.
+const RESUME_LOOSE_IDEA: &str = "maybe they enter a dark alley";
+
+fn write_resume(project: &Project, when: When<'_>) -> Result<Filed, ScenarioError> {
+    let id = propose::file(project, RESUME_DRAFT, when.created).map_err(|e| match e {
+        ProposeError::Fs(e) => ScenarioError::Fs(e),
+        ProposeError::Invalid(m) => ScenarioError::Pipeline(format!("propose refused: {m}")),
+    })?;
+    let outcome = commit::commit(project, &id, CommitOptions::default())?;
+    let Outcome::Committed {
+        mut add_paths,
+        message,
+        ..
+    } = outcome
+    else {
+        return Err(ScenarioError::Pipeline(
+            "commit didn't take the resume answer".into(),
+        ));
+    };
+    // The marker, through the same code `session answer` and `session ask`
+    // use: the loose idea unconfirmed, and people the topic last asked about.
+    marker::record_answer(project, RESUME_LOOSE_IDEA, false, when.date)?;
+    let recorded = marker::record_ask(project, Topic::People, when.date)?;
+    add_paths.push(recorded.path);
+    Ok(Filed {
+        outcome: ScenarioOutcome::Written,
+        add_paths,
+        message: Some(message),
+    })
 }
 
 #[cfg(test)]

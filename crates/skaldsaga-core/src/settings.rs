@@ -88,6 +88,45 @@ pub fn default_meter_section() -> Value {
     meter
 }
 
+/// Default: offer to save where the story stands after this many confirmed
+/// answers (*Decided October 25, 2026*, planning session 2).
+pub const DEFAULT_SAVE_OFFER_AFTER_ANSWERS: u32 = 10;
+
+/// How a conversation paces itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionSettings {
+    /// Confirmed answers after which the interviewer offers to save.
+    pub save_offer_after_answers: u32,
+}
+
+impl Default for SessionSettings {
+    fn default() -> Self {
+        SessionSettings {
+            save_offer_after_answers: DEFAULT_SAVE_OFFER_AFTER_ANSWERS,
+        }
+    }
+}
+
+impl SessionSettings {
+    /// Reads `session` from a whole settings document, falling back to the
+    /// default for anything missing or unusable.
+    pub fn from_settings(doc: Option<&Value>) -> Self {
+        let save_offer_after_answers = doc
+            .and_then(|d| d.get_path(&["session", "save_offer_after_answers"]))
+            .and_then(Value::as_u64)
+            .filter(|n| (1..=1000).contains(n))
+            .map_or(DEFAULT_SAVE_OFFER_AFTER_ANSWERS, |n| n as u32);
+        SessionSettings {
+            save_offer_after_answers,
+        }
+    }
+
+    pub fn load(project: &Project) -> Result<Self, FsError> {
+        let doc = fsio::read_json_object(&project.settings_path())?;
+        Ok(Self::from_settings(doc.as_ref()))
+    }
+}
+
 /// Default: a proposal read by this many other nodes goes through the strict
 /// lane (decided in build step 7).
 pub const DEFAULT_STRICT_FAN_OUT: usize = 10;
@@ -222,6 +261,9 @@ const DEFAULT_SETTINGS: &str = r#"{
     "full_pass_every_sessions": 10
   },
   "flags_per_pause": 2,
+  "session": {
+    "save_offer_after_answers": 10
+  },
   "routing": {
     "strict_fan_out": 10
   },
@@ -382,6 +424,35 @@ mod tests {
     use super::*;
     use crate::json::parse;
     use crate::testutil::TempDir;
+
+    #[test]
+    fn the_save_offer_count_reads_a_sane_value_and_ignores_the_rest() {
+        assert_eq!(
+            SessionSettings::from_settings(None).save_offer_after_answers,
+            10
+        );
+        for (text, want) in [
+            (r#"{"session":{"save_offer_after_answers":4}}"#, 4),
+            (r#"{"session":{"save_offer_after_answers":0}}"#, 10),
+            (r#"{"session":{"save_offer_after_answers":"ten"}}"#, 10),
+            (r#"{"session":{"save_offer_after_answers":-3}}"#, 10),
+            (r#"{"session":{"save_offer_after_answers":99999}}"#, 10),
+            (r#"{"session":{}}"#, 10),
+        ] {
+            let doc = parse(text).unwrap();
+            assert_eq!(
+                SessionSettings::from_settings(Some(&doc)).save_offer_after_answers,
+                want,
+                "{text}"
+            );
+        }
+        // First-run setup writes the default into the settings file.
+        let defaults = default_settings();
+        assert_eq!(
+            SessionSettings::from_settings(Some(&defaults)).save_offer_after_answers,
+            10
+        );
+    }
 
     #[test]
     fn defaults_when_missing() {

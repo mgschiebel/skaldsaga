@@ -46,13 +46,11 @@ impl Condition {
         }
     }
 
-    /// Whether the conversation for this condition is built. The others say
-    /// plainly that they are not built yet.
+    /// Whether the conversation for this condition is built. The other says
+    /// plainly that it is not built yet. (The mid-thread recap is built in
+    /// slice 2; the stopping-point recap waits for slice 3.)
     pub fn is_built(self) -> bool {
-        !matches!(
-            self,
-            Condition::StoryMidThread | Condition::StoryStoppingPoint
-        )
+        !matches!(self, Condition::StoryStoppingPoint)
     }
 }
 
@@ -375,7 +373,7 @@ mod tests {
     }
 
     #[test]
-    fn only_the_two_recap_conditions_are_not_built() {
+    fn only_the_stopping_point_recap_is_not_built() {
         let built: Vec<_> = [
             Condition::NoStoryBare,
             Condition::NoStoryWithText,
@@ -389,6 +387,6 @@ mod tests {
         .filter(|c| !c.is_built())
         .map(Condition::as_str)
         .collect();
-        assert_eq!(built, vec!["story_mid_thread", "story_stopping_point"]);
+        assert_eq!(built, vec!["story_stopping_point"]);
     }
 }

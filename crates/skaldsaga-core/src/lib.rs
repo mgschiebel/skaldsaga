@@ -33,6 +33,7 @@ pub mod ops;
 pub mod project;
 pub mod proposal;
 pub mod propose;
+pub mod recap;
 pub mod registry;
 pub mod safety;
 pub mod scenario;
