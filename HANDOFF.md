@@ -6,9 +6,10 @@
 
 1. Read this file. Don't load anything else yet.
 2. **Security check first (Decided October 25, 2026, while the project is in active development).** Before any feature build or planning work, look for open items that need remediation: issues labelled `security-advisory`, open Dependabot pull requests, and open code-scanning alerts (`gh api repos/mgschiebel/skaldsaga/issues?labels=security-advisory`, `.../pulls` for Dependabot, `.../code-scanning/alerts?state=open`). Tell the author what is open, and spin off one focused remediation pull request per item, before moving on. If nothing is open, say so in one line and continue. Until the tooling in `docs/security/appsec-tooling-research.md` is built, the only source is Dependabot and the weekly `cargo audit` run.
-3. Read `CLAUDE.md` if the session will build.
-4. Load only the reference file the topic needs (File map below). Never load `docs/background.md` (it keeps outside story-theory terms out of prompts and code) or `docs/handoff/build-log.md` unless you are looking for the history behind something.
-5. Source-code comments say things like "see HANDOFF, Node format". Use the lookup table at the bottom to find the file.
+3. **Merge reminder (Decided October 25, 2026).** The author merges every pull request by rebase, which rewrites commits, so a branch started before an earlier PR is merged collides with it and costs a rebase. Whenever you offer the author a next step, or ask what to do next, first check for open pull requests (`gh api "repos/mgschiebel/skaldsaga/pulls?state=open" --jq '.[] | "#\(.number) \(.title)"'`) and, if any are waiting on the author, start the offer with one line naming them and asking the author to review and merge them first. Don't start work that builds on an unmerged PR unless the author says to; if it must stack, follow the stacking note in `CLAUDE.md`.
+4. Read `CLAUDE.md` if the session will build.
+5. Load only the reference file the topic needs (File map below). Never load `docs/background.md` (it keeps outside story-theory terms out of prompts and code) or `docs/handoff/build-log.md` unless you are looking for the history behind something.
+6. Source-code comments say things like "see HANDOFF, Node format". Use the lookup table at the bottom to find the file.
 
 Suggested opening prompts:
 
