@@ -35,7 +35,7 @@ The tooling findings are all fixed and no suppression was added. The review of t
 
 ### Release dry run
 
-Started from this branch with `dry_run` on, which builds everything and publishes nothing; `git push --dry-run` still has to authenticate with the new token handling. Result: RESULT_PLACEHOLDER
+Started from this branch with `dry_run` on, which builds everything and publishes nothing; `git push --dry-run` still has to authenticate with the new token handling. Result: all three jobs (Build, Check the SBOM, Publish) passed, including "Update the dist branch", so the new token handling authenticates. It rehearses the push; the first real release still follows the author's usual steps.
 
 ## Review of the code against the security requirements
 
