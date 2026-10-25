@@ -6,6 +6,10 @@ Read `HANDOFF.md` (a short index: status, what's next, a file map) and `ARCHITEC
 
 Every pull request, including doc-only ones, leaves the handoff ready for a fresh session to pick up after the merge: update the Status and Ready-to-build blocks in `HANDOFF.md`, record the change in the matching `docs/handoff/` file (a build step or fix goes under Build progress in `build-log.md`; a design decision goes into its design file with the date and "Decided"), and update the file map or lookup table if a section is added, moved or renamed. The PR template has a checkbox for it.
 
+## Keep the README for writers (Decided October 25, 2026)
+
+`README.md` is written for the writer who installs the release, in plain non-technical words: what Skaldsaga does and how to use it to write a story. No build details, step or pull request numbers, tool names, or the project's internal terms. Contributor information is one short section at the end that points to `CONTRIBUTING.md`, `HANDOFF.md` and `ARCHITECTURE.md`. Describe only what is built. A pull request that adds something a writer can try updates the README's "What's not ready yet" list in the same pull request.
+
 ## First step in a cloud session: let cargo reach crates.io
 
 Cloud sessions list crates.io as "no proxy", but it can only be reached through the session proxy, so plain `cargo` fails with "Could not resolve host: index.crates.io". Before the first cargo command, install this wrapper (`~/.local/bin` comes before `~/.cargo/bin` on the PATH):

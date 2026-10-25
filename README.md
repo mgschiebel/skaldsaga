@@ -1,70 +1,82 @@
 # Skaldsaga
 
-**A story mentor that helps first-time writers turn a rough idea into a complete, plot-hole-free outline.**
+**A story mentor that helps first-time writers turn a rough idea into a complete outline, one question at a time.**
 
-A *skald* was a Norse poet-storyteller, and *saga* means "story" (in modern Icelandic, *skáldsaga* is the everyday word for a novel). Skaldsaga is an open-source set of skills for [Claude Code](https://code.claude.com) that acts like an experienced writing mentor. It asks you questions about your story, quietly keeps track of everything you decide, catches contradictions and loose ends, and teaches craft as you go.
+A *skald* was a Norse poet-storyteller, and *saga* means "story" (in modern Icelandic, *skáldsaga* is the everyday word for a novel). Skaldsaga works like an experienced writing mentor. It asks about your story, keeps track of everything you decide, points out contradictions and loose ends, and teaches craft as you go. You stay the author throughout.
 
-> **Status: early test build.** You can install it and it will set up a story folder, but the story conversation itself isn't built yet. This README describes how Skaldsaga is meant to work. The design lives in [`HANDOFF.md`](HANDOFF.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
+> **Early test version.** You can start a new story and pick it back up where you left off. The rest of the conversation, such as working through the middle of your story scene by scene, is still being built. This page describes where Skaldsaga is headed, and says plainly when something isn't ready yet.
 
 ## Who it's for
 
-People who have a story in their head but have never written one. You don't need to know story theory, writing jargon, or anything about programming. Skaldsaga explains every question in plain English and tells you why it matters to your story.
+People who have a story in their head but have never written one. You don't need to know anything about story theory, writing terms or programming. Skaldsaga explains every question in plain English and tells you why it matters to your story.
 
 Experienced writers are welcome too. You can skip what you already know.
 
-## What you get
+## What you end up with
 
-At the end of the first phase, you have a **complete, detailed outline**:
+A **complete, detailed outline** of your story:
 
 - the people, places and facts of your story world, all consistent with each other
 - the shape of your story: who changes, what's at stake, how it ends and why
-- every scene in reading order, each with its purpose and beats
+- every scene in reading order, each with its purpose
 
-"Complete" means more than "finished." It means the big story questions are answered, every storyline has something happening at every stage, and the plot-hole checks run clean:
+"Complete" means more than "finished." The big questions are answered, and the outline holds together:
 
-1. **Continuity and timeline:** nothing happens before its cause, and nothing contradicts what's already true.
-2. **Knowledge:** no character acts on something they haven't learned yet, and no twist arrives before it's earned.
-3. **Setups and payoffs:** every hint pays off, and every payoff was set up.
-4. **The ending answers the story's question.**
-5. **Cause and effect:** each scene follows from what came before.
+- Nothing happens before its cause, and nothing contradicts what's already true.
+- No character acts on something they haven't learned yet.
+- Every hint pays off, and every payoff was set up.
+- The ending answers the question the story asked.
 
-## Before you start
+## What you'll need
 
-You'll need:
+- **Claude Code**, Anthropic's assistant, installed on your computer. Skaldsaga runs inside it. For now it works on Linux; Mac and Windows are planned for the first public release.
+- **A Claude account that includes Claude Code**, such as a paid Claude plan. Skaldsaga uses your Claude account for the conversation; there's nothing else to pay for.
+- **Git**, a free tool that keeps a history of your story so you can always go back. Many computers already have it, and Skaldsaga tells you if yours doesn't.
 
-- **Claude Code**, Anthropic's coding assistant, installed on your computer. Skaldsaga runs inside it. Test builds run on Linux; Mac and Windows come with the first public release.
-- **A Claude account that includes Claude Code**, such as a paid Claude plan or a Claude Console (API) account. Skaldsaga uses your Claude account for the conversation; there's nothing else to pay for.
-- **Git**, the free tool Skaldsaga uses to keep a history of your story so you can always go back. Many computers already have it; Skaldsaga tells you if it's missing.
+You don't need a GitHub account.
 
-You don't need a GitHub account: Skaldsaga installs from its public page on GitHub without signing in.
+## Getting started
 
-## How it works
+1. **Install Skaldsaga.** In Claude Code, type these two lines, one after the other:
 
-1. **Install** Skaldsaga as a Claude Code plugin. In Claude Code, type `/plugin marketplace add mgschiebel/skaldsaga#dist`, then `/plugin install skaldsaga@skaldsaga`.
-2. **Open a folder** for your story in Claude Code and type `/skaldsaga`. That's the only command you need to remember.
-3. **Talk about your story.** Skaldsaga asks about concrete things, such as a scene you can picture or a character you know, and works out the bigger structure from your answers. It always checks with you ("It sounds like your hero ends up changing. Is that right?").
-4. **Take breaks whenever you like.** Everything is saved after each answer you confirm. When it's time for a fresh start, Skaldsaga tells you. Next time, open the folder and it greets you with a recap of where you left off.
+   ```
+   /plugin marketplace add mgschiebel/skaldsaga#dist
+   /plugin install skaldsaga@skaldsaga
+   ```
 
-### Things it handles for you
+2. **Open an empty folder for your story** in Claude Code. Use a new, empty folder for each story.
+3. **Type `/skaldsaga`.** That's the only command you need to remember. You can type your idea right after it, or just press enter and Skaldsaga will ask what your story is about.
 
-- **You don't have to know the answers yet.** Unsure answers are kept as "to be decided" and settled later, when the story makes them clearer. If you're stuck, Skaldsaga offers "what if" options built from your own ideas.
-- **You can change your mind.** If a new answer conflicts with an earlier one, Skaldsaga points it out while the topic is still fresh and lets you choose what to keep.
-- **You can bring writing you already have.** Point it at an existing folder of drafts and notes. It looks before touching anything, recommends keeping your originals safe in an archive, and pulls the story facts out of your drafts for you to approve. It never changes your writing behind your back.
-- **It isn't tied to novels.** Your story is kept as one sequence of scenes. Chapters, a play's acts, or a web serial's weekly updates are just different ways to group those scenes later.
+## Writing your story
 
-## What it doesn't do (yet)
+Skaldsaga asks one question at a time, about things you can picture: a scene, a character, a moment. It works out the bigger structure from your answers, and always checks with you before it keeps anything ("It sounds like your hero ends up changing. Is that right?"). Nothing goes into your story until you say yes.
 
-The first phase stops at the outline. Later phases are planned to help with drafting scenes in your own voice, editing, and preparing editions for publishing: an e-book, a print book, or a web serial. You stay the author throughout.
+**Take breaks whenever you like.** Your answers are saved as you confirm them. Next time, open the same folder and type `/skaldsaga` on its own. If you stopped in the middle of something, Skaldsaga gives you a short recap of what you've decided and asks the one question that picks things back up.
 
-Skaldsaga draws on many story-structure ideas. Its early design was inspired in part by Dramatica, the theory of story created by Melanie Anne Phillips and Chris Huntley. Skaldsaga is not affiliated with or endorsed by The Dramatica Co., uses none of its licensed tools, and doesn't ask you to learn any story theory. The goal is a good story, not a theory-correct one. Dramatica® is a registered trademark of its owner. More about where the ideas came from is in [`docs/background.md`](docs/background.md).
+**You don't have to know the answers yet.** If you're unsure, say so. Skaldsaga keeps it as "to be decided" and comes back when the story makes it clearer. If you're stuck, it can offer "what if" ideas built from your own.
+
+**You can change your mind.** If a new answer conflicts with an earlier one, Skaldsaga points it out while the topic is fresh and lets you choose what to keep.
+
+**Your story stays yours.** Skaldsaga keeps your story in plain files in your folder, and it never changes your writing behind your back.
+
+## What's not ready yet
+
+- Carrying on past the basic shape of the story (how it begins, what gets in the way, the worst moment, the ending).
+- Bringing in writing you already have, such as drafts and notes. For now, start in an empty folder.
+- Later stages: drafting scenes in your own voice, editing, and preparing a finished story for publishing (an e-book, a print book or a web serial).
+
+## Where the ideas came from
+
+Skaldsaga draws on many ideas about how stories work. Its early design was inspired in part by Dramatica, the story theory created by Melanie Anne Phillips and Chris Huntley. Skaldsaga is not affiliated with or endorsed by The Dramatica Co., uses none of its licensed tools, and doesn't ask you to learn any story theory. The goal is a good story, not a theory-correct one. Dramatica® is a registered trademark of its owner.
 
 ## For contributors
 
-The project is in its planning phase. Licensing rules for contributions are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Start with:
+Skaldsaga is free and open source, and the project is still in active development. If you'd like to help, start here:
 
-- [`HANDOFF.md`](HANDOFF.md): the index to every decision so far (status, what's next, and a map of the reference files in [`docs/handoff/`](docs/handoff/) that hold the reasoning and open questions)
-- [`ARCHITECTURE.md`](ARCHITECTURE.md): a one-page sketch of the components and how they fit together
-- [`docs/background.md`](docs/background.md): where the ideas came from, research notes and attribution (kept out of the build documents on purpose)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): the rules for contributions, including licensing
+- [`HANDOFF.md`](HANDOFF.md): where the project stands, what's next, and a guide to the design documents in [`docs/`](docs/)
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): a one-page sketch of how the pieces fit together
+- [`docs/background.md`](docs/background.md): where the ideas came from, with research notes and attribution
 
 ## License
 
