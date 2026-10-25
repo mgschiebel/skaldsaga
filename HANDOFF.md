@@ -45,7 +45,7 @@ Planning sessions do the same: decisions go into the matching reference file as 
 
 Nothing is approved yet. Slice 1 waits on the author's review and the phone test. Candidates for slice 2, to be planned with the author first (each came out of slice 1's "not built" list):
 
-1. **Recaps:** the session-start recap for `story_mid_thread` and `story_stopping_point` (both are routed already and say "not built yet"), using the last-session marker. *Direction decided October 25, 2026 (planning session 2):* the next question is chosen fresh from what is on disk, and the marker gains one small field for the topic last asked about. Details and open points: `design-story.md`, "Resuming with no input". Still to settle before building: topic ranking, topic codes, and how to avoid a snapshot per marker write.
+1. **Recaps:** the session-start recap for `story_mid_thread` and `story_stopping_point` (both are routed already and say "not built yet"), using the last-session marker. *Direction decided October 25, 2026 (planning session 2):* the next question is chosen fresh from what is on disk, and the marker gains one small field for the topic last asked about. Details and open points: `design-story.md`, "Resuming with no input". Ranking, tentative ideas and marker commits are decided. Still to settle before building: topic codes, how often the save offer appears, and the summary wording.
 2. **Stopping point:** detection, the offer, and the drift guard with parking.
 3. **Brainstorm path** and its holding area. Reassess how loose ideas (like "maybe a dark alley") are kept: slice 2 keeps them only in the marker and recap (`design-story.md`, "Resuming with no input").
 4. **At-a-glance story picture** (open item 20).
