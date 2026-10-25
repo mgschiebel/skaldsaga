@@ -16,6 +16,7 @@
 pub mod check;
 pub mod commit;
 pub mod complete;
+pub mod craft;
 pub mod decisions;
 pub mod demo;
 pub mod fsio;

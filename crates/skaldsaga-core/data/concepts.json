@@ -1,0 +1,183 @@
+{
+  "format": 1,
+  "concepts": [
+    {
+      "id": "main_character",
+      "term": "main character",
+      "short": "MC",
+      "avoid": [
+        "protagonist"
+      ],
+      "builds_on": [],
+      "explanation": "The person whose inner struggle the story is about. Readers follow this character most closely, and the story asks whether they change."
+    },
+    {
+      "id": "pov_character",
+      "term": "point of view character",
+      "short": "POV character",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "Whose eyes a scene is seen through. A story can use one or several. It is not always the main character."
+    },
+    {
+      "id": "challenger",
+      "term": "challenger",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "The character who presses on the main character's way of seeing things, so the main character has to test it. Related terms a writer may meet: a foil contrasts with the main character; an antagonist opposes the main character's goal. The challenger may be either, or neither."
+    },
+    {
+      "id": "main_plot",
+      "term": "main plot",
+      "short": "",
+      "avoid": [],
+      "builds_on": [],
+      "explanation": "The outside problem the story is about and what is at stake. Also called the external plot."
+    },
+    {
+      "id": "inner_journey",
+      "term": "inner journey",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "The main character's inner change, or refusal to change, as the story goes on. Also called the internal arc."
+    },
+    {
+      "id": "character_arc",
+      "term": "character arc",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "Whether the main character is a different person by the end or stays the same at heart. Staying firm can be the point of a story."
+    },
+    {
+      "id": "want_versus_need",
+      "term": "want versus need",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "character_arc"
+      ],
+      "explanation": "What the main character is chasing against what they actually need. It often shows up as something they keep doing and must stop, or won't do and must start."
+    },
+    {
+      "id": "active_or_reflective",
+      "term": "active or reflective",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "Whether the main character answers trouble by changing the situation or by changing themselves."
+    },
+    {
+      "id": "problem_solving_style",
+      "term": "problem-solving style",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "Whether the main character works things out step by step or goes with their gut."
+    },
+    {
+      "id": "dramatic_question",
+      "term": "dramatic question",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "Will the main character get what they are after? The ending answers it."
+    },
+    {
+      "id": "stakes",
+      "term": "stakes",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "dramatic_question"
+      ],
+      "explanation": "What happens if the main character fails. Without stakes the dramatic question has no weight."
+    },
+    {
+      "id": "plot_or_character_driven",
+      "term": "plot-driven or character-driven",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "Whether events force the main character to choose, or the main character's choices make events happen."
+    },
+    {
+      "id": "ticking_clock",
+      "term": "ticking clock",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "dramatic_question"
+      ],
+      "explanation": "A story that ends because time runs out, as opposed to one that ends because there is nowhere left to turn."
+    },
+    {
+      "id": "outcome",
+      "term": "outcome",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "dramatic_question"
+      ],
+      "explanation": "Whether the main character gets what they were after."
+    },
+    {
+      "id": "ending_judgment",
+      "term": "the ending's judgment",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "outcome"
+      ],
+      "explanation": "Whether the main character is better or worse off when it is over. With the outcome, it gives the four classic endings: happy, bittersweet, tragic and a hollow win."
+    },
+    {
+      "id": "thematic_question",
+      "term": "thematic question",
+      "short": "theme",
+      "avoid": [],
+      "builds_on": [
+        "main_character"
+      ],
+      "explanation": "What the story is wondering about, for example whether loyalty is worth lying for. The writer's own words; the ending answers it by how it feels."
+    },
+    {
+      "id": "foil",
+      "term": "foil",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "challenger"
+      ],
+      "explanation": "Whether the challenger comes around to the main character's view or holds to their own by the end."
+    },
+    {
+      "id": "relationship_arc",
+      "term": "relationship arc",
+      "short": "",
+      "avoid": [],
+      "builds_on": [
+        "challenger"
+      ],
+      "explanation": "Whether the main character and the challenger end up closer, broken apart or unsettled."
+    }
+  ]
+}

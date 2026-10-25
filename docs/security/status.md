@@ -34,8 +34,8 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 
 | SR | Done | Left |
 |---|---|---|
-| SR-21 | Story loader, inbox and committed-proposal reads, and the local settings file refuse links | Every other story reader as it is built; a root-containment check on resolved paths |
-| SR-23 | 1 MiB cap on story file reads; smaller caps on decisions, the words file and local settings | Cap on the status-line JSON from stdin and on files per folder; YAML alias and depth limits |
+| SR-21 | Story loader, inbox and committed-proposal reads, the local settings file, the craft record and its input files refuse links | Every other story reader as it is built; a root-containment check on resolved paths |
+| SR-23 | 1 MiB cap on story file reads; smaller caps on decisions, the words file, local settings and the craft record (256 KiB; concepts 32 KiB) | Cap on the status-line JSON from stdin and on files per folder; YAML alias and depth limits |
 | SR-05 | Rule in `CLAUDE.md` | Review of older test reports |
 
 ## Author actions
