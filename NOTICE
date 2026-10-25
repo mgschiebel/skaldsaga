@@ -1,0 +1,37 @@
+Skaldsaga
+Copyright (C) 2026 Michael Schiebel
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+details. The full license text is in the file LICENSE.
+
+Additional terms under section 7 of the GNU Affero General Public License
+------------------------------------------------------------------------
+
+Skaldsaga is licensed under the GNU Affero General Public License, version 3
+or later, supplemented by the following additional terms. They are of the
+kinds that section 7(b) and section 7(c) of the license permit.
+
+1. Preservation of notices (section 7(b)). Anyone who conveys Skaldsaga or a
+   modified version of it, or makes it available to users over a network, must
+   keep the copyright notice above, this notice and the license notice intact.
+   Any work that contains Skaldsaga and displays Appropriate Legal Notices
+   (for example, the about, legal or help page of a service) must include in
+   them this line:
+
+   Based on Skaldsaga by Michael Schiebel - https://github.com/mgschiebel/skaldsaga
+
+2. Modified versions (section 7(c)). A modified version must be marked in a
+   reasonable way as different from the original version, and must not be
+   presented as the original Skaldsaga or as endorsed by its author.
+
+Nothing in these terms limits any right that the license itself gives you. In
+particular, section 13 of the license (remote network interaction) applies as
+written: if you modify the program and let users interact with it over a
+network, you must offer those users the source of your modified version.

@@ -68,4 +68,6 @@ The project is in its planning phase. Start with:
 
 ## License
 
-[GNU General Public License v2](LICENSE).
+Skaldsaga is free software under the [GNU Affero General Public License, version 3 or later](LICENSE), with the additional attribution terms in [`NOTICE`](NOTICE).
+
+In short: you may use, study, change and share it, including commercially, and run it as a service. If you share it or a modified version, or let other people use a modified version over a network, you must give them the source under the same license, keep the copyright and attribution notices, and mark your changes as yours. `NOTICE` and `LICENSE` are the authority, not this summary.
