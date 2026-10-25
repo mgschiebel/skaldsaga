@@ -58,4 +58,10 @@
 - **Model comparison:** a cheaper model becomes a default only if it catches at least about 90% of what the strong model catches, with no more false alarms. Rolling scoped passes are tested this way too.
 - **Authoring:** Claude may draft test stories, but a human reviews every seeded defect, because an accidental second plot hole skews the scores. (The skill-creator skill supports running evals.)
 
+**3. Interview evals and the slice test plan (*Proposed October 25, 2026*, planning session 1; the author's idea of test-first slices).**
+
+- **Every vertical slice gets a short test plan, written before building,** naming the one thing the slice must prove. Tests come first where they can (TDD).
+- **Entry routing is deterministic and tested with script tests.** The program, not the model, decides which entry condition applies, from the folder state and whether the command had text, so story text never steers the routing. Fixture folders cover every entry condition, including ones whose conversation is not built yet (marked pending until their slice).
+- **Interview evals score properties, not exact words,** using scripted writer inputs for each entry condition: one question per turn; no internal terms in anything the writer sees; the right closing move for the condition (reword of the last answer, one recommendation, or "I'm not finding a story"); no `init` before the writer confirms a new story. A deterministic scan for internal terms in writer-facing prompt text can run as an ordinary script test.
+
 
