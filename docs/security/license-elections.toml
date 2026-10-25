@@ -1,6 +1,9 @@
 # License elections: for every dependency that ships in a release, the license
 # expression the crate declares, and the license we elect from it.
 #
+# The release SBOM and the third-party notices file are built from these
+# elections (ci/release-files.py).
+#
 # Why this file exists: many crates are dual-licensed ("MIT OR Apache-2.0").
 # We accept the terms of one side and record which, and why, so a release's
 # notices, its SBOM and anyone reading it use the same answer

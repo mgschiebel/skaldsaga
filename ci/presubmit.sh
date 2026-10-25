@@ -7,7 +7,8 @@
 #   sh ci/presubmit.sh                 run every check
 #   sh ci/presubmit.sh fmt clippy      run only the named checks
 #
-# Checks: fmt, clippy, test, shellcheck, deny, license-sync, license-elections.
+# Checks: fmt, clippy, test, shellcheck, deny, license-sync, license-elections,
+# release-files.
 #
 # A check that cannot run in this environment is reported as NOT RUN and the
 # script exits non-zero, so nothing is skipped silently. In CI the same
@@ -18,7 +19,7 @@ set -u
 
 cd "$(dirname "$0")/.." || exit 1
 
-all="fmt clippy test shellcheck deny license-sync license-elections"
+all="fmt clippy test shellcheck deny license-sync license-elections release-files"
 if [ "$#" -gt 0 ]; then checks="$*"; else checks="$all"; fi
 
 failed=""
@@ -53,6 +54,7 @@ for check in $checks; do
     deny) run deny cargo-deny cargo deny --locked check ;;
     license-sync) run license-sync "" sh ci/check-license-sync.sh ;;
     license-elections) run license-elections python3 python3 -I ci/check-license-elections.py ;;
+    release-files) run release-files python3 python3 -I ci/release-files.py check ;;
     *)
       echo "presubmit: unknown check '$check' (known: $all)" >&2
       exit 2
