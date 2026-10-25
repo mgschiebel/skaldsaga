@@ -9,7 +9,7 @@ Where each requirement from `2026-10-20-review.md` stands. Update this page in a
 | SR | What | Where |
 |---|---|---|
 | SR-01 | Secret lines in the repo's and every story's `.gitignore` | #21; `init` |
-| SR-03 | No Claude session links in commits or PR descriptions | #21 (Privacy workflow) |
+| SR-03 | No Claude session links in commits or PR descriptions (the platform can still append a footer with a session link to a PR body; the PR read-back step in `CLAUDE.md` removes it; the setup script's user-level setting is unverified) | #21 (Privacy workflow), #36 |
 | SR-04 | Secret scan over new commits | #27 (`secret-scan.yml`) |
 | SR-10 | The writer's status line command lives only in the gitignored `.harness/local.json` | #23 |
 | SR-11 | Links, programs and special files reported; loaders refuse links | #24 (`docs/safety.md`) |
