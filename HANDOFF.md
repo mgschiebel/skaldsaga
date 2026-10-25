@@ -47,7 +47,7 @@ Nothing is approved yet. Slice 1 waits on the author's review and the phone test
 
 1. **Recaps:** the session-start recap for `story_mid_thread` and `story_stopping_point` (both are routed already and say "not built yet"), using the last-session marker. *Direction decided October 25, 2026 (planning session 2):* the next question is chosen fresh from what is on disk, and the marker gains one small field for the topic last asked about. Details and open points: `design-story.md`, "Resuming with no input". Still to settle before building: topic ranking, topic codes, and how to avoid a snapshot per marker write.
 2. **Stopping point:** detection, the offer, and the drift guard with parking.
-3. **Brainstorm path** and its holding area.
+3. **Brainstorm path** and its holding area. Reassess how loose ideas (like "maybe a dark alley") are kept: slice 2 keeps them only in the marker and recap (`design-story.md`, "Resuming with no input").
 4. **At-a-glance story picture** (open item 20).
 5. **Orchestrator and sub-agents** (planning agenda items 2 and 4 below).
 
