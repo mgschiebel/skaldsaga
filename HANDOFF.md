@@ -45,6 +45,7 @@ Planning sessions do the same: decisions go into the matching reference file as 
 
 Nothing is approved yet. Slice 1 waits on the author's review and the phone test. Candidates for slice 2, to be planned with the author first (each came out of slice 1's "not built" list):
 
+0. **Before slice 2, a small rename pull request:** `demo` becomes `scenario <name>`, a developer-only test-story setup tool, with the current demo kept as `basics` (`delivery.md`, Testing and evals). Slice 2 then adds the `resume` scenario.
 1. **Recaps (slice 2 covers mid-thread only; stopping-point waits for slice 3):** the session-start recap for `story_mid_thread` and `story_stopping_point` (both are routed already and say "not built yet"), using the last-session marker. *Direction decided October 25, 2026 (planning session 2):* the next question is chosen fresh from what is on disk, and the marker gains one small field for the topic last asked about. Details and open points: `design-story.md`, "Resuming with no input". Ranking, tentative ideas and marker commits are decided. The save offer (pause, N answers, meter points) is decided; only trigger 1 waits for slice 3. Summary wording is decided. Only the *Proposed* topic codes and default N remain to confirm.
 2. **Stopping point:** detection, the offer, and the drift guard with parking.
 3. **Brainstorm path** and its holding area. Reassess how loose ideas (like "maybe a dark alley") are kept: slice 2 keeps them only in the marker and recap (`design-story.md`, "Resuming with no input").
