@@ -1,7 +1,7 @@
 {
   "name": "skaldsaga",
   "displayName": "Skaldsaga",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A story mentor that helps first-time writers turn a rough idea into a complete, plot-hole-free outline. Test build: not ready for writers yet.",
   "author": {
     "name": "Mike Schiebel",

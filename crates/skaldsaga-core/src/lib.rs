@@ -10,7 +10,7 @@
 //! session-start hook, the typed spec model with its loader, first-run setup
 //! (`init`), the attribute registry, the generated index (`index`), and the
 //! dependency checker (`check`) with the operation engine it runs on, the
-//! single committer (`commit`), the demo answers (`demo`), and `complete`: the
+//! single committer (`commit`), the test scenarios (`scenario`), and `complete`: the
 //! script soft checks, the gates and the writer's stored decisions.
 
 pub mod check;
@@ -18,7 +18,6 @@ pub mod commit;
 pub mod complete;
 pub mod craft;
 pub mod decisions;
-pub mod demo;
 pub mod entry;
 pub mod fsio;
 pub mod hooks;
@@ -36,6 +35,7 @@ pub mod proposal;
 pub mod propose;
 pub mod registry;
 pub mod safety;
+pub mod scenario;
 pub mod settings;
 pub mod softchecks;
 pub mod spec;

@@ -1,13 +1,13 @@
-# Committer and demo
+# Committer and test scenarios
 
-`skaldsaga commit` is the single committer: it applies one checked proposal to the spec files, archives the proposal in `.harness/committed/`, and rebuilds the index. It reuses the operation engine `check` runs on, so the two can't disagree about what a proposal does. `skaldsaga demo` files two sample answers for trying both before the interviewer exists.
+`skaldsaga commit` is the single committer: it applies one checked proposal to the spec files, archives the proposal in `.harness/committed/`, and rebuilds the index. It reuses the operation engine `check` runs on, so the two can't disagree about what a proposal does. `skaldsaga scenario <name>` files a test scenario's sample answers for trying both before the interviewer exists (developer-only; `basics` is the one that was the demo).
 
 ## Commands
 
 | Command | Output | Notes |
 |---|---|---|
 | `commit --proposal ID [--decision keep_anyway\|not_sure] [--cleared] [--project DIR]` | JSON | Re-checks, then commits or holds. Refuses (exit 1) without `.harness/`; usage mistakes exit 64. |
-| `demo [--project DIR]` | JSON `outcome` | `written`, `spec_not_empty` (the story already has content) or `already_written`. |
+| `scenario NAME [--project DIR]` | JSON `outcome`, `scenario`, `proposals`; on `written` also `next_command` and `expect` | `written`, `spec_not_empty` (the story already has content) or `already_written`. An unknown or missing name is a usage error (exit 64). The old `demo` name is gone. |
 
 ## What commit needs
 
@@ -59,9 +59,9 @@ git commit -q -F <message_file>
 "committed": {"lane": "optimistic", "decision": null, "open_assumption": false, "cleared": false, "committed_by": "skaldsaga 0.3.0"}
 ```
 
-## Demo
+## Scenario: basics
 
-Runs only in a set-up project whose story is empty. `pr-demstart` creates Mara, Jonah, the east docks, a checkpoint scene and an arrest scene that happens after it, with Jonah's arrest becoming true in the arrest scene; it passes. `pr-demmixup` has Mara learn about the arrest at the checkpoint, before it happens; it fails with `learns_before_true`. The skill's `/skaldsaga demo` walks through checking and committing both, then deletes the refused sample from the inbox.
+Runs only in a set-up project whose story is empty. `pr-demstart` creates Mara, Jonah, the east docks, a checkpoint scene and an arrest scene that happens after it, with Jonah's arrest becoming true in the arrest scene; it passes. `pr-demmixup` has Mara learn about the arrest at the checkpoint, before it happens; it fails with `learns_before_true`. The skill's `/skaldsaga scenario basics` walks through checking and committing both, then deletes the refused sample from the inbox.
 
 ## Proposal IDs
 

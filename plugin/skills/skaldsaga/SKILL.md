@@ -8,7 +8,7 @@ allowed-tools: Read, Glob, Write(**/.harness/draft.txt), Bash(sh "${CLAUDE_PLUGI
 
 This is an early test build. One part of the story conversation works: opening a **new** story. Everything after the opening isn't built yet. Keep every reply short and in plain language, with no file paths or command names unless the person asks.
 
-If the person typed `/skaldsaga demo` (or asks for the demo), follow **Demo** below. If they typed `/skaldsaga check` (or ask to check the install), follow **Install check** below. Anything else after `/skaldsaga` is the writer's own text. Otherwise follow steps 0 to 3, then the opener.
+If the person typed `/skaldsaga scenario <name>` (a developer-only test setup), follow **Scenarios** below. If they typed `/skaldsaga check` (or ask to check the install), follow **Install check** below. Anything else after `/skaldsaga` is the writer's own text. Otherwise follow steps 0 to 3, then the opener.
 
 ## Rules that always apply
 
@@ -299,17 +299,21 @@ Used when the person asks to check the install. Do steps 1 and 0 (find the folde
 1. Run `skaldsaga meter check` and report the `state` in plain words: `ok` (plenty of room), `suggest_wrap_up` (time to think about a break), `wrap_up` (time to stop and start fresh), or `unknown` (no reading yet; normal at the start of a session, or where the status line doesn't run). Include `note` if there is one.
 2. In three or four short lines, say: the program version; what setup did (folders added, or already in place) and whether the snapshot was saved; the meter state; and whether the session-start hook ran (it adds a line to your context containing "Skaldsaga project"; say yes or no without quoting it. It only runs when a session starts, so right after first-time setup it's normal for it to be missing).
 
-## Demo
+## Scenarios
 
-The demo files two sample answers, the way the interviewer will once the rest exists, and shows how Skaldsaga checks an answer before it changes the story, then saves it. Explain each step in a sentence or two, in plain words; the person is testing, so it's fine to say what each step proves, and fine to use the program's own words here.
+`/skaldsaga scenario <name>` is a developer-only test setup, for the person testing Skaldsaga (it is not part of the writer's experience, and you never offer it to a writer). The name after `scenario` picks the setup; the program knows the names. If there is no name, or `skaldsaga scenario <name>` says the name is unknown, tell them the names it lists (exit code 64, usage) and stop. Today the only name is `basics`: follow **Scenario: basics** below.
+
+### Scenario: basics
+
+The `basics` scenario files two sample answers, the way the interviewer will once the rest exists, and shows how Skaldsaga checks an answer before it changes the story, then saves it. Explain each step in a sentence or two, in plain words; the person is testing, so it's fine to say what each step proves, and fine to use the program's own words here.
 
 1. **Program and folder:** do steps 0 and 1. If there's no `.harness` folder, do steps 2 and 3 first (setup and its snapshot), then come back here.
-2. **File the sample answers:** run `skaldsaga demo`.
+2. **File the sample answers:** run `skaldsaga scenario basics`. The result also names the next command and what to expect; the steps below already cover them.
    - `written`: continue.
-   - `spec_not_empty`: the story already has content; say the demo only runs in an empty story folder, so it never mixes sample content into a real story. Stop.
-   - `already_written`: say the demo has already run here. Stop.
+   - `spec_not_empty`: the story already has content; say a scenario only runs in an empty story folder, so it never mixes sample content into a real story. Stop.
+   - `already_written`: say this scenario has already run here. Stop.
 3. **Check the first answer:** run `skaldsaga check --proposal pr-demstart`. Explain: the answer creates a tiny story (Mara, Jonah, the docks, a checkpoint scene and an arrest scene), and the check applied it to a copy of the story first. Expect `flagged` with `scene_untied` twice: the two sample scenes aren't tied to a storyline and a part of it, which is a gentle heads-up the writer decides on, not a refusal. Say so.
-4. **Save it anyway:** run `skaldsaga commit --proposal pr-demstart`. Expect `held` (reason `needs_decision`): nothing changed, because the writer decides on a flag. For the demo, keep it: run `skaldsaga commit --proposal pr-demstart --decision keep_anyway`. If the `outcome` is `committed`, save a git snapshot with exactly the paths it lists:
+4. **Save it anyway:** run `skaldsaga commit --proposal pr-demstart`. Expect `held` (reason `needs_decision`): nothing changed, because the writer decides on a flag. For this scenario, keep it: run `skaldsaga commit --proposal pr-demstart --decision keep_anyway`. If the `outcome` is `committed`, save a git snapshot with exactly the paths it lists:
 
    ```sh
    git rm --cached --ignore-unmatch -q -- <each path in remove_paths>

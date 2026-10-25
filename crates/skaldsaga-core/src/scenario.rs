@@ -1,18 +1,70 @@
-//! `skaldsaga demo`: two sample answers for trying `check` and `commit`
-//! before the interviewer exists (decided in build step 8).
+//! `skaldsaga scenario <name>`: developer-only test setup. It files the fixed
+//! sample answers a slice's test case needs into a set-up project, so the
+//! author can then run the command under test.
 //!
-//! It only runs in a set-up project whose spec is still empty, so it never
-//! mixes sample content into a real story. The first answer creates a tiny
-//! story (Mara, Jonah, the docks, two scenes) and passes; the second has
-//! Mara learn about Jonah's arrest in a scene that happens before the arrest,
-//! which the checker refuses.
+//! Scenario content is built into the program and never read from the story
+//! folder (SR-10 to SR-12). A scenario only runs in a set-up project whose
+//! spec is still empty, so it never mixes sample content into a real story.
+//!
+//! `basics` (the former `demo`, decided in build step 8): the first answer
+//! creates a tiny story (Mara, Jonah, the docks, two scenes) and is flagged;
+//! the second has Mara learn about Jonah's arrest in a scene that happens
+//! before the arrest, which the checker refuses. It stays because it is the
+//! only way to see a conflict refused until the interviewer can produce one.
 
 use crate::fsio::{self, FsError};
 use crate::project::Project;
 use crate::spec;
 
-/// The sample answers, in the order to try them.
-pub const PROPOSALS: [&str; 2] = ["pr-demstart", "pr-demmixup"];
+/// A named test setup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Scenario {
+    /// Mara and Jonah: one answer that is kept, one that is refused.
+    Basics,
+}
+
+/// Every scenario name, for usage messages.
+pub const NAMES: [&str; 1] = ["basics"];
+
+impl Scenario {
+    /// Looks a scenario up by name; `None` for an unknown name.
+    pub fn parse(name: &str) -> Option<Scenario> {
+        match name {
+            "basics" => Some(Scenario::Basics),
+            _ => None,
+        }
+    }
+
+    /// The sample answers, in the order to try them.
+    pub fn proposals(self) -> &'static [&'static str] {
+        match self {
+            Scenario::Basics => &["pr-demstart", "pr-demmixup"],
+        }
+    }
+
+    /// The one command to run next.
+    pub fn next_command(self) -> &'static str {
+        match self {
+            Scenario::Basics => "skaldsaga check --proposal pr-demstart --proposal pr-demmixup",
+        }
+    }
+
+    /// What to expect from that command.
+    pub fn expect(self) -> &'static str {
+        match self {
+            Scenario::Basics => {
+                "pr-demstart comes back flagged (its scenes are not tied to a thread and stage); \
+                 pr-demmixup is refused with learns_before_true"
+            }
+        }
+    }
+
+    fn texts(self) -> &'static [&'static str] {
+        match self {
+            Scenario::Basics => &[START, MIXUP],
+        }
+    }
+}
 
 const START: &str = r#"{
   "id": "pr-demstart",
@@ -56,32 +108,32 @@ const MIXUP: &str = r#"{
 
 /// What `write` did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DemoOutcome {
+pub enum ScenarioOutcome {
     /// The sample answers are in the inbox.
     Written,
-    /// The spec already holds nodes; the demo only runs in an empty story.
+    /// The spec already holds nodes; a scenario only runs in an empty story.
     SpecNotEmpty,
     /// A sample answer is already in the inbox or the archive.
     AlreadyWritten,
 }
 
 /// Writes the sample answers into the inbox.
-pub fn write(project: &Project) -> Result<DemoOutcome, FsError> {
+pub fn write(project: &Project, scenario: Scenario) -> Result<ScenarioOutcome, FsError> {
     let loaded = spec::load(&project.spec_dir())?;
     let archive = project.harness_dir().join(crate::commit::COMMITTED_DIR);
-    for id in PROPOSALS {
+    for id in scenario.proposals() {
         let name = format!("{id}.json");
         if project.inbox_dir().join(&name).exists() || archive.join(&name).exists() {
-            return Ok(DemoOutcome::AlreadyWritten);
+            return Ok(ScenarioOutcome::AlreadyWritten);
         }
     }
     if !loaded.spec.nodes.is_empty() || !loaded.spec.sequence.is_empty() {
-        return Ok(DemoOutcome::SpecNotEmpty);
+        return Ok(ScenarioOutcome::SpecNotEmpty);
     }
-    for (id, text) in PROPOSALS.iter().zip([START, MIXUP]) {
+    for (id, text) in scenario.proposals().iter().zip(scenario.texts()) {
         fsio::write_atomic(&project.inbox_dir().join(format!("{id}.json")), text)?;
     }
-    Ok(DemoOutcome::Written)
+    Ok(ScenarioOutcome::Written)
 }
 
 #[cfg(test)]
@@ -91,7 +143,7 @@ mod tests {
 
     #[test]
     fn sample_answers_parse() {
-        for text in [START, MIXUP] {
+        for text in Scenario::Basics.texts() {
             let p = proposal::parse(text).unwrap();
             assert!(
                 crate::ids::is_kind(&p.id, crate::ids::IdKind::Proposal),
@@ -99,5 +151,14 @@ mod tests {
                 p.id
             );
         }
+    }
+
+    #[test]
+    fn names_match_the_lookup() {
+        for name in NAMES {
+            assert!(Scenario::parse(name).is_some(), "{name}");
+        }
+        assert_eq!(Scenario::parse("demo"), None);
+        assert_eq!(Scenario::parse(""), None);
     }
 }
