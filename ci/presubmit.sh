@@ -7,7 +7,8 @@
 #   sh ci/presubmit.sh                 run every check
 #   sh ci/presubmit.sh fmt clippy      run only the named checks
 #
-# Checks: fmt, clippy, test, shellcheck, deny, license-sync, license-elections,
+# Checks: fmt, clippy, test, shellcheck, zizmor (offline audit of the workflows
+# and the Dependabot file), deny, license-sync, license-elections,
 # release-files, exceptions (every suppression is on docs/security/exceptions.toml
 # and unexpired; ci/check-exceptions.py), fuzz (a short pass: needs cargo-fuzz and a nightly toolchain;
 # FUZZ_SECONDS and FUZZ_TOOLCHAIN are read by ci/fuzz-smoke.sh).
@@ -21,7 +22,7 @@ set -u
 
 cd "$(dirname "$0")/.." || exit 1
 
-all="fmt clippy test shellcheck deny license-sync license-elections release-files exceptions fuzz"
+all="fmt clippy test shellcheck zizmor deny license-sync license-elections release-files exceptions fuzz"
 if [ "$#" -gt 0 ]; then checks="$*"; else checks="$all"; fi
 
 failed=""
@@ -55,6 +56,9 @@ for check in $checks; do
     test) run test cargo cargo test --locked ;;
     # Every shell script the plugin ships or CI runs.
     shellcheck) run shellcheck shellcheck shellcheck -f gcc plugin/scripts/skaldsaga ci/*.sh ;;
+    # Offline here, so it needs no token; the zizmor.yml workflow runs it online
+    # with the job's token. Both gave the same findings on October 25, 2026.
+    zizmor) run zizmor zizmor zizmor --offline --persona auditor .github ;;
     deny) run deny cargo-deny cargo deny --locked check ;;
     license-sync) run license-sync "" sh ci/check-license-sync.sh ;;
     license-elections) run license-elections python3 python3 -I ci/check-license-elections.py ;;

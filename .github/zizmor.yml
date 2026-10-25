@@ -1,0 +1,9 @@
+# Settings for zizmor (the workflow security audit; .github/workflows/zizmor.yml).
+# This tunes a threshold. It does not silence a finding, so it is not on the
+# suppression register.
+rules:
+  dependabot-cooldown:
+    config:
+      # Dependabot waits three days before offering a new version (Decided
+      # October 25, 2026). zizmor's own default is seven.
+      days: 3

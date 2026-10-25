@@ -1,0 +1,10 @@
+{
+  "name": "skaldsaga-ci-claude-code",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pins the Claude Code version that CI uses to validate the plugin. Never shipped.",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.310"
+  }
+}
