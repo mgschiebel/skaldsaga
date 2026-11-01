@@ -30,6 +30,7 @@ use skaldsaga_core::propose::{self, ProposeError};
 use skaldsaga_core::recap;
 use skaldsaga_core::safety;
 use skaldsaga_core::scenario::{self, Scenario, ScenarioOutcome};
+use skaldsaga_core::session;
 use skaldsaga_core::settings::{self, MeterSettings, SessionSettings};
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
 
@@ -307,6 +308,15 @@ fn meter_check(rest: &[&str]) -> Result<(), CliError> {
     let settings = MeterSettings::load(&project).unwrap_or_default();
     let reading = meter::read_reading(&project);
     let eval = meter::evaluate(reading.as_ref(), &settings, flag(&parsed, "--session"));
+    // Where the window has no reading (the cloud), the count of confirmed
+    // answers in this session stands in for it.
+    let (suggest_after, wrap_up_after) = session::wrap_up_limits(&project);
+    let eval = meter::with_answer_count(
+        eval,
+        session::answers_this_session(&project),
+        suggest_after,
+        wrap_up_after,
+    );
     print_json(&eval.to_json())
 }
 
@@ -1071,7 +1081,9 @@ fn marker_error(e: MarkerError) -> CliError {
     }
 }
 
-/// Records how the session stands, for the next session's recap.
+/// Records how the session stands, for the next session's recap. The
+/// committed note changes only inside a real save; the rest stays on this
+/// computer (`session` module).
 fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
     let date = decisions::date_from_unix(now());
     match sub {
@@ -1080,9 +1092,8 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
             let confirmed = yes_no(&parsed, "--confirmed")?;
             let words = read_input_file(required(&parsed, "--words-file")?, "words")?;
             let project = require_project(&parsed)?;
-            let r =
-                marker::record_answer(&project, &words, confirmed, &date).map_err(marker_error)?;
-            marker_recorded(&project, r)
+            let out = session::answer(&project, &words, confirmed, &date).map_err(marker_error)?;
+            session_recorded(&project, &out)
         }
         "ask" => {
             let parsed = flags(rest, &["--project", "--topic"])?;
@@ -1093,50 +1104,47 @@ fn session_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
                 )
             })?;
             let project = require_project(&parsed)?;
-            let r = marker::record_ask(&project, topic, &date).map_err(marker_error)?;
-            marker_recorded(&project, r)
+            let out = session::ask(&project, topic).map_err(marker_error)?;
+            session_recorded(&project, &out)
         }
         "save" => {
             let parsed = flags(rest, &["--project", "--taken"])?;
             let taken = yes_no(&parsed, "--taken")?;
             let project = require_project(&parsed)?;
-            let r = marker::record_offer(&project, &date).map_err(marker_error)?;
-            if taken && marker::exists(&project) {
-                // The writer wants a safe point: hand back the marker for a
-                // snapshot even if this call didn't change it, since earlier
-                // writes may not be saved yet.
-                marker_written(
-                    &project,
-                    marker::Recorded {
-                        changed: true,
-                        path: r.path,
-                    },
-                )
+            let out = session::offer(&project, taken, &date).map_err(marker_error)?;
+            if taken && out.changed {
+                session_written(&project, &out)
             } else {
-                marker_recorded(&project, r)
+                session_recorded(&project, &out)
             }
         }
         "stop" => {
-            let parsed = flags(rest, &["--project"])?;
+            let parsed = flags(rest, &["--project", "--reason"])?;
+            let reason =
+                session::StopReason::parse(required(&parsed, "--reason")?).ok_or_else(|| {
+                    CliError::Usage(
+                        "--reason must be writer_signals, thread_exhausted or writer_done".into(),
+                    )
+                })?;
             let project = require_project(&parsed)?;
-            let r = marker::record_stopping_point(&project, &date).map_err(marker_error)?;
-            marker_written(&project, r)
+            let out = session::stop(&project, reason, &date).map_err(marker_error)?;
+            session_written(&project, &out)
         }
         _ => Err(CliError::Usage(format!("unknown session command '{sub}'"))),
     }
 }
 
-/// Prints the result of recording the marker without a snapshot of its own:
-/// the path to stage with the next real save, and no message file.
-fn marker_recorded(project: &Project, recorded: marker::Recorded) -> Result<(), CliError> {
+/// Prints the result of recording the note without a snapshot of its own:
+/// the paths to stage with the next real save (none for a change kept on this
+/// computer), and no message file.
+fn session_recorded(project: &Project, out: &session::Outcome) -> Result<(), CliError> {
     let mut v = json::object();
-    if recorded.changed {
+    if out.changed {
         v.set("outcome", "recorded".into());
-        v.set("add_paths", strings(&[recorded.path]));
     } else {
         v.set("outcome", "unchanged".into());
-        v.set("add_paths", strings(&[]));
     }
+    v.set("add_paths", strings(&out.add_paths));
     // Whether it is time to offer to save where the story stands.
     v.set("save_offer", Value::Bool(save_offer_due(project)));
     print_json(&v)
@@ -1144,9 +1152,9 @@ fn marker_recorded(project: &Project, recorded: marker::Recorded) -> Result<(), 
 
 /// True when enough confirmed answers have come since the last offer.
 fn save_offer_due(project: &Project) -> bool {
-    let count = match marker::load(project) {
-        Ok(Some(m)) => m.answers_since_offer,
-        _ => return false,
+    let count = match session::view(project) {
+        Ok(v) => v.answers_since_offer(),
+        Err(_) => return false,
     };
     let after = SessionSettings::load(project)
         .map_or(settings::DEFAULT_SAVE_OFFER_AFTER_ANSWERS, |s| {
@@ -1166,13 +1174,14 @@ fn recap_cmd(rest: &[&str]) -> Result<(), CliError> {
     print_json(&recap.to_value())
 }
 
-/// Prints the result of recording the marker for a snapshot: the path for git
-/// and the message file.
-fn marker_written(project: &Project, recorded: marker::Recorded) -> Result<(), CliError> {
+/// Prints the result of recording the note for a snapshot: the paths for git
+/// and the message file. A stop also says whether an unconfirmed answer was
+/// pending, so the interviewer can tell the writer.
+fn session_written(project: &Project, out: &session::Outcome) -> Result<(), CliError> {
     let mut v = json::object();
-    if recorded.changed {
+    if out.changed {
         v.set("outcome", "recorded".into());
-        v.set("add_paths", strings(&[recorded.path]));
+        v.set("add_paths", strings(&out.add_paths));
         v.set(
             "message_file",
             message_file(
@@ -1184,6 +1193,7 @@ fn marker_written(project: &Project, recorded: marker::Recorded) -> Result<(), C
         v.set("outcome", "unchanged".into());
         v.set("add_paths", strings(&[]));
     }
+    v.set("unconfirmed_pending", Value::Bool(out.unconfirmed_pending));
     print_json(&v)
 }
 

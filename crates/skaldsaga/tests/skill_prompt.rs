@@ -308,7 +308,7 @@ fn the_recap_itself_runs_only_commands_that_read() {
 fn the_note_of_where_things_stand_never_gets_a_snapshot_of_its_own() {
     let text = skill_text();
     assert!(
-        text.contains("git add -- <each path in add_paths> <the path session answer returned>"),
+        text.contains("git add -- <each path in add_paths> <each path session answer returned>"),
         "a real save carries the note with it"
     );
     assert!(

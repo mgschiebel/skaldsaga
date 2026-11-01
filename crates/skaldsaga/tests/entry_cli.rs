@@ -183,12 +183,10 @@ fn recording_an_answer_makes_the_story_mid_thread_even_when_empty() {
         ],
     ));
     assert_eq!(v["outcome"], "recorded");
-    assert_eq!(
-        v["add_paths"],
-        serde_json::json!([".harness/writer/last-session.json"])
-    );
-    // A marker write never makes a snapshot of its own: the path rides along
-    // with the next real save, so no message file comes back.
+    // An unconfirmed answer stays on this computer: nothing for git, so the
+    // cloud session's stop check has nothing to flag. No message file either.
+    assert_eq!(v["add_paths"], serde_json::json!([]));
+    assert!(!p.join(".harness/writer/last-session.json").exists());
     assert!(v.get("message_file").is_none());
     assert!(
         v.get("words").is_none(),
@@ -217,7 +215,10 @@ fn recording_an_answer_makes_the_story_mid_thread_even_when_empty() {
 fn a_stopping_point_routes_to_the_stopping_point() {
     let dir = story_with_content();
     let p = dir.path();
-    let v = json_of(&skaldsaga(p, &["session", "stop"]));
+    let v = json_of(&skaldsaga(
+        p,
+        &["session", "stop", "--reason", "writer_done"],
+    ));
     assert_eq!(v["outcome"], "recorded");
     assert_eq!(condition(p, "no"), "story_stopping_point");
     assert_eq!(condition(p, "yes"), "story_with_text");
@@ -271,7 +272,7 @@ fn session_commands_need_a_set_up_folder_and_valid_flags() {
     let p = dir.path();
     let words = words_file(p, "anything");
     for args in [
-        vec!["session", "stop"],
+        vec!["session", "stop", "--reason", "writer_done"],
         vec![
             "session",
             "answer",

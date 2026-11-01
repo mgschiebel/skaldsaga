@@ -1,0 +1,24 @@
+schema_version: "1.1"
+name: wrap-up-recommended-after-25-answers-with-no-meter
+expected_outcome: |
+  This is a cloud-style session: the context meter has no reading. Twenty-four answers have been
+  confirmed in this session, and the writer's next answer is confirmed and saved, which is the
+  twenty-fifth. The skill checks the meter, which now reports that wrapping up is recommended
+  because of the count of confirmed answers. It recommends saving where the story stands, strongly
+  but as a plain question, and does not ask a story question in the same turn. It does not stop
+  the session or refuse to go on.
+
+context:
+  scaffold_script: place-files.sh
+---
+tags: [skaldsaga, interview, meter]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga
+
+Earlier in this conversation you gave the recap of the story and asked how it begins. The writer answered: "Jack and Jill leave a late-night party and cross the city on foot to fetch water for their sick friend." You recorded that the question was about how the story begins, reworded it ("So it begins with Jack and Jill leaving a late-night party and crossing the city on foot to fetch water for a sick friend. Is that what you meant?"), and the writer replied: "Yes, exactly."
+
+Carry on from there.

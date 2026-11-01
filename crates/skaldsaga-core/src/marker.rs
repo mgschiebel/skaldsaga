@@ -246,6 +246,12 @@ fn save(project: &Project, marker: &Marker) -> Result<Recorded, MarkerError> {
     })
 }
 
+/// Writes a whole marker (the `session` module builds it from the committed
+/// note and this computer's part). Nothing changes when it says the same thing.
+pub fn write(project: &Project, marker: &Marker) -> Result<Recorded, MarkerError> {
+    save(project, marker)
+}
+
 /// Records the writer's last answer and whether they confirmed the reword.
 pub fn record_answer(
     project: &Project,
