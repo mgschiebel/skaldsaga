@@ -1,0 +1,17 @@
+schema_version: "1.1"
+name: tangent-gets-a-gentle-question-and-is-kept-as-a-loose-idea
+expected_outcome: |
+  The writer has twice added details that do not connect to the story they described (a long description of their own cat's habits, then a recipe). The skill never refuses and never calls it off topic. It keeps the latest tangent as a loose idea, recorded as not confirmed and not as part of the story, and asks one gentle question: whether it is part of the story they told it about, naming where the story was heading, and says it will hold on to it either way. It does not save the tangent as part of the story.
+
+context:
+  scaffold_script: place-files.sh
+---
+tags: [skaldsaga, interview, stopping-point]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga
+
+Earlier in this conversation you recorded the story as Jack and Jill crossing a city at night to fetch water. Your last question was what gets in the way. The writer answered with a long description of their own cat's habits, and when you steered gently back, they followed with a recipe for lentil soup. Carry on from there.

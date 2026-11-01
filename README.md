@@ -51,7 +51,9 @@ You don't need a GitHub account.
 
 Skaldsaga asks one question at a time, about things you can picture: a scene, a character, a moment. It works out the bigger structure from your answers, and always checks with you before it keeps anything ("It sounds like your hero ends up changing. Is that right?"). Nothing goes into your story until you say yes.
 
-**Take breaks whenever you like.** Your answers are saved as you confirm them. Next time, open the same folder and type `/skaldsaga` on its own. If you stopped in the middle of something, Skaldsaga gives you a short recap of what you've decided and asks the one question that picks things back up.
+**Take breaks whenever you like.** Your answers are saved as you confirm them. Next time, open the same folder and type `/skaldsaga` on its own. If you stopped in the middle of something, Skaldsaga gives you a short recap of what you've decided and asks the one question that picks things back up. When a part of your story has run its course, or your answers get short, Skaldsaga stops to say what that part added, offers a few things to look at next (with a suggestion), and offers to save where you are. If you stop at that point, next time it suggests where to start.
+
+**Skaldsaga stays on your story.** If you wander off on a tangent, it asks, gently, whether the idea belongs to the story you told it, and holds on to the idea either way. You choose whether to follow it or go back.
 
 **You don't have to know the answers yet.** If you're unsure, say so. Skaldsaga keeps it as "to be decided" and comes back when the story makes it clearer. If you're stuck, it can offer "what if" ideas built from your own.
 

@@ -1,0 +1,17 @@
+schema_version: "1.1"
+name: short-answers-end-the-topic-with-a-choice-and-a-save-offer
+expected_outcome: |
+  The writer has given two short, unsure answers in a row ("I don't know", "not sure") to questions about the same part of the story. The skill recognises a stopping point, says in one or two sentences what that part added to the story, offers two or three other parts of the story to look at next with one marked as its suggestion (not the part that just ran dry), and adds one short line offering to save where they are. The choice is the only question. It does not record a stopping point yet, because the writer has not said they want to stop.
+
+context:
+  scaffold_script: place-files.sh
+---
+tags: [skaldsaga, interview, stopping-point]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga
+
+Earlier in this conversation you gave the recap of the story and asked how it begins. The writer answered "I don't know, they just leave a party I guess", and you reworded it and they said yes, which was saved. You asked one more question about how it begins and the writer answered "not sure". Carry on from there.

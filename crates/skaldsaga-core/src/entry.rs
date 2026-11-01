@@ -47,11 +47,12 @@ impl Condition {
         }
     }
 
-    /// Whether the conversation for this condition is built. The other says
-    /// plainly that it is not built yet. (The mid-thread recap is built in
-    /// slice 2; the stopping-point recap waits for slice 3.)
+    /// Whether the conversation for this condition is built. A condition that
+    /// is not built says plainly so. (The mid-thread recap is built in slice 2
+    /// and the stopping-point recap in slice 3, so every condition is built
+    /// now; the field stays so the skill can still say so for a later one.)
     pub fn is_built(self) -> bool {
-        !matches!(self, Condition::StoryStoppingPoint)
+        true
     }
 }
 
@@ -383,8 +384,8 @@ mod tests {
     }
 
     #[test]
-    fn only_the_stopping_point_recap_is_not_built() {
-        let built: Vec<_> = [
+    fn every_entry_condition_is_built() {
+        let unbuilt: Vec<_> = [
             Condition::NoStoryBare,
             Condition::NoStoryWithText,
             Condition::StoryMidThread,
@@ -397,6 +398,6 @@ mod tests {
         .filter(|c| !c.is_built())
         .map(Condition::as_str)
         .collect();
-        assert_eq!(built, vec!["story_stopping_point"]);
+        assert!(unbuilt.is_empty(), "not built: {unbuilt:?}");
     }
 }
