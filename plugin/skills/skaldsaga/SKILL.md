@@ -6,7 +6,7 @@ allowed-tools: 'Read, Glob, Write(**/.harness/draft.txt), Bash(sh "${CLAUDE_PLUG
 
 # Skaldsaga (test build)
 
-This is an early test build. Two parts of the story conversation work: opening a **new** story, and picking a story back up when the last session ended in the middle of something (the recap). Everything else isn't built yet. Keep every reply short and in plain language, with no file paths or command names unless the person asks.
+This is an early test build. Three parts of the story conversation work: opening a **new** story, picking a story back up (the recap, whether the last session ended in the middle of something or at a stopping point), and reaching a stopping point. Everything else isn't built yet. Keep every reply short and in plain language, with no file paths or command names unless the person asks.
 
 If the person typed `/skaldsaga scenario <name>` (a developer-only test setup), follow **Scenarios** below. If they typed `/skaldsaga check` (or ask to check the install), follow **Install check** below. Anything else after `/skaldsaga` is the writer's own text. Otherwise follow steps 0 to 3, then the opener.
 
@@ -122,11 +122,16 @@ Last time we were circling how it begins. Picture the very first scene: where ar
 
 ### story_stopping_point
 
-`built` is false: picking a story back up from a stopping point isn't built yet. Say so plainly, change nothing, and stop.
+The last session ended at a stopping point: the writer was done, or a part of the story had run its course. Pick the story back up with a short recap that ends in one suggestion for what to look at next. **Nothing on disk changes until the writer answers:** the recap runs only commands that read, writes no file and saves no snapshot.
+
+1. Run `skaldsaga recap` (add `--project` when needed). It only reads. Read `premise`, `people`, `topic` (the suggestion) and `choices`. `stages_without_summary` is for you; never list it to the writer. If the command fails, say plainly that something in the story's files can't be read, change nothing and stop.
+2. Say two or three plain sentences of what is decided: what the story is (from `premise`, in the writer's own words) and who is in it (`people`). Never list what's missing. Then make **one** suggestion, the question for `topic` from the table in **story_mid_thread**, and say they can pick something else. If `topic` is `null`, the basic shape is down: say so, and that carrying on from here isn't built yet. Stop.
 
 ```say
-Picking a story back up where we left off isn't built yet, so I'll leave everything as it is.
+You're writing a modern Jack and Jill, set in a city at night, and Jack and Jill are in it. A good place to pick it up is how it begins. Want to start there, or somewhere else?
 ```
+
+3. Wait for the answer. If they take the suggestion or name another part of the story, run `skaldsaga session ask --topic <the code for that part>` (the codes in the table), ask the question for it, and handle their answer exactly as in **After every answer** and **On a yes**. Then follow **Following the writer's focus**.
 
 ## 1. Check the program
 
@@ -328,6 +333,8 @@ We've covered a lot, and this conversation is getting long. I'd recommend saving
 This conversation is getting too long to keep going well. I'd save where we are right now, and then start a fresh session to carry on. Shall I save?
 ```
 
+If the session is ending while their last answer is unconfirmed, give the notice from **Reaching a stopping point** first.
+
 On a yes, run `skaldsaga session save --taken yes`, then `git add -- <each path in add_paths>` and, if anything is staged (`git diff --cached --quiet` exits non-zero), `git commit -q -F <message_file>`. On a no, run `skaldsaga session save --taken no`: it starts the count over and saves nothing.
 
 ### Following the writer's focus
@@ -338,11 +345,53 @@ Once at least one of the three is saved, ask one question that follows what the 
 Which moment are you most excited to write?
 ```
 
-Make a scene only for a concrete moment, as above. This test build stops here: after a couple of follow-up questions, or when the writer's answers get short, say where things stand and that carrying on from here isn't built yet. Never mention what was saved in internal terms.
+Make a scene only for a concrete moment, as above. When the writer's answers get short or the topic runs dry, follow **Reaching a stopping point**. Where `recap` reports `topic` as `null` (the basic shape is down and nothing is left to ask in this test build), say where things stand and that carrying on from here isn't built yet. Never mention what was saved in internal terms.
 
 ```say
 That's a good start. We've got the heart of your story down, and I'll pick it up from here once the rest is built.
 ```
+
+### Reaching a stopping point
+
+A topic ends, and you offer a choice of what to look at next, at whichever comes first:
+
+- **The writer's signals:** their answers get short, they say they're not sure or don't know, or they add nothing new, twice in a row; or they say they're done. You judge this; the program only checks that your claim is believable.
+- **The topic is used up:** there is nothing left to ask about it without repeating yourself.
+
+Deal with the answer you are on first (reword it, wait for the yes or correction, save what they confirmed). Then:
+
+1. Run `skaldsaga recap`. It only reads. The areas to offer are `choices`, at most three; skip the one equal to `last_topic`, since that is the part that just ran its course. The first one left is your suggestion.
+2. Say in one or two plain sentences what this part added to the story, from what the writer confirmed this session. Then offer the areas in plain words (the table in **story_mid_thread**), name your suggestion, and add one short line offering to save. The choice is the turn's only question; the save line is an offer, not a second question.
+
+```say
+That fills in how it begins: the party, the water and the long walk across the city. Which would you like to look at next: what gets in the way as they go, the worst moment, or where it ends? I'd start with what gets in the way. If you'd like to stop here, I can save where we are.
+```
+
+3. Wait for the reply.
+   - **They pick an area:** run `skaldsaga session ask --topic <its code>`, ask the question for it, and carry on. Nothing is recorded as a stopping point.
+   - **They want to stop (say so, or take the save):** first, if their last answer is one you reworded and they never confirmed, show it in their own words and say plainly it may be lost the next time they start. Then run `skaldsaga session stop --reason <writer_signals, thread_exhausted or writer_done>`, whichever is true. If it refuses, use the reason that is true (the writer saying they are done is always allowed). Save one snapshot with exactly what it returned: `git add -- <each path in add_paths>`, then, if anything is staged (`git diff --cached --quiet` exits non-zero), `git commit -q -F <message_file>`. End with one short line.
+   - **They want to stop and not save:** record nothing and say that is fine.
+
+```say
+One thing before we stop: you haven't confirmed "<their last answer, in their words>" yet, so it may be lost the next time you start.
+```
+
+```say
+Saved. Next time I'll pick it up from here.
+```
+
+### When the story drifts
+
+When the writer keeps adding details that don't seem to connect to the story they've told you (twice in a row), or goes off on a tangent, ask one gentle question that brings them back. Never refuse, never call it off topic.
+
+1. Keep what they said: write their words to `.harness/draft.txt` and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed no`. It is kept as a loose idea, not as part of the story. Only the latest one is kept; a newer answer replaces it.
+2. Ask whether it belongs, naming where the story was heading. This is the turn's only question.
+
+```say
+That's interesting. Is it part of the story you told me about? I thought we were heading toward where you said it ends. I'll hold on to it either way.
+```
+
+3. If it belongs, treat it as their answer: reword it and wait for their yes, as in **After every answer**. If it doesn't, ask whether to follow it or go back, and do what they choose (following it means asking about it as the new focus).
 
 ## Install check
 

@@ -328,3 +328,90 @@ fn the_note_of_where_things_stand_never_gets_a_snapshot_of_its_own() {
         );
     }
 }
+
+#[test]
+fn resuming_from_a_stopping_point_runs_only_commands_that_read_until_the_writer_answers() {
+    let text = skill_text();
+    let stop = section(&text, "### story_stopping_point");
+    let at = stop
+        .find("3. Wait for the answer")
+        .expect("the step that waits for the answer");
+    let before_answer = &stop[..at];
+    assert!(before_answer.contains("skaldsaga recap"));
+    for writes in [
+        "skaldsaga session",
+        "skaldsaga propose",
+        "skaldsaga commit",
+        "git ",
+        "draft.txt",
+    ] {
+        assert!(
+            !before_answer.contains(writes),
+            "the recap must change nothing on disk, but mentions {writes}"
+        );
+    }
+    assert!(stop[at..].contains("skaldsaga session ask --topic"));
+}
+
+#[test]
+fn reaching_a_stopping_point_offers_a_choice_and_a_save_and_records_a_believable_reason() {
+    let text = skill_text();
+    let reach = section(&text, "### Reaching a stopping point");
+    // The choice comes from the program, the suggestion is not the topic that just ran dry.
+    assert!(reach.contains("skaldsaga recap"));
+    assert!(reach.contains("`choices`"));
+    assert!(reach.contains("`last_topic`"));
+    // Only a chosen area or a real stop is recorded, and a stop gives one of the three reasons.
+    assert!(reach.contains("skaldsaga session ask --topic"));
+    for reason in ["writer_signals", "thread_exhausted", "writer_done"] {
+        assert!(reach.contains(reason), "missing stop reason {reason}");
+    }
+    assert!(reach.contains("skaldsaga session stop --reason"));
+    // The snapshot is exactly what the stop returned, with the program's message file.
+    assert!(reach.contains("git add -- <each path in add_paths>"));
+    assert!(reach.contains("git commit -q -F <message_file>"));
+    // The plain notice about an unconfirmed answer, and a goodbye, are lines for the writer.
+    let lines = say_blocks(&reach);
+    assert!(
+        lines
+            .iter()
+            .any(|(_, body)| body.contains("may be lost the next time you start")),
+        "the unconfirmed-answer notice is missing"
+    );
+    // Stopping without saving records nothing.
+    assert!(reach.contains("record nothing"));
+    // The save is an offer in the same line as the choice, so it adds no second question.
+    let first = lines.first().expect("the choice line");
+    assert_eq!(
+        first.1.matches('?').count(),
+        1,
+        "the choice is the only question in the line: {}",
+        first.1
+    );
+    assert!(first.1.contains("I can save where we are"));
+}
+
+#[test]
+fn the_drift_guard_keeps_the_tangent_as_a_loose_idea_and_never_confirms_it() {
+    let text = skill_text();
+    let drift = section(&text, "### When the story drifts");
+    assert!(
+        drift.contains("skaldsaga session answer --words-file .harness/draft.txt --confirmed no")
+    );
+    assert!(
+        !drift.contains("--confirmed yes"),
+        "a tangent is never confirmed by the guard itself"
+    );
+    assert!(!drift.contains("skaldsaga propose"));
+    // It asks, it never refuses.
+    let lines = say_blocks(&drift);
+    assert_eq!(lines.len(), 1);
+    assert!(
+        lines[0]
+            .1
+            .contains("Is it part of the story you told me about?")
+    );
+    assert!(
+        !drift.to_lowercase().contains("off topic\"") || drift.contains("never call it off topic")
+    );
+}

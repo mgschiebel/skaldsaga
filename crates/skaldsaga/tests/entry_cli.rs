@@ -222,7 +222,7 @@ fn a_stopping_point_routes_to_the_stopping_point() {
     assert_eq!(v["outcome"], "recorded");
     assert_eq!(condition(p, "no"), "story_stopping_point");
     assert_eq!(condition(p, "yes"), "story_with_text");
-    assert_eq!(route(p, "no")["built"], false);
+    assert_eq!(route(p, "no")["built"], true);
 }
 
 #[test]

@@ -11,7 +11,7 @@ Prints `found`, `path`, `name` (and `several`) as `locate` does, plus:
 | Field | Meaning |
 |---|---|
 | `condition` | One of the seven below, or `null` when several story folders were found and the writer must choose first |
-| `built` | Whether the conversation for that condition exists yet (`false` only for `story_stopping_point`; the mid-thread recap is built in slice 2, the stopping-point path in the second slice 3 pull request) |
+| `built` | Whether the conversation for that condition exists yet (every condition is built since version 0.7.0; the mid-thread recap came in slice 2 and the stopping-point path in slice 3) |
 | `damage` | For `story_damaged` only: codes (`spec_unreadable`, `spec_problems`, `marker_unusable`), never paths or story text |
 
 | Condition | When |
@@ -65,3 +65,13 @@ A scene with no thread and stage is a **soft finding** in `check` (raised only w
 ## Tests
 
 `crates/skaldsaga-core/src/entry.rs`, `marker.rs`, `session.rs` and `propose.rs` (unit tests, one fixture per condition); `crates/skaldsaga/tests/entry_cli.rs` (the real binary, including the opener's exact drafts through `propose`, `check` and `commit`); `crates/skaldsaga/tests/session_cli.rs` (the split note, the answer-count stand-in, stop reasons); `crates/skaldsaga/tests/skill_prompt.rs` (every writer-facing line in `SKILL.md` free of internal words, the skill's tool permissions, no writer words in commands); `plugin/skills/skaldsaga/evals/` (model-run interview evals, left out of the release).
+
+## The skill's stopping-point path (slice 3, part 2; version 0.7.0)
+
+Three sections of `SKILL.md`, all judged by the skill and recorded by the commands above:
+
+- **`story_stopping_point`** (resuming): `recap` (read only), two or three sentences of what is decided, one suggestion for `topic`, and the writer may pick another area. Nothing is written until they answer; then `session ask --topic` as in the mid-thread recap.
+- **Reaching a stopping point:** on the writer's signals (short, unsure or empty answers twice in a row, or they say they're done) or an exhausted topic, the skill runs `recap`, skips the choice equal to `last_topic`, says what the part added, offers up to three areas with its suggestion first and one line offering to save. A chosen area is a `session ask`; a stop is `session stop --reason ...` plus one snapshot from the paths and message file it returns; stopping without saving records nothing. If the last answer was reworded and never confirmed, the skill shows it first and says plainly it may be lost the next time the writer starts.
+- **When the story drifts:** after two details in a row that don't connect, or a tangent, the skill asks one gentle question (is it part of the story you told me about?) and keeps the tangent with `session answer --confirmed no`, so it comes back as the loose idea. Only the latest tangent is kept; a fuller holding area waits for the brainstorm path (*Proposed*).
+
+Pinned by `skill_prompt.rs`; the model-run evals are `resume-from-a-stopping-point-*`, `short-answers-*`, `stopping-with-an-unconfirmed-answer-*` and `tangent-*`.
