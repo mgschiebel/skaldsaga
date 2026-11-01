@@ -49,6 +49,8 @@ local.json
 commit-message.txt
 # The scratch file the skill writes the writer's words into for a command to read.
 draft.txt
+# Where this computer's session stands, including an unconfirmed answer; never shared.
+session-local.json
 ";
 
 /// What the story folder's top-level `.gitignore` keeps out of git: personal
@@ -214,6 +216,16 @@ pub fn init(project: &Project) -> Result<InitReport, FsError> {
             project,
             crate::commit::MESSAGE_FILE,
             "The text of the next git snapshot, which can hold the writer's own words.",
+        )?,
+        ".harness/.gitignore",
+    );
+
+    // A folder set up by an earlier version lacks the line for the session file.
+    note(
+        settings::ensure_harness_ignored(
+            project,
+            crate::session::LOCAL_FILE,
+            "Where this computer's session stands, including an unconfirmed answer; never shared.",
         )?,
         ".harness/.gitignore",
     );

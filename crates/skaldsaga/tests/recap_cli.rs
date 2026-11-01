@@ -182,10 +182,9 @@ fn asking_records_the_topic_and_an_unanswered_one_is_asked_again() {
         &["session", "ask", "--topic", "complications"],
     ));
     assert_eq!(v["outcome"], "recorded");
-    assert_eq!(
-        v["add_paths"],
-        serde_json::json!([".harness/writer/last-session.json"])
-    );
+    // The topic stays on this computer until the next real save, so the
+    // committed note doesn't change and the cloud stop check has nothing to flag.
+    assert_eq!(v["add_paths"], serde_json::json!([]));
     assert!(
         v.get("message_file").is_none(),
         "a question never gets a snapshot of its own"
@@ -205,24 +204,39 @@ fn asking_records_the_topic_and_an_unanswered_one_is_asked_again() {
 }
 
 #[test]
-fn bad_topics_and_asking_at_a_stopping_point_are_usage_errors() {
+fn bad_topics_are_usage_errors_and_a_question_after_a_stop_starts_a_new_thread() {
     let dir = resumed();
     let p = dir.path();
     let bad = skaldsaga(p, &["session", "ask", "--topic", "themes"]);
     assert_eq!(bad.status.code(), Some(64));
     assert_eq!(skaldsaga(p, &["session", "ask"]).status.code(), Some(64));
-    assert!(skaldsaga(p, &["session", "stop"]).status.success());
-    let before = snapshot(p);
-    let late = skaldsaga(p, &["session", "ask", "--topic", "setup"]);
-    assert_eq!(late.status.code(), Some(64));
-    assert_eq!(snapshot(p), before);
+    assert!(
+        skaldsaga(p, &["session", "stop", "--reason", "writer_done"])
+            .status
+            .success()
+    );
+    // After a stop the writer picks a new area: that is a thread in progress
+    // again, kept on this computer, so the committed note is untouched.
+    let note = std::fs::read_to_string(p.join(".harness/writer/last-session.json")).unwrap();
+    let asked = json_of(&skaldsaga(p, &["session", "ask", "--topic", "setup"]));
+    assert_eq!(asked["outcome"], "recorded");
+    assert_eq!(
+        std::fs::read_to_string(p.join(".harness/writer/last-session.json")).unwrap(),
+        note
+    );
+    let r = json_of(&skaldsaga(p, &["recap"]));
+    assert_eq!(r["state"], "mid_thread");
+    assert_eq!(r["last_topic"], "setup");
 }
 
 #[test]
 fn a_stop_clears_the_topic_and_returns_a_snapshot_message() {
     let dir = resumed();
     let p = dir.path();
-    let v = json_of(&skaldsaga(p, &["session", "stop"]));
+    let v = json_of(&skaldsaga(
+        p,
+        &["session", "stop", "--reason", "writer_done"],
+    ));
     assert_eq!(v["outcome"], "recorded");
     assert!(p.join(v["message_file"].as_str().unwrap()).is_file());
     let r = json_of(&skaldsaga(p, &["recap"]));
@@ -273,9 +287,11 @@ fn taking_the_offer_hands_back_the_marker_and_a_message_for_a_safe_point() {
     let dir = resumed();
     let p = dir.path();
     let v = json_of(&skaldsaga(p, &["session", "save", "--taken", "yes"]));
+    // The note, and the ignore file so the line for this computer's own session
+    // file reaches folders set up by an earlier version.
     assert_eq!(
         v["add_paths"],
-        serde_json::json!([".harness/writer/last-session.json"])
+        serde_json::json!([".harness/writer/last-session.json", ".harness/.gitignore"])
     );
     assert!(p.join(v["message_file"].as_str().unwrap()).is_file());
     assert_eq!(

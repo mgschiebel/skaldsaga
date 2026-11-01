@@ -35,6 +35,8 @@
 |---|---|---|
 | Meter: recommend wrapping up | 50% of context used | Models get less sharp as context fills, so the "smart window" ends well before 100%. |
 | Meter: wrap up regardless | 70% | Leaves room to finish the question, save, and write the recap. |
+| Meter stand-in: recommend wrapping up | 25 confirmed answers in the session, used only where the meter has no reading (`session.suggest_wrap_up_after_answers`) | *Proposed* (November 1, 2026): the cloud meter reads "unknown", so the count stands in; tune from phone tests. |
+| Meter stand-in: wrap up regardless | 35 confirmed answers in the session, same condition (`session.wrap_up_after_answers`) | *Proposed*, as above. |
 | Rolling housekeeper pass | Every 5 saved answers | Raises issues while the topic is live without a pass running constantly. |
 | Reader cap for a scoped pass | 25 readers | Above this, a full pass at the next session start is better. |
 | Full pass every N sessions | Every 10 sessions | Catches slow drift that incremental passes miss (adopted from Proposed). |

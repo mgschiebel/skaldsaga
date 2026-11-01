@@ -20,11 +20,14 @@ use serde_json::{Value, json};
 use crate::marker::{self, MarkerError, State, Topic};
 use crate::model::{ArcStatus, NodeBody, Stage, Thread, ThreadKind};
 use crate::project::Project;
+use crate::session::{self, Local, View};
 use crate::settings::SessionSettings;
 use crate::spec::{self, Spec};
 
 /// Most names listed; a longer cast is cut (the skill only needs a few).
 const MAX_PEOPLE: usize = 12;
+/// Most areas offered at a stopping point.
+const MAX_CHOICES: usize = 3;
 
 /// Why a recap couldn't be built.
 #[derive(Debug)]
@@ -62,6 +65,11 @@ pub struct Recap {
     pub answers_since_offer: u32,
     /// The count at which a save offer is due (a setting).
     pub save_offer_after: u32,
+    /// How the last session ended: a thread still open, or a stopping point.
+    pub state: State,
+    /// Up to three areas to offer at a stopping point, the suggestion first.
+    /// Topic codes only; the skill words the choice.
+    pub choices: Vec<Topic>,
 }
 
 impl Recap {
@@ -82,6 +90,8 @@ impl Recap {
             "answers_since_offer": self.answers_since_offer,
             "save_offer_after": self.save_offer_after,
             "save_offer": self.save_offer_due(),
+            "state": self.state.as_str(),
+            "choices": self.choices.iter().map(|t| t.as_str()).collect::<Vec<_>>(),
         })
     }
 }
@@ -121,9 +131,19 @@ fn has_text(s: &Option<String>) -> bool {
     s.as_deref().is_some_and(|t| !t.trim().is_empty())
 }
 
-/// Builds the recap from a loaded story and its marker. Pure, so the ranking
-/// rule is covered by ordinary tests.
+/// Builds the recap from a loaded story and its committed marker alone. Pure,
+/// so the ranking rule is covered by ordinary tests.
 pub fn build(spec: &Spec, marker: Option<&marker::Marker>, save_offer_after: u32) -> Recap {
+    let view = View {
+        marker: marker.cloned(),
+        local: Local::default(),
+    };
+    build_with(spec, &view, save_offer_after)
+}
+
+/// Builds the recap from a loaded story and the whole session note: the
+/// committed marker together with what only this computer knows.
+pub fn build_with(spec: &Spec, view: &View, save_offer_after: u32) -> Recap {
     let premise = spec
         .nodes
         .iter()
@@ -154,12 +174,15 @@ pub fn build(spec: &Spec, marker: Option<&marker::Marker>, save_offer_after: u32
         None => Stage::ALL.into_iter().map(stage_topic).collect(),
     };
 
-    let mid = marker.filter(|m| m.state == State::MidThread);
-    let last_topic = mid.and_then(|m| m.topic);
-    let loose_idea = mid
-        .and_then(|m| m.last_answer.as_ref())
-        .filter(|a| !a.confirmed)
-        .map(|a| a.words.clone());
+    // At a stopping point nothing carries over, unless this computer has a
+    // thread open since (the writer picked a new area).
+    let at_stop = view
+        .marker
+        .as_ref()
+        .is_some_and(|m| m.state == State::StoppingPoint)
+        && !view.has_thread_in_progress();
+    let last_topic = view.topic();
+    let loose_idea = view.unconfirmed().map(str::to_string);
 
     // Whether the story already has something for a topic.
     let answered = |t: Topic| match t {
@@ -173,6 +196,19 @@ pub fn build(spec: &Spec, marker: Option<&marker::Marker>, save_offer_after: u32
         None => stages_without_summary.first().copied(),
     };
 
+    // Up to three areas to offer, the suggestion first, then the rest in the
+    // order the ranking rule would take them.
+    let mut choices: Vec<Topic> = Vec::new();
+    let missing = std::iter::once(Topic::Premise)
+        .filter(|_| premise.is_none())
+        .chain(std::iter::once(Topic::People).filter(|_| people.is_empty()))
+        .chain(stages_without_summary.iter().copied());
+    for t in topic.into_iter().chain(missing) {
+        if !choices.contains(&t) && choices.len() < MAX_CHOICES {
+            choices.push(t);
+        }
+    }
+
     Recap {
         premise,
         people: people.into_iter().take(MAX_PEOPLE).collect(),
@@ -180,19 +216,29 @@ pub fn build(spec: &Spec, marker: Option<&marker::Marker>, save_offer_after: u32
         loose_idea,
         last_topic,
         topic,
-        answers_since_offer: mid.map_or(0, |m| m.answers_since_offer),
+        answers_since_offer: if at_stop {
+            0
+        } else {
+            view.answers_since_offer()
+        },
         save_offer_after,
+        state: if at_stop {
+            State::StoppingPoint
+        } else {
+            State::MidThread
+        },
+        choices,
     }
 }
 
 /// Reads the story and the marker and builds the recap. Never writes.
 pub fn run(project: &Project) -> Result<Recap, RecapError> {
     let loaded = spec::load(&project.spec_dir()).map_err(|e| RecapError::Spec(e.to_string()))?;
-    let marker = marker::load(project).map_err(RecapError::Marker)?;
+    let view = session::view(project).map_err(RecapError::Marker)?;
     let settings = SessionSettings::load(project).map_err(|e| RecapError::Spec(e.to_string()))?;
-    Ok(build(
+    Ok(build_with(
         &loaded.spec,
-        marker.as_ref(),
+        &view,
         settings.save_offer_after_answers,
     ))
 }

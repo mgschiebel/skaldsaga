@@ -9,8 +9,9 @@
 
 use std::path::Path;
 
-use crate::marker::{self, State};
+use crate::marker::State;
 use crate::project::{Location, Project};
+use crate::session;
 use crate::spec;
 
 /// How a session opens.
@@ -112,11 +113,17 @@ fn route_story(project: &Project, has_text: bool) -> (Condition, Vec<&'static st
             !loaded.spec.nodes.is_empty()
         }
     };
-    let last = match marker::load(project) {
-        Ok(m) => m,
+    // The committed note, and what only this computer knows (an unconfirmed
+    // answer, a question just asked). A thread in progress here wins over a
+    // committed stopping point: the writer carried on after it.
+    let (last, in_progress) = match session::view(project) {
+        Ok(v) => {
+            let in_progress = v.has_thread_in_progress();
+            (v.marker, in_progress)
+        }
         Err(_) => {
             damage.push(DAMAGE_MARKER_UNUSABLE);
-            None
+            (None, false)
         }
     };
     if !damage.is_empty() {
@@ -127,13 +134,16 @@ fn route_story(project: &Project, has_text: bool) -> (Condition, Vec<&'static st
         // Something is already under way (a committed fact, or an answer in
         // the marker): ask whether this is a new story or more of this one.
         // Nothing yet: the text is the idea for the opener (Proposed).
-        let under_way = has_content || last.is_some();
+        let under_way = has_content || last.is_some() || in_progress;
         let condition = if under_way {
             Condition::StoryWithText
         } else {
             Condition::StoryEmpty
         };
         return (condition, damage);
+    }
+    if in_progress {
+        return (Condition::StoryMidThread, damage);
     }
     let condition = match last.map(|m| m.state) {
         Some(State::StoppingPoint) => Condition::StoryStoppingPoint,

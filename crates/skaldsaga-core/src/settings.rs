@@ -91,34 +91,71 @@ pub fn default_meter_section() -> Value {
 /// Default: offer to save where the story stands after this many confirmed
 /// answers (*Decided October 25, 2026*, planning session 2).
 pub const DEFAULT_SAVE_OFFER_AFTER_ANSWERS: u32 = 10;
+/// Default: where the meter has no reading, recommend wrapping up after this
+/// many confirmed answers in the session (*Decided November 1, 2026*, planning
+/// session 4; the number is *Proposed*, to tune from phone tests).
+pub const DEFAULT_SUGGEST_WRAP_UP_AFTER_ANSWERS: u32 = 25;
+/// Default: where the meter has no reading, wrap up regardless after this many
+/// confirmed answers in the session (same decision; the number is *Proposed*).
+pub const DEFAULT_WRAP_UP_AFTER_ANSWERS: u32 = 35;
 
 /// How a conversation paces itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionSettings {
     /// Confirmed answers after which the interviewer offers to save.
     pub save_offer_after_answers: u32,
+    /// Confirmed answers in a session after which wrapping up is recommended,
+    /// used only where the meter has no reading.
+    pub suggest_wrap_up_after_answers: u32,
+    /// Confirmed answers in a session after which the session wraps up
+    /// regardless, used only where the meter has no reading.
+    pub wrap_up_after_answers: u32,
 }
 
 impl Default for SessionSettings {
     fn default() -> Self {
         SessionSettings {
             save_offer_after_answers: DEFAULT_SAVE_OFFER_AFTER_ANSWERS,
+            suggest_wrap_up_after_answers: DEFAULT_SUGGEST_WRAP_UP_AFTER_ANSWERS,
+            wrap_up_after_answers: DEFAULT_WRAP_UP_AFTER_ANSWERS,
         }
     }
 }
 
+/// A whole number from 1 to 1000 under `session.<key>`, if there is one.
+fn session_count(doc: Option<&Value>, key: &str) -> Option<u32> {
+    doc.and_then(|d| d.get_path(&["session", key]))
+        .and_then(Value::as_u64)
+        .filter(|n| (1..=1000).contains(n))
+        .and_then(|n| u32::try_from(n).ok())
+}
+
 impl SessionSettings {
     /// Reads `session` from a whole settings document, falling back to the
-    /// default for anything missing or unusable.
+    /// default for anything missing or unusable. The wrap-up recommendation
+    /// must come before the stop; if the two are out of order, both fall back.
     pub fn from_settings(doc: Option<&Value>) -> Self {
-        let save_offer_after_answers = doc
-            .and_then(|d| d.get_path(&["session", "save_offer_after_answers"]))
-            .and_then(Value::as_u64)
-            .filter(|n| (1..=1000).contains(n))
-            .and_then(|n| u32::try_from(n).ok())
+        let save_offer_after_answers = session_count(doc, "save_offer_after_answers")
             .unwrap_or(DEFAULT_SAVE_OFFER_AFTER_ANSWERS);
+        let suggest = session_count(doc, "suggest_wrap_up_after_answers");
+        let stop = session_count(doc, "wrap_up_after_answers");
+        let (suggest_wrap_up_after_answers, wrap_up_after_answers) = match (suggest, stop) {
+            (Some(a), Some(b)) if a < b => (a, b),
+            (Some(a), None) if a < DEFAULT_WRAP_UP_AFTER_ANSWERS => {
+                (a, DEFAULT_WRAP_UP_AFTER_ANSWERS)
+            }
+            (None, Some(b)) if DEFAULT_SUGGEST_WRAP_UP_AFTER_ANSWERS < b => {
+                (DEFAULT_SUGGEST_WRAP_UP_AFTER_ANSWERS, b)
+            }
+            _ => (
+                DEFAULT_SUGGEST_WRAP_UP_AFTER_ANSWERS,
+                DEFAULT_WRAP_UP_AFTER_ANSWERS,
+            ),
+        };
         SessionSettings {
             save_offer_after_answers,
+            suggest_wrap_up_after_answers,
+            wrap_up_after_answers,
         }
     }
 
@@ -265,7 +302,9 @@ const DEFAULT_SETTINGS: &str = r#"{
   },
   "flags_per_pause": 2,
   "session": {
-    "save_offer_after_answers": 10
+    "save_offer_after_answers": 10,
+    "suggest_wrap_up_after_answers": 25,
+    "wrap_up_after_answers": 35
   },
   "routing": {
     "strict_fan_out": 10

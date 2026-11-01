@@ -133,7 +133,17 @@ pub struct Evaluation {
     pub session_id: Option<String>,
     /// Why the state is `Unknown`, in plain words; `None` otherwise.
     pub note: Option<&'static str>,
+    /// What decided the state: the context window, or the count of confirmed
+    /// answers where the window has no reading.
+    pub source: &'static str,
+    /// Confirmed answers in this session, when the count decided the state.
+    pub answers_this_session: Option<u32>,
 }
+
+/// The state came from the context window.
+pub const SOURCE_CONTEXT: &str = "context";
+/// The state came from the count of confirmed answers.
+pub const SOURCE_ANSWERS: &str = "answers";
 
 /// Compares a reading with the thresholds. If `current_session` is given,
 /// a reading from a different session is ignored.
@@ -149,6 +159,8 @@ pub fn evaluate(
         wrap_up_percent: settings.wrap_up_percent,
         session_id: reading.and_then(|r| r.session_id.clone()),
         note: None,
+        source: SOURCE_CONTEXT,
+        answers_this_session: None,
     };
     let Some(reading) = reading else {
         eval.note = Some("no meter reading yet");
@@ -172,6 +184,33 @@ pub fn evaluate(
     } else {
         MeterState::Ok
     };
+    eval
+}
+
+/// Lets the count of confirmed answers in the session stand in for the context
+/// window where the window has no reading (*Decided November 1, 2026*,
+/// planning session 4). A reading always wins: this changes nothing unless the
+/// state is `Unknown`. Below the first count the state stays `Unknown`.
+pub fn with_answer_count(
+    mut eval: Evaluation,
+    answers: u32,
+    suggest_after: u32,
+    wrap_up_after: u32,
+) -> Evaluation {
+    if eval.state != MeterState::Unknown {
+        return eval;
+    }
+    let state = if answers >= wrap_up_after {
+        MeterState::WrapUp
+    } else if answers >= suggest_after {
+        MeterState::SuggestWrapUp
+    } else {
+        return eval;
+    };
+    eval.state = state;
+    eval.source = SOURCE_ANSWERS;
+    eval.answers_this_session = Some(answers);
+    eval.note = None;
     eval
 }
 
@@ -234,6 +273,25 @@ mod tests {
         assert!(StatusInput::parse("[]").is_none());
         let clamped = StatusInput::parse(r#"{"context_window":{"used_percentage":130}}"#).unwrap();
         assert_eq!(clamped.used_percentage, Some(100.0));
+    }
+
+    #[test]
+    fn the_answer_count_stands_in_only_where_there_is_no_reading() {
+        let s = MeterSettings::default();
+        let none = evaluate(None, &s, None);
+        let at = |n| with_answer_count(none.clone(), n, 25, 35);
+        assert_eq!(at(24).state, MeterState::Unknown);
+        assert_eq!(at(24).source, SOURCE_CONTEXT);
+        assert_eq!(at(25).state, MeterState::SuggestWrapUp);
+        assert_eq!(at(34).state, MeterState::SuggestWrapUp);
+        assert_eq!(at(35).state, MeterState::WrapUp);
+        assert_eq!(at(35).source, SOURCE_ANSWERS);
+        assert_eq!(at(35).answers_this_session, Some(35));
+        // A real reading is never overruled by the count.
+        let read = evaluate(Some(&reading(None, Some(10.0))), &s, None);
+        let kept = with_answer_count(read, 99, 25, 35);
+        assert_eq!(kept.state, MeterState::Ok);
+        assert_eq!(kept.source, SOURCE_CONTEXT);
     }
 
     #[test]
@@ -315,7 +373,7 @@ mod tests {
         );
         assert_eq!(
             e.to_json().to_compact_string(),
-            r#"{"state":"suggest_wrap_up","used_percentage":55.0,"suggest_wrap_up_percent":50.0,"wrap_up_percent":70.0,"session_id":"s","note":null}"#
+            r#"{"state":"suggest_wrap_up","used_percentage":55.0,"suggest_wrap_up_percent":50.0,"wrap_up_percent":70.0,"session_id":"s","note":null,"source":"context","answers_this_session":null}"#
         );
     }
 }

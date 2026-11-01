@@ -37,6 +37,7 @@ pub mod recap;
 pub mod registry;
 pub mod safety;
 pub mod scenario;
+pub mod session;
 pub mod settings;
 pub mod softchecks;
 pub mod spec;

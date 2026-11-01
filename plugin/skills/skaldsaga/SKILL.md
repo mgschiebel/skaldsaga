@@ -228,7 +228,7 @@ Where do you see it ending?
 
 Each time the writer answers:
 
-1. Write their words to `.harness/draft.txt` (a plain text file, replacing what was there) and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed no`. It writes the note of where things stand but never makes a snapshot of its own; the next real save carries it. If it reports `save_offer` true, see **Offering to save** once this answer is dealt with.
+1. Write their words to `.harness/draft.txt` (a plain text file, replacing what was there) and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed no`. An answer that isn't confirmed yet is kept on this computer only, so it never shows up as a change waiting to be saved. If it reports `save_offer` true, see **Offering to save** once this answer is dealt with.
 2. Reword the answer back in slightly more craft-like prose (a first reader saying what they understood), and ask whether that's what they meant. **That question is the turn's only question.** The next question waits for their yes or correction. A long answer or pasted draft gets one reword covering the two or three facts that matter most. Name a craft term once, in the reword, if it helps; never an internal word.
 
 ```say
@@ -297,11 +297,11 @@ Then check it and save it:
    - `passed`: go on.
    - `flagged`: explain each finding in your own plain words (`message` is for you, not to read out) and let the writer decide. To keep it, run `commit` with `--decision keep_anyway`; if they want to think about it, `--decision not_sure`; if they want to change it, reword and file again.
    - `failed`: nothing was saved. Explain the problem plainly, say what you'll change, and ask the one question that would fix it.
-2. `skaldsaga commit --proposal <id>` (with the decision if flagged). If `outcome` is `committed`, mark the answer confirmed first: write the same words to `.harness/draft.txt` and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed yes`. It returns the path of the note of where things stand, and no message of its own, so the message file `commit` returned is still the one to use. Then save one snapshot with exactly the paths `commit` lists plus that note's path:
+2. `skaldsaga commit --proposal <id>` (with the decision if flagged). If `outcome` is `committed`, mark the answer confirmed first: write the same words to `.harness/draft.txt` and run `skaldsaga session answer --words-file .harness/draft.txt --confirmed yes`. It returns the paths of the note of where things stand (`add_paths`), and no message of its own, so the message file `commit` returned is still the one to use. Then save one snapshot with exactly the paths `commit` lists plus the paths `session answer` returned:
 
    ```sh
    git rm --cached --ignore-unmatch -q -- <each path in remove_paths>
-   git add -- <each path in add_paths> <the path session answer returned>
+   git add -- <each path in add_paths> <each path session answer returned>
    git commit -q -F <message_file>
    ```
 
@@ -314,7 +314,7 @@ If git is missing or a commit fails, explain in one plain sentence; the story fi
 Now and then, offer to save where the story stands, so the writer has a safe point to come back to. It is always a plain question, never an order.
 
 - **After many answers:** when `session answer` or `session ask` reports `save_offer` true (ten confirmed answers since the last offer, by default), ask once the current answer is dealt with.
-- **When the session meter says so:** after each saved answer, run `skaldsaga meter check`. When `state` becomes `suggest_wrap_up` (or `wrap_up`) and you haven't yet offered at that level this session, interrupt whatever is going on and recommend saving, strongly. (`unknown` means no reading; say nothing.)
+- **When the session meter says so:** after each saved answer, run `skaldsaga meter check`. When `state` becomes `suggest_wrap_up` (or `wrap_up`) and you haven't yet offered at that level this session, interrupt whatever is going on and recommend saving, strongly. Where the window has no reading, as in a cloud session, the program counts the answers confirmed in this session instead and reports the same states (with `source` set to `answers`): act on them the same way. (`unknown` means neither has anything to say yet; say nothing.)
 
 ```say
 Want me to save where we are, so there's a safe point to come back to?
@@ -348,7 +348,7 @@ That's a good start. We've got the heart of your story down, and I'll pick it up
 
 Used when the person asks to check the install. Do steps 1 and 0 (find the folder), then step 2 and 3 only if the folder isn't set up yet and the person agrees, then:
 
-1. Run `skaldsaga meter check` and report the `state` in plain words: `ok` (plenty of room), `suggest_wrap_up` (time to think about a break), `wrap_up` (time to stop and start fresh), or `unknown` (no reading yet; normal at the start of a session, or where the status line doesn't run). Include `note` if there is one.
+1. Run `skaldsaga meter check` and report the `state` in plain words: `ok` (plenty of room), `suggest_wrap_up` (time to think about a break), `wrap_up` (time to stop and start fresh), or `unknown` (no reading yet; normal at the start of a session, or where the status line doesn't run). Where there is no reading, `source` `answers` means the count of confirmed answers in this session decided the state. Include `note` if there is one.
 2. In three or four short lines, say: the program version; what setup did (folders added, or already in place) and whether the snapshot was saved; the meter state; and whether the session-start hook ran (it adds a line to your context containing "Skaldsaga project"; say yes or no without quoting it. It only runs when a session starts, so right after first-time setup it's normal for it to be missing).
 
 ## Scenarios

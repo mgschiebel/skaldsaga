@@ -75,6 +75,8 @@ pub fn session_start(start: &Path, source: &str, plugin_root: Option<&str>) -> S
             // Failures here must not block the session; the meter degrades to "unknown".
             if matches!(source, "startup" | "clear") {
                 let _ = meter::reset(&project);
+                // The count of answers that stands in for the meter starts over too.
+                crate::session::reset_session_count(&project);
             }
             if let Some(root) = plugin_root.filter(|r| !r.is_empty()) {
                 let _ = statusline::refresh(&project, &meter_command(root));

@@ -1,10 +1,11 @@
-//! The last-session marker, researched concept files, and the short codes
-//! that arrive on the command line.
+//! The last-session marker, this computer's part of the session note,
+//! researched concept files, and the short codes that arrive on the command line.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
 use skaldsaga_core::commit::Decision;
 use skaldsaga_core::marker::{self, Topic};
+use skaldsaga_core::session::{Local, StopReason};
 use skaldsaga_core::{craft, scenario::Scenario};
 
 fuzz_target!(|data: &[u8]| {
@@ -12,6 +13,8 @@ fuzz_target!(|data: &[u8]| {
         return;
     };
     let _ = marker::parse(text);
+    let _ = Local::parse(text);
+    let _ = StopReason::parse(text);
     let _ = craft::parse_concept(text);
     let _ = Topic::parse(text);
     let _ = Decision::parse(text);
