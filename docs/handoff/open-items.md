@@ -1,6 +1,6 @@
 # Open items
 
-*Numbered open and closed items (1 to 20), including the craft-teaching decisions in item 19 and the story-map idea in item 20. Part of the Skaldsaga handoff; the index is [`HANDOFF.md`](../../HANDOFF.md). Moved verbatim from HANDOFF.md (v9, last edited October 24, 2026) on October 24, 2026: the wording below is unchanged.*
+*Numbered open and closed items (1 to 21), including the craft-teaching decisions in item 19 the story-map idea in item 20 and the confirmation style in item 21. Part of the Skaldsaga handoff; the index is [`HANDOFF.md`](../../HANDOFF.md). Moved verbatim from HANDOFF.md (v9, last edited October 24, 2026) on October 24, 2026: the wording below is unchanged.*
 
 <!-- begin moved text -->
 
@@ -60,4 +60,4 @@
 
 20. *Parked (raised by the author October 19, 2026; discuss after the step 9 planning questions):* **a story map in the session-start recap.** Open each session with an overview of where the project stands: in the outlining phase, the outline's shape and its gaps; otherwise overall project status. Worked into the conversation, ending with the writer choosing ("Here's what's still open. What do you want to work on today?"). Claude's note: `complete` (step 9) already produces the data (gate readiness, blockers, empty grid cells, queued findings) as codes and IDs, so this is mostly orchestrator wording plus possibly a compact visual. Questions to settle: how much to show on a phone screen, whether it's text or a picture, how it fits the one-short-question rule, and how it relates to the existing recap.
 
-
+21. *Open (raised by the author November 3, 2026, from the phone tests of earlier releases):* **the interviewer's confirmations are repetitive.** It keeps asking the equivalent of "is that what you mean?" after answer after answer. Plan a more natural and varied conversational style: when to confirm at all (an answer that is clear needs no echo), how to vary the wording when it does, and when the writer's next reaction can stand as the confirmation. Not addressed yet; belongs with agenda item 1, Interviewer (voice and tone). First steps already decided in the brainstorm path: a brainstorm round never ends in a confirmation question, and picking an idea counts as confirming it (`design-story.md`, "Brainstorm path").
