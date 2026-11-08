@@ -501,3 +501,23 @@ fn the_four_worded_afresh_lines_are_named_and_kept_out_of_say_blocks() {
         assert!(text.contains(line), "not named as worded afresh: {line}");
     }
 }
+
+#[test]
+fn openings_and_question_shapes_vary_and_git_is_never_mentioned() {
+    let text = skill_text();
+    let after = section(&text, "### After every answer");
+    // A reflection does not open with the first word of any of the last three, and the two habitual openers are named.
+    assert!(
+        after.contains("don't open with the same first word as any of your last three reflections")
+    );
+    assert!(after.contains("\"So\" and \"Got it\""));
+    // A real question changes shape, not only wording.
+    assert!(after.contains("never ask two real questions in a row that are built the same way"));
+    // A stated place is placed without a question; only an unstated one is a guess.
+    assert!(text.contains("When they said where it goes"));
+    assert!(text.contains("not a guess: place it there"));
+    assert!(text.contains("framed differently from the last placement question"));
+    // The writer never hears about git steps.
+    assert!(text.contains("**Never talk about git to the writer.**"));
+    assert!(text.contains("\"saved\" is the whole word"));
+}
