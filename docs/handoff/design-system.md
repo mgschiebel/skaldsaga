@@ -346,6 +346,19 @@ characters: [p-0007, p-0002]   # fog only: who the subplot involves
 - **Landmarks live on the arc (v9),** not on scenes: one entry per landmark makes "one inciting incident per arc" hold by shape, avoids ambiguity when a scene is a landmark for both the main story and a subplot, lets movement boundaries be derived from one small map, and makes missing landmarks visible as empty entries.
 - `dramatic_question` and `thematic_question` (v7; replace `central_question`) feed the argument-coherence check; `premise.history` is the versioned baseline the housekeeper uses for drift.
 
+### Idea (planned November 8, 2026, planning session 7; not built)
+
+A held idea (a brainstormed idea or a parked tangent) is its own node. Layout is settled one decision at a time below.
+
+- **Stores text and touched parts only, not a change list** (*Decided November 8, 2026*): an idea holds its one-line text and the story parts it touches. The change list that `check` needs for the ripple preview is built when the writer leans toward the idea, from the story as it is then, so the preview never goes stale.
+- **One status field** (*Decided November 8, 2026*): `status` is `held`, `picked` or `set_aside`, one at a time. `set_aside` means the writer waved the idea off, so it never resurfaces; it is not the ruled-out list, which only an explicit rejection joins.
+- **Origin note is a fixed choice** (*Decided November 8, 2026*): `origin` is `tangent` (parked by the drift guard) or `brainstorm` (offered in a round). No session reference.
+- **Touched parts can be nodes or stages** (*Decided November 8, 2026*): `touches` is a list that takes existing node IDs and also the stage topic codes (`premise`, `people`, `setup`, `complications`, `crisis`, `resolution`), so a loose idea with no single node still has somewhere to attach.
+- **Ripple preview lists only what would break** (*Decided November 8, 2026*): when the writer leans toward an idea, `check` applies the change list to a copy of the story and reports only the existing scenes and facts that would stop fitting. It does not list new connections, so the preview stays short on a phone and fits the rule that the interviewer speaks up only about conflicts.
+- **Three commands, ripple as a mode of `check`** (*Decided November 8, 2026*): `idea add` creates a held idea with its text, origin and touches; `idea mark` sets the status to picked or set aside; `idea list` is read-only and returns the held ideas that touch a given part, so the skill can mention one at a time. The ripple preview is a mode of the existing `check`, not a new command.
+- **Idea text is capped at one or two sentences** (*Decided November 8, 2026*): the program enforces it as a limit of 300 characters (not a sentence count, which is unreliable) and refuses longer text. A saved idea is read back into the interviewer's prompt, so a short cap keeps that text small; the general 1 MiB cap on story files still applies on top.
+- **Idea IDs use the prefix `idea-`** (*Decided November 8, 2026*): `i-` is already the story-world item prefix, so ideas read `idea-` followed by the usual random part. Ideas live in their own `ideas/` folder like the other nodes. The prefix is added to the ID kinds with the build.
+
 ### Proposal
 
 ```json
