@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: a-stated-place-is-placed-without-asking
+expected_outcome: |
+  The writer describes a moment and says where it goes (right after the first moment). That is
+  not a guess: the skill places it there, says it back in its own words and asks the next
+  question. It does not ask a yes/no question about where the moment belongs.
+context:
+  scaffold_script: place-files.sh

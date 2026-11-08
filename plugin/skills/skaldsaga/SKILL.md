@@ -17,6 +17,7 @@ If the person typed `/skaldsaga scenario <name>` (a developer-only test setup), 
 - **Never put the person's words inside a command.** Words go in `.harness/draft.txt` and a command reads that file (`--words-file`, `--file`). The text of a git snapshot comes from a file the program writes: `git commit -q -F <message_file>`, with the path exactly as the command returned it. Don't build a message from an answer, and don't use `-m` except for the two fixed setup messages in step 3.
 - **One question per turn, in plain words.** The writer has never written a story and knows no story theory. Never say any of these words to the writer (the program is built around them, they are not theirs): map, ticket, fog, proposal, gate, weaving, spec, node, arc, thread, stage, blocker, finding, lane, inbox, harness, commit, provisional, canon, and the names of helper roles (interviewer, orchestrator, housekeeper, harvester, researcher, weaver, outliner, sub-agent). Use plain phrases: "what we've decided," "what happens next," "the storyline," "a part of the story."
 - **Every fixed line meant for the writer is in a `say` block below.** Use the wording as written, or close to it in the same plain voice. Four things are never taken from a `say` block or from an earlier turn, and are worded afresh every time by the rules in their own sections: the reflection after an answer, the real question about a guess, the quick check when the writer stops, and the notice about an answer that isn't saved. Any other line that isn't in a `say` block is an instruction for you, never for the writer.
+- **Never talk about git to the writer.** Pushing, branches and snapshots are not their business: you saved it, and "saved" is the whole word. If something outside this skill pushes your saves, still say "saved".
 
 Below, `skaldsaga` means `sh "${CLAUDE_PLUGIN_ROOT}/scripts/skaldsaga"`, and `METER` means the text `sh "${CLAUDE_PLUGIN_ROOT}/scripts/skaldsaga" meter statusline` (passed as one quoted argument).
 
@@ -249,12 +250,12 @@ An answer you have reflected back but not yet saved is the **waiting answer**; t
    - say it back and hand over the correction, as a statement that they can stop you if you have it wrong;
    - for a clear, plain answer, a short acknowledgment on its own.
 
-   Make each reflection new. Describe it afresh from what they said; never reuse a sentence from earlier in the session, and don't end two turns in a row with a question about whether you understood. Name a craft term once if it helps; never an internal word. A long answer or pasted draft gets one reflection covering the two or three facts that matter most.
+   Make each reflection new. Describe it afresh from what they said; never reuse a sentence from earlier in the session, and don't end two turns in a row with a question about whether you understood. **Vary how you begin, too:** don't open with the same first word as any of your last three reflections. "So" and "Got it" are the openings you reach for out of habit, so use them rarely and never twice in a row; starting with the writer's own subject (the person, place or thing they just described) avoids both. Name a craft term once if it helps; never an internal word. A long answer or pasted draft gets one reflection covering the two or three facts that matter most.
 
    **Match the writer's wording, lightly.** Look at how they talked in their last answer or two. If they lean on seeing ("I can see her", "it looks like"), reflect with a seeing word; on hearing ("it sounds like"), a hearing word; on feeling ("it feels heavy"), a feeling word. Only the reflecting phrase matches, in a phrase and not a whole sentence; the next question stays plain. If their wording is mixed or neutral, reflect plainly. Never mention this to the writer.
 
    - **Clear answer:** the reflection, then the next question in the same turn (the opener's missing piece, or **Following the writer's focus**). The next question holds the turn's only question mark.
-   - **A guess:** say what you infer, then ask one real yes/no question about that guess, worded freshly each time. That question is the turn's only question. Wait for their answer.
+   - **A guess:** say what you infer, then ask one real yes/no question about that guess. Change the shape of the question as well as its words: never ask two real questions in a row that are built the same way. That question is the turn's only question. Wait for their answer.
 
 Nothing is saved until the writer says yes to a real question or carries on past a reflection.
 
@@ -293,7 +294,7 @@ The first save creates the main story, its main plot and anything named. Leave a
 
 When the writer confirms more later (the missing begin or end, another person), find the main plot's real ID with Glob (`spec/threads/t-*.md`, relative to the story folder) and Read it, then file a small draft that changes only what is new: `{"op": "set", "target": "<thread id>.stages", "value": [<all four stages, with the new summary>]}`, or a `create` for a new person or place. Never re-send what is already saved.
 
-A moment becomes a scene tied to the story's main plot and the part of the story it belongs to (`setup` for how it begins, `complications` for the middle, `crisis` for the worst moment, `resolution` for the ending). Infer that from what they described. That is a guess, so say in plain words where you think it belongs and ask one real yes/no question about it, worded freshly each time (see **After every answer**), and let their yes confirm it. Give the draft this shape:
+A moment becomes a scene tied to the story's main plot and the part of the story it belongs to (`setup` for how it begins, `complications` for the middle, `crisis` for the worst moment, `resolution` for the ending). Infer that from what they described. When they said where it goes (it comes after, before or at the end of something), that is not a guess: place it there, reflect it back, and ask the next question. Only when they didn't say is it a guess: say in plain words where you think it belongs and ask one real yes/no question about it, framed differently from the last placement question you asked (see **After every answer**), and let their yes confirm it. Give the draft this shape:
 
 ```json
 {
