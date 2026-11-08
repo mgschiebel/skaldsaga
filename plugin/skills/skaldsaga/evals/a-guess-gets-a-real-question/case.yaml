@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: a-guess-gets-a-real-question
+expected_outcome: |
+  The writer's answer implies more than it says, so the skill has to guess what it means. It
+  says what it infers in plain words and asks one real yes/no question about that guess,
+  worded naturally, as the only question. It saves nothing and does not ask a next question
+  until the writer answers.
+context:
+  scaffold_script: place-files.sh

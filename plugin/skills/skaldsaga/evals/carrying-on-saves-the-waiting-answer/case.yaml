@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: carrying-on-saves-the-waiting-answer
+expected_outcome: |
+  An earlier answer is waiting, reflected back as a statement without a yes/no question. The
+  writer's new message answers the next question and corrects nothing, which counts as a yes.
+  Before handling the new message, the skill saves the waiting answer through the program
+  (propose, check, commit) and marks it confirmed. It then records the new answer as waiting,
+  reflects it back as a statement and asks the next question. It does not ask the writer to
+  confirm the earlier answer.
+context:
+  scaffold_script: place-files.sh

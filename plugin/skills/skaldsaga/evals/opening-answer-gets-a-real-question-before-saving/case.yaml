@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: opening-answer-gets-a-real-question-before-saving
+expected_outcome: |
+  The writer gave an idea in a set-up, empty story folder. Saving it would create the story,
+  so the skill treats the answer as a guess: it says back what it understood in its own words
+  and asks one real yes/no question about it, as its only question, worded naturally and not
+  as a stock sentence. It saves nothing to the story until the writer says yes. It records
+  only that an answer is waiting.
+context:
+  scaffold_script: place-files.sh

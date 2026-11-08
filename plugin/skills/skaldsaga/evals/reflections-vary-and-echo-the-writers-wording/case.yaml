@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: reflections-vary-and-echo-the-writers-wording
+expected_outcome: |
+  Five earlier answers were each said back with a different move. The writer's new answer is
+  clear and plain and uses seeing words. The skill says it back in a new way: it uses none of
+  the earlier sentences, does not repeat the move it used last, uses a seeing word in the
+  reflecting phrase while keeping its next question plain, saves the waiting answer because
+  the writer carried on, and ends with one next question. It does not ask whether it
+  understood.
+context:
+  scaffold_script: place-files.sh
