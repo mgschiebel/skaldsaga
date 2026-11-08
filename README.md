@@ -1,6 +1,6 @@
 # Skaldsaga (distribution build)
 
-Built automatically from tag v0.8.0 (commit 5333875c832b8e4db66ce29825c23b68dd912fd9).
+Built automatically from tag v0.8.1 (commit e23660daf32c3fca05edc0587c3e0a95e6a045b4).
 Do not edit this branch by hand; source lives on `main`.
 
 Install in Claude Code:
