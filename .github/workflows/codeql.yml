@@ -10,6 +10,10 @@ name: CodeQL
 # scanning results" rule to every severity, after baselining
 # (appsec-tooling-research.md, Strategy items 2 and 4).
 #
+# The init and analyze steps must always use the same version of the CodeQL
+# action, or the run fails. Dependabot updates them together (the "codeql"
+# group in .github/dependabot.yml); never bump one step on its own.
+#
 # Author action: this is the "advanced" setup. If code scanning "default setup"
 # is switched on in the repository settings, turn it off first, or GitHub
 # refuses the results this workflow uploads.
@@ -40,12 +44,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      - uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
         with:
           languages: rust
           build-mode: none
           queries: security-extended
 
-      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      - uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
         with:
           category: "/language:rust"
