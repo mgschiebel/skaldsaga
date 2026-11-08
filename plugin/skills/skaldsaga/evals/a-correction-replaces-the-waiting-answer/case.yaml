@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: a-correction-replaces-the-waiting-answer
+expected_outcome: |
+  An earlier answer is waiting. The writer's new message corrects it. The skill saves nothing
+  from the wrong version, takes the corrected words as the answer, records them as waiting and
+  says the corrected version back as a statement, without arguing and without asking the same
+  check again.
+context:
+  scaffold_script: place-files.sh

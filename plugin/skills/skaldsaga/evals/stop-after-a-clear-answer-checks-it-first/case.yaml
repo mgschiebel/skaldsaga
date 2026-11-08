@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: stop-after-a-clear-answer-checks-it-first
+expected_outcome: |
+  An answer is waiting, said back as a statement. The writer says that is all for today and
+  asks to save. Before stopping, the skill checks that last answer with one short question in
+  the writer's own words. It does not give the warning about losing it, and it has not stopped
+  yet.
+context:
+  scaffold_script: place-files.sh

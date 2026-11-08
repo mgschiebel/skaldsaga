@@ -370,14 +370,20 @@ fn reaching_a_stopping_point_offers_a_choice_and_a_save_and_records_a_believable
     // The snapshot is exactly what the stop returned, with the program's message file.
     assert!(reach.contains("git add -- <each path in add_paths>"));
     assert!(reach.contains("git commit -q -F <message_file>"));
-    // The plain notice about an unconfirmed answer, and a goodbye, are lines for the writer.
+    // A goodbye is a fixed line for the writer. The notice about an answer that isn't
+    // saved is not: its meaning is fixed in the instructions, its wording is new each time.
     let lines = say_blocks(&reach);
     assert!(
-        lines
-            .iter()
-            .any(|(_, body)| body.contains("may be lost the next time you start")),
-        "the unconfirmed-answer notice is missing"
+        reach.contains("not saved yet") && reach.contains("may be lost the next time they start"),
+        "the instructions must say what the unsaved-answer notice means"
     );
+    assert!(
+        lines.iter().all(|(_, body)| !body.contains("may be lost")),
+        "the unsaved-answer notice must not be a sentence to copy"
+    );
+    // A deliberate stop checks a waiting answer first; the notice is the fallback.
+    assert!(reach.contains("check it before stopping"));
+    assert!(reach.contains("give the plain notice instead"));
     // Stopping without saving records nothing.
     assert!(reach.contains("record nothing"));
     // The save is an offer in the same line as the choice, so it adds no second question.
@@ -414,4 +420,84 @@ fn the_drift_guard_keeps_the_tangent_as_a_loose_idea_and_never_confirms_it() {
     assert!(
         !drift.to_lowercase().contains("off topic\"") || drift.contains("never call it off topic")
     );
+}
+
+#[test]
+fn reflections_are_described_never_given_as_a_sentence_to_copy() {
+    let text = skill_text();
+    let after = section(&text, "### After every answer");
+    // The step that used to end in a copied sentence has no sample line for the writer.
+    assert!(
+        say_blocks(&after).is_empty(),
+        "the reflection step must not carry a say block"
+    );
+    for sentence in ["Is that what you meant?", "Is that right?"] {
+        assert!(
+            !text.contains(sentence),
+            "a stock confirming sentence is back in the skill: {sentence}"
+        );
+    }
+    // The moves, the rule against repeating one, and the light matching of the writer's wording.
+    for needed in [
+        "say it back in their own words",
+        "say what it sounds like to you",
+        "say what you picture",
+        "never use the one you used last time",
+        "never reuse a sentence from earlier in the session",
+        "Match the writer's wording, lightly",
+        "Only the reflecting phrase matches",
+        "Never mention this to the writer",
+    ] {
+        assert!(
+            after.contains(needed),
+            "missing from the reflection step: {needed}"
+        );
+    }
+}
+
+#[test]
+fn a_clear_answer_is_saved_when_the_writer_carries_on_and_a_guess_gets_a_real_question() {
+    let text = skill_text();
+    let after = section(&text, "### After every answer");
+    // The waiting answer is dealt with before the new message, and saved before it is replaced.
+    let waiting = after
+        .find("**If an answer is waiting")
+        .expect("the waiting-answer step");
+    let record = after
+        .find("skaldsaga session answer --words-file .harness/draft.txt --confirmed no")
+        .expect("the step that records the new answer");
+    assert!(
+        waiting < record,
+        "decide about the waiting answer before recording the new one"
+    );
+    assert!(after.contains("**They carry on**"));
+    assert!(after.contains("Save the waiting answer now, exactly as in **On a yes**"));
+    // Anything unclear saves nothing.
+    assert!(after.contains("When you can't tell whether they corrected it, don't save."));
+    // Only a guess gets a real yes/no question, and the first answer of a new story counts as one.
+    assert!(after.contains("**A guess:**"));
+    assert!(after.contains("one real yes/no question"));
+    assert!(after.contains("first answer of a new story"));
+    // Carrying on without answering a real question is not a yes.
+    assert!(after.contains("Carrying on without answering it is not a yes"));
+    // Saving still goes through the same program steps, and the draft file is the only way words travel.
+    let yes = section(&text, "### On a yes");
+    assert!(yes.contains("skaldsaga propose --file .harness/draft.txt"));
+    assert!(yes.contains("skaldsaga check --proposal"));
+    assert!(yes.contains("skaldsaga commit --proposal"));
+    assert!(yes.contains("confirmed yes"));
+}
+
+#[test]
+fn the_four_worded_afresh_lines_are_named_and_kept_out_of_say_blocks() {
+    let text = skill_text();
+    assert!(text.contains("never taken from a `say` block or from an earlier turn"));
+    for line in [
+        "the reflection after an answer",
+        "the real question about a guess",
+        "the quick check when the writer stops",
+        "the notice about an answer that isn't saved",
+    ] {
+        assert!(text.contains(line), "not named as worded afresh: {line}");
+    }
 }

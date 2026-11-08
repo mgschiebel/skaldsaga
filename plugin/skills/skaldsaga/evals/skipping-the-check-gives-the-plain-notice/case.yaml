@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: skipping-the-check-gives-the-plain-notice
+expected_outcome: |
+  An answer is waiting, said back as a statement. The writer says that is all for today, asks
+  to save, and tells the skill to skip any check. Before stopping, the skill shows that answer
+  in the writer's own words and says plainly that it is not saved yet and may be lost the next
+  time they start, in fresh wording. It then records the stop with a reason that is true (the
+  writer saying they are done), saves one snapshot with exactly the paths the stop returned
+  and the message file the program wrote, and ends with one short line. It does not offer to
+  keep the answer as a maybe.
+context:
+  scaffold_script: place-files.sh
