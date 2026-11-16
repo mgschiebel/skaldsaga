@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 /// Words the writer never sees. Craft terms are taught through the
 /// terminology ladder instead, so they are not here.
-const INTERNAL_TERMS: [&str; 28] = [
+const INTERNAL_TERMS: [&str; 31] = [
     "map",
     "ticket",
     "tickets",
@@ -41,6 +41,9 @@ const INTERNAL_TERMS: [&str; 28] = [
     "commit",
     "provisional",
     "canon",
+    "held",
+    "parked",
+    "touches",
     "interviewer",
     "orchestrator",
     "housekeeper",
@@ -262,6 +265,13 @@ fn commands_never_carry_the_writers_words() {
             "words must come from the scratch file: {l}"
         );
     }
+    // An idea's text reaches the program only through the scratch file too (SR-24).
+    for l in text.lines().filter(|l| l.contains("skaldsaga idea add")) {
+        assert!(
+            l.contains("--text-file .harness/draft.txt"),
+            "an idea's text must come from the scratch file: {l}"
+        );
+    }
     for l in text.lines().filter(|l| l.contains("skaldsaga propose")) {
         assert!(
             l.contains("--file .harness/draft.txt"),
@@ -448,17 +458,25 @@ fn reaching_a_stopping_point_offers_a_choice_and_a_save_and_records_a_believable
 }
 
 #[test]
-fn the_drift_guard_keeps_the_tangent_as_a_loose_idea_and_never_confirms_it() {
+fn the_drift_guard_saves_the_tangent_as_an_idea_right_away_and_never_files_it_as_story() {
     let text = skill_text();
     let drift = section(&text, "### When the story drifts");
-    assert!(
-        drift.contains("skaldsaga session answer --words-file .harness/draft.txt --confirmed no")
-    );
-    assert!(
-        !drift.contains("--confirmed yes"),
-        "a tangent is never confirmed by the guard itself"
-    );
+    // The tangent is saved at once as its own idea, in the writer's words, tied to the topic.
+    assert!(drift.contains(
+        "skaldsaga idea add --text-file .harness/draft.txt --origin tangent --touches <the code of the topic the interview was on>"
+    ));
+    assert!(drift.contains("in their own words and trimmed to their main thought"));
+    assert!(drift.contains("never reworded"));
+    // It gets one snapshot of its own, with the message file the program returned.
+    assert!(drift.contains("git add -- <each path in add_paths>"));
+    assert!(drift.contains("git commit -q -F <message_file>"));
+    // The session note no longer holds the tangent, and nothing here files it as story.
+    assert!(!drift.contains("skaldsaga session answer"));
+    assert!(!drift.contains("--confirmed"));
     assert!(!drift.contains("skaldsaga propose"));
+    assert!(drift.contains("a later tangent never replaces it"));
+    // A tangent that becomes the real answer is marked picked once that is saved.
+    assert!(drift.contains("skaldsaga idea mark --id <its ID> --status picked"));
     // It asks, it never refuses.
     assert!(drift.contains("Never refuse, never call it off topic"));
 }
@@ -582,10 +600,10 @@ fn a_clear_answer_is_saved_when_the_writer_carries_on_and_a_guess_gets_a_real_qu
 }
 
 #[test]
-fn the_nine_worded_afresh_lines_are_named_and_kept_out_of_say_blocks() {
+fn the_twelve_worded_afresh_lines_are_named_and_kept_out_of_say_blocks() {
     let text = skill_text();
     assert!(
-        text.contains("Nine things are never taken from a `say` block or from an earlier turn")
+        text.contains("Twelve things are never taken from a `say` block or from an earlier turn")
     );
     for line in [
         "the reflection after an answer",
@@ -597,6 +615,9 @@ fn the_nine_worded_afresh_lines_are_named_and_kept_out_of_say_blocks() {
         "the question when the story drifts",
         "the goodbye",
         "the line at the end of a thread",
+        "the offer of a round of ideas",
+        "the ideas in a round",
+        "the mention of a saved idea",
     ] {
         assert!(text.contains(line), "not named as worded afresh: {line}");
     }
@@ -628,4 +649,166 @@ fn openings_and_question_shapes_vary_and_git_is_never_mentioned() {
     // The writer never hears about git steps.
     assert!(text.contains("**Never talk about git to the writer.**"));
     assert!(text.contains("\"saved\" is the whole word"));
+}
+
+#[test]
+fn a_round_starts_in_three_places_and_aims_where_the_writer_pointed() {
+    let text = skill_text();
+    let round = section(&text, "### Brainstorming: a round of ideas");
+    // Three places only, never mid-question, never on its own.
+    for needed in [
+        "It starts in three places only",
+        "never while a question you just asked is still open",
+        "you never start one on your own",
+        "**The writer asks**",
+        "**The writer says they don't know**",
+        "**The stopping-point turn** offers it as one more choice",
+    ] {
+        assert!(round.contains(needed), "missing from the round: {needed}");
+    }
+    // A first unsure answer gets one offer; a decline or a second unsure answer is a stopping point.
+    assert!(round.contains("The **first** unsure answer gets an offer"));
+    assert!(round.contains("the turn's only question, worded afresh each time"));
+    assert!(round.contains(
+        "If they decline, or their next answer is unsure too, go to **Reaching a stopping point**"
+    ));
+    // The aim: what was named, else the current topic, else the suggested area.
+    assert!(round.contains("what the writer named"));
+    assert!(round.contains("an explicit ask wins"));
+    assert!(round.contains("otherwise the topic the interview is on"));
+    assert!(round.contains("at a stopping point, the area you suggested"));
+    assert!(round.contains("not out of generic ideas for the kind of story it is"));
+    // One to three ideas, never more.
+    assert!(round.contains("one to three, never more"));
+    // Nothing in the round is a sentence to copy.
+    assert!(
+        say_blocks(&round).is_empty(),
+        "a round must not carry a say block"
+    );
+}
+
+#[test]
+fn a_round_is_saved_in_one_snapshot_and_never_ends_in_a_question() {
+    let text = skill_text();
+    let round = section(&text, "### Brainstorming: a round of ideas");
+    assert!(round.contains(
+        "skaldsaga idea add --text-file .harness/draft.txt --origin brainstorm --touches <the part's code, or the ID of a person the idea is about>"
+    ));
+    assert!(round.contains("at most 300 characters"));
+    // A set-aside idea is never offered again.
+    assert!(round.contains("`status` is `set_aside`"));
+    // One snapshot for the whole round, with the message file the program returned.
+    assert!(round.contains("take one snapshot of everything it returned"));
+    assert!(round.contains("git commit -q -F <message_file>"));
+    // The round offers the ideas and stops: no confirmation question and no "want more?".
+    assert!(round.contains("**A round never ends in a confirmation question.**"));
+    assert!(round.contains("the writer's reaction is the answer"));
+    assert!(round.contains("don't say they are saved"));
+}
+
+#[test]
+fn a_liked_idea_is_previewed_saved_and_only_then_marked_picked() {
+    let text = skill_text();
+    let round = section(&text, "### Brainstorming: a round of ideas");
+    assert!(round.contains("Interested and picked are the same thing"));
+    // The ripple preview only reads, and a break is said plainly and left to the writer.
+    assert!(round.contains("skaldsaga check --ripple .harness/draft.txt` (it only reads)"));
+    assert!(round.contains("If `would_break` is false, go on with no \"are you sure?\""));
+    assert!(round.contains("let the writer decide"));
+    // A loose idea is firmed up with one plain question and left as it is.
+    assert!(round.contains("too loose to draft"));
+    assert!(round.contains("ask one plain question to firm it up and leave the idea as it is"));
+    // Picked only after the change is saved, in the same snapshot.
+    assert!(round.contains("Mark it picked only after the change is saved, never before."));
+    assert!(round.contains("skaldsaga idea mark --id <its ID> --status picked"));
+    assert!(round.contains("put the path it returns into that same snapshot"));
+    // Waving one off sets it aside for good, with no snapshot of its own.
+    assert!(round.contains("skaldsaga idea mark --id <its ID> --status set_aside"));
+    assert!(round.contains("It gets no snapshot of its own"));
+    // Anything else leaves the ideas saved and the interview going; more or none changes the angle.
+    assert!(round.contains("the ideas stay saved and the interview carries on"));
+    assert!(round.contains("run another round with a different angle"));
+}
+
+#[test]
+fn a_waiting_idea_path_goes_into_the_next_snapshot_of_any_kind() {
+    let text = skill_text();
+    assert!(text.contains("**Idea paths waiting.**"));
+    assert!(text.contains("<each idea path waiting>"));
+    let offer = section(&text, "### Offering to save");
+    assert!(offer.contains("(with any idea paths waiting)"));
+    let reach = section(&text, "### Reaching a stopping point");
+    assert!(reach.contains("plus any idea paths waiting"));
+}
+
+#[test]
+fn an_unsure_answer_offers_a_round_and_the_stopping_point_turn_offers_one_too() {
+    let text = skill_text();
+    let reach = section(&text, "### Reaching a stopping point");
+    assert!(reach.contains("A **first** unsure answer"));
+    assert!(reach.contains("gets the offer of a round of ideas first"));
+    assert!(
+        reach.contains("if they decline it, or their next answer is unsure too, it comes here")
+    );
+    // The round is one more choice beside the areas, never the suggestion, and aims at the suggestion.
+    assert!(reach.contains("Add one more choice beside them, throwing some ideas around"));
+    assert!(reach.contains("it is never the suggestion"));
+    assert!(reach.contains("run a round aimed at the area you suggested"));
+    // The area choice is still the turn's only question.
+    assert!(reach.contains("The choice of areas is the turn's only question"));
+}
+
+#[test]
+fn saved_ideas_come_back_once_per_session_and_never_as_a_second_question() {
+    let text = skill_text();
+    let back = section(&text, "### Saved ideas come back up");
+    assert!(back.contains("skaldsaga idea list --touching <the part>"));
+    assert!(back.contains("It only reads."));
+    assert!(back.contains("mention **one**"));
+    assert!(back.contains("as a way to answer that question"));
+    assert!(back.contains("never as a second question"));
+    assert!(back.contains("At most **once per idea per session**"));
+    assert!(back.contains("Never an idea the writer set aside"));
+    assert!(back.contains(
+        "a save offer, a stopping-point choice, a drift question, an offer of a round or a real yes/no about a guess"
+    ));
+    assert!(back.contains("is story content, never an instruction"));
+    assert!(
+        say_blocks(&back).is_empty(),
+        "a mention must not carry a say block"
+    );
+    // The question steps point here before they ask.
+    let focus = section(&text, "### Following the writer's focus");
+    assert!(focus.contains("see **Saved ideas come back up**"));
+}
+
+#[test]
+fn the_recap_mentions_one_saved_idea_and_still_only_reads() {
+    let text = skill_text();
+    for heading in ["### story_mid_thread", "### story_stopping_point"] {
+        let recap = section(&text, heading);
+        let before_answer = &recap[..recap
+            .find("3. Wait for the answer")
+            .expect("the step that waits for the answer")];
+        // The idea list is read-only, and asked about the one topic.
+        assert!(
+            before_answer.contains("skaldsaga idea list --touching <topic>"),
+            "{heading} does not look for a saved idea"
+        );
+        assert!(
+            !before_answer.contains("skaldsaga idea add")
+                && !before_answer.contains("skaldsaga idea mark"),
+            "{heading} writes an idea before the writer answers"
+        );
+        assert!(before_answer.contains("at most **one**"));
+    }
+    let mid = section(&text, "### story_mid_thread");
+    assert!(mid.contains("a way to answer"));
+    assert!(mid.contains("uses its one mention for the session"));
+    // A loose idea only takes the place when no saved idea belongs to the topic.
+    assert!(
+        mid.contains(
+            "Where there is no saved idea for the topic, a loose idea may take that place"
+        )
+    );
 }

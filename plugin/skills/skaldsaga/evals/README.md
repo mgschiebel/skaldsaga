@@ -1,8 +1,8 @@
-# Interview evals for the opener, the recaps, the stopping point and the confirming style
+# Interview evals for the opener, the recaps, the stopping point, the confirming style and ideas
 
 Each folder is one case in the layout `claude plugin eval` reads (see the skill-creator notes): a prompt, an expected outcome and one-sentence graders. They score **properties, not exact words**: one question per turn, no internal words in anything the writer sees, a natural reflection (never a stock confirming sentence) before anything is saved, a real yes/no question only for a guess, a clear answer saved when the writer carries on, no setup before the writer confirms a new story, and only confirmed facts saved.
 
-Seventeen of the cases (`mid-thread-*`, `save-offer-*`, `wrap-up-*`, `resume-from-*`, `short-answers-*`, `skipping-the-check-*`, `stop-after-*`, `tangent-*`, `carrying-on-*`, `a-correction-*`, `a-guess-*`, `reflections-vary-*`, `a-stated-place-*`, `a-due-offer-*`, `the-drift-question-*` and `the-goodbye-*`) need the `skaldsaga` program: put it on PATH or set `SKALDSAGA_BIN` to it; their setup scripts use the `resume` scenario.
+Twenty-one of the cases (`i-dont-know-*`, `asking-for-ideas-*`, `a-liked-idea-*`, `a-saved-idea-*`, `mid-thread-*`, `save-offer-*`, `wrap-up-*`, `resume-from-*`, `short-answers-*`, `skipping-the-check-*`, `stop-after-*`, `tangent-*`, `carrying-on-*`, `a-correction-*`, `a-guess-*`, `reflections-vary-*`, `a-stated-place-*`, `a-due-offer-*`, `the-drift-question-*` and `the-goodbye-*`) need the `skaldsaga` program: put it on PATH or set `SKALDSAGA_BIN` to it; their setup scripts use the `resume` scenario.
 
 Entry routing itself is deterministic and covered by script tests (`crates/skaldsaga/tests/entry_cli.rs`), not here. A script test also scans every writer-facing line in `SKILL.md` for internal words (`crates/skaldsaga/tests/skill_prompt.rs`).
 

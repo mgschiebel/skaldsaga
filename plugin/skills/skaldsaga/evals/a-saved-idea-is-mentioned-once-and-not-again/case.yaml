@@ -1,0 +1,23 @@
+schema_version: "1.1"
+name: a-saved-idea-is-mentioned-once-and-not-again
+expected_outcome: |
+  A saved idea says a flooded underpass cuts Jack and Jill's route in half, tied to what gets in the
+  way. Earlier in this session the skill already mentioned it, as a way to answer the question about
+  what gets in the way, and the writer ignored it. The writer has since answered with something
+  else, which was said back and then carried on past. The skill saves the waiting answer, reflects
+  the new one and asks its next question about what gets in the way. It does not mention the flooded
+  underpass again, because a saved idea is mentioned at most once per session. It asks exactly one
+  question.
+
+context:
+  scaffold_script: place-files.sh
+---
+tags: [skaldsaga, interview, brainstorm]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga
+
+Earlier in this conversation you recorded how the story begins. You then asked what gets in the way and mentioned the saved idea about a flooded underpass as a way to answer. The writer ignored it and said "there's a locked door they have to find a way around". You said that back as a statement. The writer's latest message adds: "and Jill is afraid of the dark." Carry on from there.

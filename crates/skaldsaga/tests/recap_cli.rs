@@ -129,6 +129,34 @@ fn the_resume_scenario_hands_back_paths_and_a_message_for_git() {
 }
 
 #[test]
+fn the_resume_scenario_also_leaves_a_held_idea_for_how_the_story_begins() {
+    let dir = TempDir::new();
+    let p = dir.path();
+    assert!(skaldsaga(p, &["init"]).status.success());
+    let v = json_of(&skaldsaga(p, &["scenario", "resume"]));
+    let idea_paths: Vec<&str> = v["add_paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap())
+        .filter(|x| x.starts_with("spec/ideas/"))
+        .collect();
+    assert_eq!(idea_paths.len(), 1, "{v}");
+    assert!(p.join(idea_paths[0]).is_file());
+    let held = json_of(&skaldsaga(p, &["idea", "list", "--touching", "setup"]));
+    let ideas = held["ideas"].as_array().unwrap();
+    assert_eq!(ideas.len(), 1);
+    assert_eq!(ideas[0]["origin"], "brainstorm");
+    assert_eq!(
+        ideas[0]["text"],
+        "They could meet by accident on a night bus."
+    );
+    // The recap itself still reads only the marker and the story.
+    let recap = json_of(&skaldsaga(p, &["recap"]));
+    assert_eq!(recap["topic"], "setup");
+}
+
+#[test]
 fn a_scenario_only_runs_in_an_empty_story() {
     let dir = resumed();
     let p = dir.path();

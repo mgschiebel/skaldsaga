@@ -1,8 +1,9 @@
 //! End-to-end tests for `skaldsaga idea add|mark|list` and `skaldsaga check
 //! --ripple` (brainstorm path, part 1). The unit tests cover the rules; these
-//! check the real binary: that a write names its file for git and never makes
-//! a snapshot of its own, that `list` and the ripple preview only read, and
-//! that unusable input is refused with nothing written.
+//! check the real binary: that a write names its file for git and returns a
+//! message file only when something changed (it makes no snapshot of its own,
+//! the skill does), that `list` and the ripple preview only read, and that
+//! unusable input is refused with nothing written.
 #![expect(
     clippy::unwrap_used,
     reason = "a test that cannot go on should fail loudly, and a test failure is a panic"
@@ -121,7 +122,7 @@ fn add(dir: &Path, text: &str, origin: &str, touches: Option<&str>) -> serde_jso
 }
 
 #[test]
-fn saves_an_idea_names_its_file_for_git_and_makes_no_message() {
+fn saves_an_idea_and_names_its_file_and_a_message_for_git() {
     let dir = project();
     let p = dir.path();
     let problems_before = json_of(&skaldsaga(p, &["index"]))["problems"].clone();
@@ -139,9 +140,11 @@ fn saves_an_idea_names_its_file_for_git_and_makes_no_message() {
         v["add_paths"],
         serde_json::json!([format!("spec/ideas/{id}.md")])
     );
-    // A write never gets a snapshot of its own: no message file for git.
-    assert!(v.get("message_file").is_none());
-    assert!(!p.join(".harness/commit-message.txt").exists());
+    // The write makes no snapshot itself, but returns a message file the skill
+    // can commit with. The message holds no idea text (SR-32).
+    assert_eq!(v["message_file"], ".harness/commit-message.txt");
+    let message = std::fs::read_to_string(p.join(".harness/commit-message.txt")).unwrap();
+    assert!(!message.contains("informant"), "{message}");
     let saved = std::fs::read_to_string(p.join(format!("spec/ideas/{id}.md"))).unwrap();
     assert!(saved.contains("type: idea"), "{saved}");
     assert!(saved.contains("origin: brainstorm"), "{saved}");
@@ -160,6 +163,7 @@ fn the_same_idea_is_not_saved_twice() {
     assert_eq!(again["outcome"], "exists");
     assert_eq!(again["id"], first["id"]);
     assert_eq!(again["add_paths"], serde_json::json!([]));
+    assert!(again.get("message_file").is_none());
     assert!(
         snapshot(p) == before,
         "a repeat save changed the story folder"
@@ -201,12 +205,14 @@ fn marks_an_idea_and_lists_only_held_ones() {
         m["add_paths"],
         serde_json::json!([format!("spec/ideas/{alley_id}.md")])
     );
+    assert_eq!(m["message_file"], ".harness/commit-message.txt");
     let again = json_of(&skaldsaga(
         p,
         &["idea", "mark", "--id", alley_id, "--status", "set_aside"],
     ));
     assert_eq!(again["outcome"], "unchanged");
     assert_eq!(again["add_paths"], serde_json::json!([]));
+    assert!(again.get("message_file").is_none());
     let m = json_of(&skaldsaga(
         p,
         &["idea", "mark", "--id", sister_id, "--status", "picked"],

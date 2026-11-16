@@ -55,9 +55,11 @@ Skaldsaga asks one question at a time, about things you can picture: a scene, a 
 
 **Take breaks whenever you like.** Your answers are saved as you go. Next time, open the same folder and type `/skaldsaga` on its own. If you stopped in the middle of something, Skaldsaga gives you a short recap of what you've decided and asks the one question that picks things back up. When a part of your story has run its course, or your answers get short, Skaldsaga stops to say what that part added, offers a few things to look at next (with a suggestion), and offers to save where you are. If you stop at that point, next time it suggests where to start.
 
-**Skaldsaga stays on your story.** If you wander off on a tangent, it reminds you what you were working on, says it is keeping what you said, and asks where you're heading with it. It might be a new idea or a lost thread; either is fine. A new idea becomes what you work on next, and a lost thread takes you back to where you were.
+**Skaldsaga stays on your story.** If you wander off on a tangent, it reminds you what you were working on, says it is keeping what you said (it can come back later as an idea), and asks where you're heading with it. It might be a new idea or a lost thread; either is fine. A new idea becomes what you work on next, and a lost thread takes you back to where you were.
 
-**You don't have to know the answers yet.** If you're unsure, say so. Skaldsaga keeps it as "to be decided" and comes back when the story makes it clearer.
+**You don't have to know the answers yet.** If you're unsure, say so. Skaldsaga offers to throw some ideas around for that part of the story, or you can move on.
+
+**Ideas when you want them.** Ask for some ("give me some ideas for the ending", "what if..."), or take the offer when you're stuck, and Skaldsaga gives you one to three ideas, a line each, built from what you've already decided. If you like one, it first checks whether it would stop anything in your story from fitting and tells you plainly if it would, then it goes in. Ideas you don't use are kept. One may come up again later as a way to answer a question, once at a time, and if you wave one off it never comes back.
 
 **You can change your mind.** If a new answer conflicts with an earlier one, Skaldsaga points it out while the topic is fresh and lets you choose what to keep.
 
@@ -70,7 +72,6 @@ Skaldsaga teaches as it goes, with no quizzes. Along the way you'll meet a few c
 ## What's not ready yet
 
 - Carrying on past the basic shape of the story (how it begins, what gets in the way, the worst moment, the ending).
-- Offering "what if" ideas when you're stuck.
 - Bringing in writing you already have, such as drafts and notes. For now, start in an empty folder.
 - Later stages: drafting scenes in your own voice, editing, and preparing a finished story for publishing (an e-book, a print book or a web serial).
 
