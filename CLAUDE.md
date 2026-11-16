@@ -6,9 +6,11 @@ Read `HANDOFF.md` (a short index: status, what's next, a file map) and `ARCHITEC
 
 Every pull request, including doc-only ones, leaves the handoff ready for a fresh session to pick up after the merge: update the Status and Ready-to-build blocks in `HANDOFF.md`, record the change in the matching `docs/handoff/` file (a build step or fix goes under Build progress in `build-log.md`; a design decision goes into its design file with the date and "Decided"), and update the file map or lookup table if a section is added, moved or renamed. The PR template has a checkbox for it.
 
-## Keep the README for writers (Decided October 25, 2026)
+## Keep the README for writers (Decided October 25, 2026; widened November 16, 2026)
 
-`README.md` is written for the writer who installs the release, in plain non-technical words: what Skaldsaga does and how to use it to write a story. No build details, step or pull request numbers, tool names, or the project's internal terms. Contributor information is one short section at the end that points to `CONTRIBUTING.md`, `HANDOFF.md` and `ARCHITECTURE.md`. Describe only what is built. A pull request that adds something a writer can try updates the README's "What's not ready yet" list in the same pull request.
+`README.md` is written for a non-technical, aspiring writer, in plain words. It says only this: what Skaldsaga does from the writer's side; what the writer needs before using it, with where to get each thing; how to get started and what to expect; and what is not ready yet. What to expect includes the teaching ladder: the writer will meet common craft terms, each explained in plain words when a question needs it, shortened once learned, and then replaced by the names from their own story. It lists only the commands a writer types (the install lines and `/skaldsaga`, plus any other command a writer is meant to type); never developer-only commands (`scenario`), build, release or check commands, step or pull request numbers, tool names, or the project's internal terms. A short tail stays: the attribution (a legal need), one pointer for contributors to `CONTRIBUTING.md`, `HANDOFF.md` and `ARCHITECTURE.md`, and the license. Describe only what is built.
+
+**Every build pull request and every release checks it.** A build PR confirms the README still matches what a writer sees and updates it when it does not (the PR description says "README: still accurate" when nothing changed); a PR that adds something a writer can try also updates the "What's not ready yet" list. Before starting the Release workflow, re-read the README against the version being released.
 
 ## First step in a cloud session: let cargo reach crates.io
 
