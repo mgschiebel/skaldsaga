@@ -39,11 +39,13 @@ pub enum IdKind {
     /// A decision the writer made about the process (an acknowledged finding),
     /// as opposed to a shape decision node (`d-`). Stored in `.harness/decisions/`.
     WriterDecision,
+    /// A held idea (a brainstormed idea or a parked tangent), stored in `spec/ideas/`.
+    Idea,
 }
 
 impl IdKind {
     /// Every kind, in a fixed order.
-    pub const ALL: [IdKind; 13] = [
+    pub const ALL: [IdKind; 14] = [
         IdKind::Person,
         IdKind::Place,
         IdKind::Group,
@@ -57,6 +59,7 @@ impl IdKind {
         IdKind::Edition,
         IdKind::Proposal,
         IdKind::WriterDecision,
+        IdKind::Idea,
     ];
 
     /// The prefix written before the hyphen.
@@ -75,6 +78,7 @@ impl IdKind {
             IdKind::Edition => "e",
             IdKind::Proposal => "pr",
             IdKind::WriterDecision => "wd",
+            IdKind::Idea => "idea",
         }
     }
 
@@ -99,6 +103,7 @@ impl fmt::Display for IdKind {
             IdKind::Edition => "edition",
             IdKind::Proposal => "proposal",
             IdKind::WriterDecision => "writer decision",
+            IdKind::Idea => "idea",
         };
         f.write_str(name)
     }

@@ -308,7 +308,14 @@ pub(crate) fn references(spec: &Spec) -> Vec<(String, String, String)> {
                     }
                 }
             }
-            NodeBody::Person | NodeBody::Place | NodeBody::Group | NodeBody::Item => {}
+            // An idea's `touches` is not a story reference (*Proposed*): ideas
+            // never show up as backlinks, never block deleting the node they
+            // name, and a touch whose node is gone is simply stale.
+            NodeBody::Person
+            | NodeBody::Place
+            | NodeBody::Group
+            | NodeBody::Item
+            | NodeBody::Idea(_) => {}
         }
 
         for fact in &node.facts {

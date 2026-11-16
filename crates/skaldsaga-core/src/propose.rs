@@ -71,9 +71,18 @@ fn invalid<T>(m: impl Into<String>) -> Result<T, ProposeError> {
     Err(ProposeError::Invalid(m.into()))
 }
 
-/// Files a draft as a new proposal and returns its ID. `created` is the
-/// time to stamp, `YYYY-MM-DDTHH:MM`.
-pub fn file(project: &Project, draft: &str, created: &str) -> Result<String, ProposeError> {
+/// A draft that passed the shape checks: the writer's words and the
+/// operations, with every placeholder replaced by a fresh ID.
+#[derive(Debug)]
+pub struct ParsedDraft {
+    pub answer: Option<String>,
+    pub ops: Vec<Op>,
+}
+
+/// Reads a draft's text: replaces its placeholders and checks its shape. Used
+/// by [`file`] and by the ripple preview, so a draft means the same thing to
+/// both.
+pub fn parse_draft(draft: &str) -> Result<ParsedDraft, ProposeError> {
     let mut value: Value = serde_json::from_str(draft).map_err(|e| {
         ProposeError::Invalid(format!("the answer isn't in the expected shape: {e}"))
     })?;
@@ -97,6 +106,16 @@ pub fn file(project: &Project, draft: &str, created: &str) -> Result<String, Pro
     {
         return invalid("the answer is too long to keep");
     }
+    Ok(ParsedDraft {
+        answer,
+        ops: draft.ops,
+    })
+}
+
+/// Files a draft as a new proposal and returns its ID. `created` is the
+/// time to stamp, `YYYY-MM-DDTHH:MM`.
+pub fn file(project: &Project, draft: &str, created: &str) -> Result<String, ProposeError> {
+    let ParsedDraft { answer, ops } = parse_draft(draft)?;
 
     let inbox = project.inbox_dir();
     let (id, path) = loop {
@@ -112,7 +131,7 @@ pub fn file(project: &Project, draft: &str, created: &str) -> Result<String, Pro
         lane: None,
         created: Some(created.to_string()),
         answer,
-        ops: draft.ops,
+        ops,
         revisions: Revisions::default(),
         check: None,
     };

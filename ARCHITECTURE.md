@@ -52,6 +52,7 @@ my-novel/
     decisions/    d-0001.md ...
     threads/      t-0001.md ...
     arcs/         a-0001.md ... (main story, active and fog subplots)
+    ideas/        idea-xxxxxxxx.md ... (held ideas: brainstormed ideas and parked tangents)
     sequence.md   scene IDs in reading order (the story itself)
     attributes.md the story's own attribute keys (the starter list is built in)
     editions/     groupings over the sequence: chapters, acts, serial updates (Proposed)

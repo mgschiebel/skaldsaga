@@ -32,7 +32,7 @@ use crate::index;
 use crate::json::Value;
 use crate::model::{Confidence, FactKind, NodeBody, NodeType, RevealLevel, TimeAnchor};
 use crate::ops::{self, Applied};
-use crate::proposal::{Lane, Proposal};
+use crate::proposal::{Lane, Op, Proposal, Revisions};
 use crate::registry::{Cardinality, Registry, Relation};
 use crate::settings::RoutingSettings;
 use crate::spec::Spec;
@@ -282,6 +282,86 @@ fn finish(
     }
 }
 
+/// What the ripple preview says about a change list (*Decided November 8,
+/// 2026*): only the parts of the story that exist now and would stop fitting.
+/// It never lists new connections, so the answer stays short on a phone and
+/// fits the rule that the interviewer speaks up only about conflicts.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Ripple {
+    /// True when at least one existing scene or fact would stop fitting.
+    pub would_break: bool,
+    /// What would stop fitting, hard findings first. Each rests on at least
+    /// one ID that exists in the story today.
+    pub breaks: Vec<Finding>,
+    /// Set when the change list can't be applied to the story at all, in
+    /// plain words; `breaks` is empty then and the preview says nothing about
+    /// the idea.
+    pub unusable: Option<String>,
+}
+
+impl Ripple {
+    /// The preview as JSON, for the command line.
+    pub fn to_value(&self) -> Value {
+        serde_json::to_value(self).unwrap_or(Value::Null)
+    }
+}
+
+/// Applies a change list to a copy of the story and reports what would stop
+/// fitting. It reuses [`check`], so the preview and the real check can never
+/// disagree about what a change does, and it changes nothing: no proposal is
+/// filed and nothing is written.
+///
+/// A finding counts only when it rests on something already in the story (a
+/// node or a fact). A problem found only in the new material, such as a new
+/// scene with no thread, is not something that would break; the real check
+/// raises it if the writer goes ahead.
+pub fn ripple(spec: &Spec, ops: &[Op], routing: &RoutingSettings) -> Ripple {
+    let id = match ids::new_id(IdKind::Proposal) {
+        Ok(id) => id,
+        Err(e) => {
+            return Ripple {
+                would_break: false,
+                breaks: Vec::new(),
+                unusable: Some(e.to_string()),
+            };
+        }
+    };
+    let preview = Proposal {
+        id,
+        agent: "interviewer".to_string(),
+        lane: None,
+        created: None,
+        answer: None,
+        ops: ops.to_vec(),
+        revisions: Revisions::default(),
+        check: None,
+    };
+    let report = check(spec, &preview, routing);
+    if let Some(failed) = report.findings.iter().find(|f| f.code == "op_failed") {
+        return Ripple {
+            would_break: false,
+            breaks: Vec::new(),
+            unusable: Some(failed.message.clone()),
+        };
+    }
+    let existing: HashSet<&str> = spec
+        .nodes
+        .iter()
+        .flat_map(|n| std::iter::once(n.id.as_str()).chain(n.facts.iter().map(|f| f.id.as_str())))
+        .collect();
+    // `report.findings` is already sorted hard first, then by code and IDs.
+    let breaks: Vec<Finding> = report
+        .findings
+        .into_iter()
+        .filter(|f| f.ids.iter().any(|id| existing.contains(id.as_str())))
+        .collect();
+    Ripple {
+        would_break: !breaks.is_empty(),
+        breaks,
+        unusable: None,
+    }
+}
+
 /// The current revision (or content fingerprint, for `sequence.md` and
 /// `attributes.md`) recorded under `key` in a revision map; `None` when the
 /// node or fact no longer exists.
@@ -486,6 +566,7 @@ fn kind_word(kinds: &[IdKind]) -> String {
         IdKind::Edition => "an edition",
         IdKind::Proposal => "a proposal",
         IdKind::WriterDecision => "a writer decision",
+        IdKind::Idea => "an idea",
     };
     kinds.iter().map(word).collect::<Vec<_>>().join(" or ")
 }
@@ -1297,5 +1378,89 @@ mod tests {
         assert_eq!(codes(&r), ["op_failed"]);
         assert!(r.findings[0].message.starts_with("step 1 (delete)"));
         assert!(r.checked.is_empty());
+    }
+
+    #[test]
+    fn ripple_lists_only_what_existing_parts_would_stop_fitting() {
+        let spec = harbor();
+        let routing = RoutingSettings::default();
+        let ops = |text: &str| -> Vec<Op> { proposal_of("interviewer", text).ops };
+
+        // A change that leaves everything fitting.
+        let r = ripple(
+            &spec,
+            &ops(r#"[{"op": "set", "target": "p-dadsharb.summary", "value": "Ada's father"}]"#),
+            &routing,
+        );
+        assert_eq!(r.breaks, vec![]);
+        assert!(!r.would_break);
+        assert_eq!(r.unusable, None);
+
+        // Replacing a fact a scene relies on: the scene would stop fitting.
+        let r = ripple(
+            &spec,
+            &ops(
+                r#"[{"op": "supersede", "target": "p-jnahharb#f-jnspyhrb", "replacement":
+                {"id": "f-jnspy2nd", "kind": "truth", "statement": "Jonah reports to the harbor master",
+                 "confidence": "provisional", "review": "unreviewed", "source": "interview"}}]"#,
+            ),
+            &routing,
+        );
+        assert!(r.would_break);
+        let codes: Vec<_> = r.breaks.iter().map(|f| f.code).collect();
+        assert_eq!(codes, ["reads_superseded"]);
+        assert_eq!(r.unusable, None);
+    }
+
+    #[test]
+    fn ripple_leaves_out_problems_found_only_in_new_material() {
+        // A new scene with no thread is a problem of the new scene alone.
+        let r = ripple(
+            &harbor(),
+            &proposal_of(
+                "interviewer",
+                &format!(r#"[{{"op": "create", "node": {NEW_SCENE}}}}}]"#),
+            )
+            .ops,
+            &RoutingSettings::default(),
+        );
+        assert!(!r.would_break, "{:?}", r.breaks);
+        assert_eq!(r.breaks, vec![]);
+    }
+
+    #[test]
+    fn ripple_says_so_when_the_change_cant_be_applied() {
+        let r = ripple(
+            &harbor(),
+            &proposal_of(
+                "interviewer",
+                r#"[{"op": "delete", "target": "p-nnnnnnnn"}]"#,
+            )
+            .ops,
+            &RoutingSettings::default(),
+        );
+        assert!(!r.would_break);
+        assert_eq!(r.breaks, vec![]);
+        assert!(
+            r.unusable
+                .as_deref()
+                .unwrap_or("")
+                .starts_with("step 1 (delete)")
+        );
+    }
+
+    #[test]
+    fn ripple_counts_a_blocked_delete_as_a_break() {
+        let r = ripple(
+            &harbor(),
+            &proposal_of(
+                "interviewer",
+                r#"[{"op": "delete", "target": "p-dadsharb"}]"#,
+            )
+            .ops,
+            &RoutingSettings::default(),
+        );
+        assert!(r.would_break);
+        assert!(r.breaks.iter().all(|f| f.code == "delete_blocked"));
     }
 }

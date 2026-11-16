@@ -24,7 +24,7 @@ use serde::de::DeserializeOwned;
 use serde_norway::{Mapping, Value};
 
 use crate::ids::{self, IdKind};
-use crate::model::{Fact, Node, NodeBody, NodeType, Thread};
+use crate::model::{Fact, Idea, Node, NodeBody, NodeType, Thread};
 
 /// Why a node file couldn't be read or written.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -153,6 +153,13 @@ pub fn parse_node(text: &str) -> Result<Node, NodeError> {
         }
         NodeType::Style => NodeBody::Style(body_from(map, node_type)?),
         NodeType::Arc => NodeBody::Arc(body_from(map, node_type)?),
+        NodeType::Idea => {
+            let idea: Idea = body_from(map, node_type)?;
+            if let Some(problem) = idea.problem() {
+                return Err(err(problem));
+            }
+            NodeBody::Idea(idea)
+        }
     };
 
     Ok(Node {
@@ -202,6 +209,7 @@ pub fn render_node(node: &Node) -> Result<String, NodeError> {
         NodeBody::Thread(b) => extend(&mut map, b)?,
         NodeBody::Style(b) => extend(&mut map, b)?,
         NodeBody::Arc(b) => extend(&mut map, b)?,
+        NodeBody::Idea(b) => extend(&mut map, b)?,
     }
     if !node.facts.is_empty() {
         map.insert(s("facts"), to_value(&node.facts)?);
