@@ -22,7 +22,7 @@ The builds so far taught four things: the single skill does two jobs; it grows w
 
 **Only the Interviewer is foreground (Decided).** It is the one agent focused on natural communication, questions and answers. Every other agent runs in the background and returns work to it, which gives one voice, one place for the one-short-question and confirmation rules, and one agent that ever sees the writer's text. A fresh context is also what makes an adversarial check real: a checker that has not seen the producer's reasoning cannot rubber-stamp it.
 
-## Roster (Proposed: 23 candidates, merge pass still to do)
+## Roster (Proposed: 23 candidates; merge pass partly done November 16, 2026: Planner and Session keeper primitive-only, Outliner split, so 20 agents)
 
 The old orchestrator is decomposed into the Planner, the Gatekeeper and the Session keeper, with the Interviewer speaking for all three. The old housekeeper is Continuity (plus the program's `check`). The old completeness rubric is Completeness.
 
@@ -35,13 +35,13 @@ The old orchestrator is decomposed into the Planner, the Gatekeeper and the Sess
 | Cast | background | Story roles: which are needed, filled, redundant or shifting (name *Decided*) |
 | Plot | background | Threads across the four stages, stakes, setup and payoff |
 | Genre | background | The promises made to the reader, and the limits they put on plot and roles |
-| Sequence | background | Order and rhythm: reveals, pacing, when each change lands |
+| Sequence | background | Story time: every other agent's changes and claims come at or after the point where the story has earned them; owns time order (*concern Decided November 16, 2026*) |
 | Setting | background | Where and when, and the rules of that world |
-| Scene | background | Each scene earns its place and has a turn |
+| Scene | background | Outline the beats inside one scene from the obligations other agents place on it; each scene earns its place and has a turn (*concern Decided November 16, 2026*) |
 | Viewpoint | background | The method of telling (person, distance) and which viewpoint character owns each scene |
 | Voice | background | A recognizable voice profile per viewpoint character (profiles only; see below) |
 | Learning | background | The writer's craft knowledge, and nudges to the Interviewer |
-| Continuity | background | Contradictions, who-knows-what, time order |
+| Continuity | background | Contradictions and who-knows-what (time order moved to Sequence, *Decided November 16, 2026*) |
 | **Checkers** | | |
 | Completeness | background | Is the story done? Adversary to the Gatekeeper (split from the Auditor, *Decided*) |
 | Auditor | background | Did each agent stay inside its concern and can it back its claims (*Decided*) |
@@ -49,8 +49,8 @@ The old orchestrator is decomposed into the Planner, the Gatekeeper and the Sess
 | Harvester | background | Facts from the writer's drafts |
 | Researcher | background | Real-world facts, verified |
 | Brainstormer | background | Ideas for the writer to react to |
-| Weaver | background | Build the skeleton: the order of everything |
-| Outliner | background | Deepen the skeleton one movement at a time |
+| Weaver | background | Turn the finished outline into the list of scenes and their order, by prerequisites, with exceptions for flashbacks (*concern Decided November 16, 2026*) |
+| ~~Outliner~~ | retired | Split between the Weaver (scene level) and Scene (beat level), *Decided November 16, 2026* |
 | **Coordinators** | | |
 | Planner | background | Rank the question queue by gates and unblocking value |
 | Gatekeeper | background | Decide when the weave and outline gates open |
@@ -64,6 +64,8 @@ Notes:
 - Sequence is the order the reader meets things in. A deadline can act as a character (a ticking clock) and a place can act as one (see Embodiments).
 
 **The merge test (Proposed).** An agent earns its own place if it has all four of: a single concern, an adversary, obligations to or from other agents, and data of its own. An agent that fails two or more is folded into a neighbor or becomes primitive-only. The Planner, the Gatekeeper and the Session keeper are the likeliest to become primitive-only, since the program already decides the recap's topic, the counts and the meter. The merge pass has not been done.
+
+**Merge pass, coordinators** (*Decided November 16, 2026*, planning session 11): the **Planner** and the **Session keeper** become primitive-only (no skill): the program already computes the queue ranking, the recap topic, the counts and the meter, and the Interviewer words the result. The **Gatekeeper** stays an agent because deciding that a story is ready to weave takes judgment. **Every adversary pairing named in the roster, the Gatekeeper's included, stays *Proposed*** (the author's rule, November 16, 2026): each is decided in an agent-specific session, once that agent's relationships to the other agents are worked out.
 
 ## Phases and gates (Proposed, from the story design files)
 
@@ -82,11 +84,26 @@ So the flow is a set of gates, not a pipeline.
 - **Embodiments (Decided).** A side of the argument may be embodied by something other than a person: a character, a constraint such as a deadline (Sequence acting as a character) or a place (Setting acting as a character). Whether each side becomes its own saved record that characters and events link to is open; Claude leans yes, so the program can see which sides are unembodied or untested. The current design has two sides only (the main character and the challenger); the author's picture has several faces of the argument, such as foils who make the opposite choice. This is a design gap to close when Argument is built.
 - **Roles change over time (Decided).** A challenger can become an ally. Cast and Sequence interact: Cast owns what the roles are and whether a shift is coherent, Sequence owns when it lands and whether it is earned, Character owns whether the person's change justifies it, Argument re-checks who embodies a side, and Continuity checks the time order. The data model looks able to carry a role as a time-bounded fact, the way `strength` and `flaw` change with `ends`; to be confirmed when we reach the data model.
 
+## The Interviewer and the other agents (planning session 11, November 16, 2026)
+
+- **Star pattern** (*Decided November 16, 2026*): the Interviewer is the parent and the only one that starts agents. Agents never call each other. The only things that pass between agents are saved records the program validates (story nodes, findings, the question queue), so every checker keeps a fresh context.
+- **One answer, one spawn** (*Decided November 16, 2026*, the author's design): each time the writer's answer is saved, the Interviewer spawns the background agents on that one answer and, without waiting, asks the next question. The writer's thinking time hides the agents' work.
+- **The guard is "wait before the next reply"** (*Decided November 16, 2026*): before the Interviewer handles the writer's next reply, it waits for the agents on the previous answer to finish. A finding therefore shapes the question after next, never the one already asked; the lag is at most one question.
+- **Smallest possible trust surface** (*Decided November 16, 2026*): an agent gets one answer plus only what the program hands it, and returns flags, questions or proposals. What comes back is data derived from untrusted story text, never instructions to the Interviewer.
+- **How an agent calls its primitive** (*Proposed*, the author is leaning this way; not yet confirmed): each agent's allowed commands are pinned to its own primitive's commands, and a read-only agent gets only read-only commands; writer text reaches a command only through a file; a test pins each list, with a happy-path case (every pinned command works) and an unhappy-path case (anything outside the pinned list fails) per agent (the author's test criteria, November 16, 2026; the choice itself stays *Proposed*). This would replace SR-31 ("no shell for sub-agents"), whose wording is obsolete now that sub-agents are gone; it would be marked superseded, not deleted. To verify first: that the harness can pin exact command forms for a background agent as it does for a skill.
+- **The question queue is saved with the story** (*Decided November 16, 2026*): one file per queued question, so it survives across sessions and devices and the program validates each entry like any other record. Each entry names the agent that raised it, the story part it concerns and a short reason.
+- **The Planner ranks the queue** (*Decided November 16, 2026*) on three things in this order: unblocking value (the fan-out count `check` already computes), then staleness (how long the question has waited), then fit with the thread the writer is already on. The program computes the three and the Planner agent only breaks ties.
+- **Who writes** (*Decided November 16, 2026*): each agent writes through its own primitive, and only its own kinds of record (findings, queue questions, proposals); the primitive is what keeps it inside its concern. No agent edits canon story facts directly: canon changes go through the existing proposal and check pipeline, so no agent grades its own work. Because the Interviewer waits for the agents before handling the next reply, it takes one snapshot per answer after they finish. Several agents writing at once is caught by the proposal pipeline's revision checks.
+- **Sequence and the Weaver are separate concerns** (*Decided November 16, 2026*, the author's definitions): **Sequence** guards time inside the story: the evolution of every other agent's area over the course of the story, so none of them decides or changes something before the story has reached that point (a scar cannot appear before the injury scene; the answer is "too early"). **The Weaver** translates the completed outline into a list of scenes, each with a beginning, middle and end. Sequence is not merged into the Weaver. **Time order moves from Continuity to Sequence**; Continuity keeps contradictions and who-knows-what. The pairings these concerns imply stay *Proposed* (see the merge pass).
+- **Tone is out of scope for phase 1** (*Decided November 16, 2026*): tone is mostly how the writing sounds, so it comes into scope with scene writing in a later phase. The part that shapes an outline, the mood the story promises the reader, is already Genre's concern. The `tone` field stays in the viewpoint and style node but no agent owns it until the writing phase.
+- **The Outliner is split by level of detail** (*Decided November 16, 2026*, the author's design): **the Weaver** outlines at the scene level (which scenes exist and in what order, by prerequisites, with exceptions for flashbacks); **Scene** outlines at the beat level (the beats inside one scene, from the obligations other agents place on it). This corrects the earlier wording that gave the Weaver a beginning, middle and end per scene; beats belong to Scene. The hand-off between the two is the adversarial relationship itself: Scene can send a scene back to the Weaver when its beats show the scene does not work. That pairing stays *Proposed* with the rest (see the merge pass). Setting stays an agent because a place can act as a character (see Embodiments); Scene stays an agent because it owns the scene records and their obligations. *Possible data:* prerequisites may come from the scene record's existing `reads` and `when` fields (a scene that reads a fact needs the scene that establishes it first; a flashback is a scene whose `when` is earlier than its place in the list); to be confirmed when the Weaver is built.
+
 ## The learning ladder (changes part of open item 19)
 
 - **No teaching sessions, ever (Decided).** Teaching is by doing, inside the Interviewer's normal conversation. There is no class mode and no teaching-style session. The Learning agent only sends nudges about what to focus on.
 - **Option C (the author's lean; Proposed).** Domain agents tag the concepts a question depends on (a code from the concept list) and do not teach. The craft record primitive holds the ladder rules (a term is never used before it is taught; a term shortens only once earned; teaching stops once the writer uses the term unprompted) and flags a question that uses an untaught term before it reaches the writer. A thin Learning agent does the judgment a program cannot: how much teaching a question carries, whether a concept is demonstrated in the writer's own story, whether a misconception needs recording. The other options were Learning as the only teacher with no tagging by others, and each agent carrying its own teaching; both were set aside because what the writer has been taught is shared state.
-- **Topic list (gap).** The craft record tracks untaught, taught and demonstrated per concept, with story evidence, but there is no defined list of topics the writer is measured against. The list is grouped by the same areas as the agents. Each topic has a writer-facing name, a plain explanation and its prerequisites ("main character" before "MC").
+- **Each agent owns its own rung of the ladder; the topic list is built a piece at a time** (*Decided November 16, 2026*, planning session 11): the 18 built-in concepts stay as they are and are grouped by the agents' areas; each agent adds its concepts (writer-facing name, plain explanation, prerequisites) in its own agent session, since it knows which concepts its questions depend on. The writer command shows what is defined so far. The command's name is still open.
+- **Topic list (gap, being closed piece by piece, see above).** The craft record tracks untaught, taught and demonstrated per concept, with story evidence, but there is no defined list of topics the writer is measured against. The list is grouped by the same areas as the agents. Each topic has a writer-facing name, a plain explanation and its prerequisites ("main character" before "MC").
 - **The path is a forecast, not a syllabus.** It shows what the story is about to need and is one input to the Planner's ranking. The story drives the teaching; the teaching never drives the story.
 - **A writer command shows the topics and where the writer stands, on demand only (Decided).** The name is not chosen. When it is built, the README adds it, since the README lists every command a writer types. Light gamification only (*Proposed*): celebrate what the writer demonstrated in their own story; no points, streaks or quizzes; a topic the writer opted out of under "keep it simple" is never a gap.
 - **Amendment to the October 19 decision (open item 19):** teaching stays invisible by default, so "no formal output" now has one exception, the progress list shown when the writer asks. "Teach through primitives, not a separate agent" becomes the split above: the primitive holds the rules and a thin Learning agent annotates questions.
@@ -128,14 +145,14 @@ Rules around the pairs:
 
 **2. Genre and Plot.** Contested item: whether the threads deliver the genre's promise. Outcome A (Plot wins): the writer subverts the genre on purpose; Genre fails with `promise_subverted_by_writer`. Outcome B (Genre wins): threads are revised; Plot fails with `revised_to_convention`. Outcome C: both pass. Forbidden: Plot relabeling the story's genre to dodge the check; Genre rewriting threads. Tiebreaker: the writer.
 
-**3. Weaver and Outliner.** Contested item: whether the skeleton can carry the deepening, or the skeleton changes. Weaver passes when every cell, landmark and pinned scene has an ordered slot; Outliner passes when every slot gets beats, viewpoint, location and a turn. Outcome A (Weaver wins): the slot stands and Outliner fails with `slot_unworkable` and the reason. Outcome B (Outliner wins): the slot is revised and Weaver fails with `slot_revised_on_deepening`; Continuity rechecks the ripple. Forbidden: Outliner reordering slots (only Weaver changes order); Weaver deleting a slot to avoid a failed deepen; marking a slot deepened with empty beats. Tiebreaker: a process dispute, so the program's rules decide; if the revision touches a pinned scene or a confirmed decision it goes to the writer.
+**3. Weaver and Outliner (superseded November 16, 2026: the Outliner was split between the Weaver and Scene; rewrite this pair as Weaver and Scene in the agent-specific session, where Scene can send a scene back to the Weaver).** Contested item: whether the skeleton can carry the deepening, or the skeleton changes. Weaver passes when every cell, landmark and pinned scene has an ordered slot; Outliner passes when every slot gets beats, viewpoint, location and a turn. Outcome A (Weaver wins): the slot stands and Outliner fails with `slot_unworkable` and the reason. Outcome B (Outliner wins): the slot is revised and Weaver fails with `slot_revised_on_deepening`; Continuity rechecks the ripple. Forbidden: Outliner reordering slots (only Weaver changes order); Weaver deleting a slot to avoid a failed deepen; marking a slot deepened with empty beats. Tiebreaker: a process dispute, so the program's rules decide; if the revision touches a pinned scene or a confirmed decision it goes to the writer.
 
 What the pilot showed about the template: some pairs have a third resolution (restructure); Weaver and Outliner run in sequence, not in parallel; and Genre and Plot carry a gaming risk (relabeling to dodge a check).
 
 ## Mapping and build order
 
 - **Mapped gradually (Decided).** Each build works on one agent and its interface with the agents that already exist, and the map fills in as builds proceed. Long-term every pair is mapped. Pairs between agents that do not exist yet are not specified ahead of time, so we never write contracts for speculative neighbors.
-- **Proposed first build.** Foundations plus a first pair, not a lone agent, since the adversarial value only appears with two: the agent contract enforced by the binary (pass, sanctioned fails, forbidden paths), the shared question queue, and splitting the Interviewer out of `SKILL.md` into the skill and its shared references. First pair: the Interviewer with Learning (the craft record already exists and it wires up the ladder), or the Interviewer with Continuity (`check` already exists). It needs its own plan and the author's approval before it is built.
+- **Proposed first build.** Foundations plus a first pair, not a lone agent, since the adversarial value only appears with two: the agent contract enforced by the binary (pass, sanctioned fails, forbidden paths), the shared question queue, and splitting the Interviewer out of `SKILL.md` into the skill and its shared references. **First pair (*Decided November 16, 2026*): the Interviewer with Continuity.** The Interviewer turns the writer's answer into a proposed change; Continuity challenges it against what is saved and returns a queue question for a contradiction (read-only, so it is also the safest first test of the spawn-per-answer flow and of the pinned-command tests). `check` already exists. The pair with Learning waits, since Learning depends on the other agents tagging their questions first; the pilot pair of two new background agents (Argument and Plot) comes later. The build plan itself still needs its own plan and the author's approval before it is built.
 - **The grid** (`agent-grid.md`) holds the whole map, with each pair marked mapped or to map. Earlier contracts may be revised when a later pair needs it; the pair's entry records why.
 
 ## Gaps the grid showed (Proposed to act on)
@@ -144,13 +161,12 @@ From the first drawing of the grid (21 agents, before Completeness and the Audit
 
 ## Open questions
 
-1. **Sequence and Weaver:** does Sequence stay a watcher that challenges the Weaver's order, or merge with it? The author said Sequence ripples across everything but did not choose.
-2. **Tone** sits between Genre, Viewpoint and Voice with no owner.
-3. **Setting and Scene** as agents: suggested, not confirmed.
-4. **Argument sides as saved records** and several faces of the argument (see Embodiments).
-5. **How a background agent's primitive is called.** Sub-agents get no shell (SR-30 to SR-33) while a primitive is a command of the binary. The parent may have to run it on the agent's behalf, or an exact allowed form may be pinned. This needs a design before any agent is built.
-6. **The question queue:** where it is stored, what the Planner ranks on, and who may add to it.
-7. **The merge pass** with the four-part test, and which coordinators become primitive-only.
-8. **The learning topic list:** the topics, their writer-facing names and their prerequisites.
-9. **Reader's view:** what the reader knows versus what characters know is folded into Sequence for now; it may need to be its own concern.
-10. **The digest of Proposed choices** (Project docs, `proposed-and-open-choices-digest.md`) does not yet include this session's choices; planning agenda item 5 should add them.
+*Updated November 16, 2026 (planning session 11): settled items are in the sections above; what remains:*
+
+1. **Argument sides as saved records** and several faces of the argument (see Embodiments).
+2. **How a background agent's primitive is called:** the pinned-commands choice is *Proposed* (see "The Interviewer and the other agents"); still to verify that the harness can pin exact command forms for a background agent, and to reword SR-31.
+3. **The rest of the merge pass:** each remaining agent gets the four-part test in its own agent-specific session; every adversary pairing stays *Proposed* until then.
+4. **The learning topics:** each agent adds its own in its session; the writer command's name is open.
+5. **Reader's view:** what the reader knows versus what characters know is folded into Sequence for now; it may need to be its own concern.
+6. **The digest of Proposed choices** (Project docs, `proposed-and-open-choices-digest.md`) does not yet include these sessions' choices; planning agenda item 5 should add them.
+7. **The first build's own plan** (foundations plus the Interviewer-and-Continuity pair), for the author's approval.
