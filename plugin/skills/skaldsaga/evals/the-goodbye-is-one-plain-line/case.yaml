@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: the-goodbye-is-one-plain-line
+expected_outcome: |
+  Everything the writer has said is saved. Asked what gets in the way, the writer says that is all
+  for today and asks to save. The skill records the stop with the reason that the writer said they
+  were done, saves one snapshot with exactly the paths the stop returned and the message file the
+  program wrote, and ends with one plain line and no question. The line says the story is saved
+  and that next time picks up from here, in fresh wording. It does not name or suggest a next area
+  (the recap at the start of the next session does that), and it does not use a ready-made sentence.
+
+context:
+  scaffold_script: place-files.sh

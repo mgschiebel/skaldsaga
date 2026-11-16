@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: the-drift-question-asks-where-the-writer-is-heading
+expected_outcome: |
+  The writer, asked what gets in the way, answers with a sudden new idea that points somewhere
+  else (the whole city is flooded and they have to row). The skill never refuses and never calls it
+  off topic. It keeps the idea as a loose idea, recorded as not confirmed. The turn is a general
+  reminder, as a statement, of the topic the interview was on (what gets in the way), with no
+  specific scene and a note that what the writer said is kept either way, followed by one open
+  question about where they are heading with it. The question is not yes or no, it does not decide
+  for the writer whether the idea belongs, and the turn does not open with "That's interesting".
+  A new inspiration or a lost thread could both answer it.
+
+context:
+  scaffold_script: place-files.sh

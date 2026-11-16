@@ -1,7 +1,7 @@
 schema_version: "1.1"
 name: tangent-gets-a-gentle-question-and-is-kept-as-a-loose-idea
 expected_outcome: |
-  The writer has twice added details that do not connect to the story they described (a long description of their own cat's habits, then a recipe). The skill never refuses and never calls it off topic. It keeps the latest tangent as a loose idea, recorded as not confirmed and not as part of the story, and asks one gentle question: whether it is part of the story they told it about, naming where the story was heading, and says it will hold on to it either way. It does not save the tangent as part of the story.
+  The writer has twice added details that do not connect to the story they described (a long description of their own cat's habits, then a recipe). The skill never refuses and never calls it off topic. It keeps the latest tangent as a loose idea, recorded as not confirmed and not as part of the story. The turn has two parts and one question, in fresh wording with no ready-made sentence: a general reminder, as a statement, of the topic the interview was on (what gets in the way, with no specific scene) and a note that what they said is kept either way; then one open question about where they are heading with it, which is not a yes/no question. It does not open with "That's interesting". It does not save the tangent as part of the story.
 
 context:
   scaffold_script: place-files.sh
