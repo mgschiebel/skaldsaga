@@ -1,0 +1,23 @@
+schema_version: "1.1"
+name: a-liked-idea-shows-what-it-would-break-before-saving
+expected_outcome: |
+  A saved idea says Jack and Jill meet by accident on a night bus, tied to how the story begins. The
+  writer replies "ooh, the night bus one." Interested counts as picked. The skill drafts the change
+  from the idea as the story stands and runs the ripple preview before anything is filed. Nothing in
+  the story would break, so it goes on with no "are you sure?": it files the change, checks it and
+  saves it the normal way, and only after the change is saved marks the idea picked, with the idea's
+  file in that same snapshot. The reply says what is now in the story as a statement and moves on to
+  the next story question.
+
+context:
+  scaffold_script: place-files.sh
+---
+tags: [skaldsaga, interview, brainstorm]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga
+
+Earlier in this conversation you offered a round of ideas for how the story begins, and one was that Jack and Jill meet by accident on a night bus. The writer replied: "ooh, the night bus one." Carry on from there.

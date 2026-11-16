@@ -22,7 +22,9 @@
 
 use crate::commit::{self, CommitOptions, Outcome};
 use crate::fsio::FsError;
+use crate::idea::{self, IdeaError};
 use crate::marker::{self, MarkerError, Topic};
+use crate::model::IdeaOrigin;
 use crate::project::Project;
 use crate::propose::{self, ProposeError};
 use crate::spec;
@@ -256,6 +258,10 @@ const RESUME_DRAFT: &str = r#"{
 /// confirmed, so it stays out of the story and lives in the marker only.
 const RESUME_LOOSE_IDEA: &str = "maybe they enter a dark alley";
 
+/// A held idea the writer was offered earlier, tied to how the story begins,
+/// so the recap's one mention of it can be tried.
+const RESUME_HELD_IDEA: &str = "They could meet by accident on a night bus.";
+
 fn write_resume(project: &Project, when: When<'_>) -> Result<Filed, ScenarioError> {
     let id = propose::file(project, RESUME_DRAFT, when.created).map_err(|e| match e {
         ProposeError::Fs(e) => ScenarioError::Fs(e),
@@ -277,6 +283,17 @@ fn write_resume(project: &Project, when: When<'_>) -> Result<Filed, ScenarioErro
     marker::record_answer(project, RESUME_LOOSE_IDEA, false, when.date)?;
     let recorded = marker::record_ask(project, Topic::People, when.date)?;
     add_paths.push(recorded.path);
+    let held = idea::add(
+        project,
+        RESUME_HELD_IDEA,
+        IdeaOrigin::Brainstorm,
+        &["setup".to_string()],
+    )
+    .map_err(|e| match e {
+        IdeaError::Fs(e) => ScenarioError::Fs(e),
+        IdeaError::Invalid(m) => ScenarioError::Pipeline(format!("idea refused: {m}")),
+    })?;
+    add_paths.push(held.path);
     Ok(Filed {
         outcome: ScenarioOutcome::Written,
         add_paths,

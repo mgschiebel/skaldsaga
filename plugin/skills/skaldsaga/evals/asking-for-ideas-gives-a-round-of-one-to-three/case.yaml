@@ -1,0 +1,24 @@
+schema_version: "1.1"
+name: asking-for-ideas-gives-a-round-of-one-to-three
+expected_outcome: |
+  The story is saved as a modern Jack and Jill, set in a city at night, with Jack and Jill in it and
+  no summary yet for any part of the plot. The writer asks: "Can you give me some ideas for how it
+  ends?" The skill runs a round aimed at the ending, because the writer named it. It offers one to
+  three ideas (never more), each as one line with a short reason it might fit, grown from what is
+  saved (Jack and Jill, a city at night). Each idea is saved through the program as a brainstormed
+  idea tied to the ending, with its text taken from the scratch file, and the whole round gets one
+  snapshot. The reply offers the ideas and stops: it does not end in a confirmation question or ask
+  whether they want more, and it does not tell the writer the ideas are saved.
+
+context:
+  scaffold_script: place-files.sh
+---
+tags: [skaldsaga, interview, brainstorm]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga
+
+Earlier in this conversation you gave the recap of the story and asked how it begins. The writer's latest message is: "Can you give me some ideas for how it ends?" Carry on from there.

@@ -102,8 +102,10 @@ Usage:
                                      touches: node IDs or the stage names premise, people,
                                      setup, complications, crisis, resolution. The same text is
                                      never saved twice. Prints JSON, including the path for git
+                                     and, when it saved something, a message file
   skaldsaga idea mark --id ID --status picked|set_aside [--project DIR]
-                                     Records that the writer picked an idea or waved it off
+                                     Records that the writer picked an idea or waved it off.
+                                     Prints the path for git and a message file when it changed
   skaldsaga idea list [--touching PART] [--project DIR]
                                      Read-only. The held ideas, or only those touching one node
                                      ID or stage name. Prints JSON
@@ -1132,8 +1134,10 @@ fn idea_error(e: IdeaError) -> CliError {
 }
 
 /// Held ideas: saving one, marking one picked or set aside, and listing the
-/// held ones (`idea` module). A write never gets a snapshot of its own; the
-/// file is returned so the skill can stage it with the next real save.
+/// held ones (`idea` module). A write makes no snapshot itself: it returns the
+/// file to stage and, because a round or a parked tangent is snapshotted right
+/// away and a status change rides with the next snapshot of any kind, a message
+/// file the skill can commit with. The message holds no idea text (SR-32).
 fn idea_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
     match sub {
         "add" => {
@@ -1166,14 +1170,15 @@ fn idea_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
             );
             v.set("id", added.id.as_str().into());
             v.set("status", added.status.as_str().into());
-            v.set(
-                "add_paths",
-                if added.existing {
-                    strings(&[])
-                } else {
-                    strings(&[added.path])
-                },
-            );
+            if added.existing {
+                v.set("add_paths", strings(&[]));
+            } else {
+                v.set("add_paths", strings(&[added.path]));
+                v.set(
+                    "message_file",
+                    message_file(&project, "Skaldsaga: keep an idea for later")?,
+                );
+            }
             print_json(&v)
         }
         "mark" => {
@@ -1202,14 +1207,15 @@ fn idea_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
             );
             v.set("id", marked.id.as_str().into());
             v.set("status", marked.status.as_str().into());
-            v.set(
-                "add_paths",
-                if marked.changed {
-                    strings(&[marked.path])
-                } else {
-                    strings(&[])
-                },
-            );
+            if marked.changed {
+                v.set("add_paths", strings(&[marked.path]));
+                v.set(
+                    "message_file",
+                    message_file(&project, "Skaldsaga: update an idea")?,
+                );
+            } else {
+                v.set("add_paths", strings(&[]));
+            }
             print_json(&v)
         }
         "list" => {

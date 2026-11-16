@@ -2,11 +2,14 @@ schema_version: "1.1"
 name: mid-thread-recap-names-the-story-and-asks-one-question
 expected_outcome: |
   A story was left mid-thread: a premise (a modern Jack and Jill, set in a city at night), two
-  people (Jack and Jill), no summary for any part of the plot, and a loose idea the writer floated
-  (a dark alley). The writer types /skaldsaga with nothing after it. The skill gives two or three
+  people (Jack and Jill), no summary for any part of the plot, a loose idea the writer floated
+  (a dark alley) and a saved idea tied to how the story begins (Jack and Jill meet by accident on
+  a night bus). The writer types /skaldsaga with nothing after it. The skill gives two or three
   plain sentences that name the story and Jack and Jill, mentions the dark alley as something the
-  writer floated, not decided, then asks one question about how the story begins. Nothing in the
-  folder changes: no file is written and no snapshot is saved before the writer answers.
+  writer floated, not decided, then asks one question about how the story begins. It may mention
+  the night-bus idea, once, in the writer's own words, as a way to answer that one question, never
+  as a second question. Nothing in the folder changes: no file is written and no snapshot is saved
+  before the writer answers.
 
 context:
   scaffold_script: place-files.sh

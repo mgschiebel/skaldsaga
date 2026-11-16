@@ -1,0 +1,22 @@
+schema_version: "1.1"
+name: i-dont-know-offers-a-round-of-ideas
+expected_outcome: |
+  The writer answered "I don't know." to the question about how the story begins. It is their first
+  unsure answer, so it is not yet a stopping point. The skill offers a round of ideas for how the
+  story begins (the topic the interview is on): one offer, as the turn's only question, in fresh
+  wording with no ready-made sentence. It does not start the round before the writer says yes, saves
+  nothing, saves no idea and takes no snapshot. It does not offer other parts of the story to look
+  at, and does not run the stop command.
+
+context:
+  scaffold_script: place-files.sh
+---
+tags: [skaldsaga, interview, brainstorm]
+max_turns: 25
+timeout_seconds: 600
+allowed_tools: [Read, Glob, Write, Bash, Skill]
+---
+
+/skaldsaga
+
+Earlier in this conversation you gave the recap of the story and asked how it begins. The writer answered: "I don't know." Carry on from there.

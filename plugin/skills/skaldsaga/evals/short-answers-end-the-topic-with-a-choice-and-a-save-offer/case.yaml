@@ -1,7 +1,7 @@
 schema_version: "1.1"
 name: short-answers-end-the-topic-with-a-choice-and-a-save-offer
 expected_outcome: |
-  The writer has given two short, unsure answers in a row ("I don't know", "not sure") to questions about the same part of the story. The skill recognises a stopping point, says in one or two sentences, built from the writer's own words and in fresh wording rather than a ready-made sentence, what that part added to the story, offers two or three other parts of the story to look at next with one marked as its suggestion (not the part that just ran dry), and adds one short line offering to save where they are. The choice is the only question. It does not record a stopping point yet, because the writer has not said they want to stop.
+  The writer has been unsure twice about the same part of the story: an unsure answer got the offer of a round of ideas, and the writer declined it ("nah, not really"). The skill recognises a stopping point, says in one or two sentences, built from the writer's own words and in fresh wording rather than a ready-made sentence, what that part added to the story, offers two or three other parts of the story to look at next with one marked as its suggestion (not the part that just ran dry), adds throwing some ideas around as one more choice (never the suggestion), and adds one short line offering to save where they are. The choice is the only question. It does not record a stopping point yet, because the writer has not said they want to stop.
 
 context:
   scaffold_script: place-files.sh
@@ -14,4 +14,4 @@ allowed_tools: [Read, Glob, Write, Bash, Skill]
 
 /skaldsaga
 
-Earlier in this conversation you gave the recap of the story and asked how it begins. The writer answered "I don't know, they just leave a party I guess", and you reworded it and they said yes, which was saved. You asked one more question about how it begins and the writer answered "not sure". Carry on from there.
+Earlier in this conversation you gave the recap of the story and asked how it begins. The writer answered "they just leave a party I guess", and you reworded it and they said yes, which was saved. You asked one more question about how it begins and the writer answered "not sure". You offered to throw some ideas around for how it begins, and the writer answered "nah, not really". Carry on from there.
