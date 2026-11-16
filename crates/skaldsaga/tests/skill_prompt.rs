@@ -1,7 +1,7 @@
 //! Script tests on the skill's own text (HANDOFF, Ready to build, Slice 1,
 //! item 5; `delivery.md`, Testing and evals, part 3).
 //!
-//! Every line meant for the writer sits in a ```` ```say ```` block in
+//! Every fixed line meant for the writer sits in a ```` ```say ```` block in
 //! `SKILL.md`. A deterministic scan checks that none of them uses an internal
 //! word, so the writer never meets the program's own vocabulary. The same
 //! file's tool permissions and commands are checked too, so a later edit
@@ -320,13 +320,51 @@ fn the_note_of_where_things_stand_never_gets_a_snapshot_of_its_own() {
     assert!(offer.contains("session save --taken yes"));
     assert!(offer.contains("session save --taken no"));
     assert!(offer.contains("meter check"));
-    // Offers are plain questions, never orders, and say what they save.
-    for (line, body) in say_blocks(&offer) {
+    // Offers are described by what they must get across, never given as a sentence to copy.
+    assert!(
+        say_blocks(&offer).is_empty(),
+        "the offers must not carry a say block"
+    );
+    for needed in [
+        "plain question, never an order",
+        "where the story stands can be saved, so there is a safe point to come back to",
+        "The wording is new each time; never reuse a sentence from an earlier offer",
+    ] {
+        assert!(offer.contains(needed), "missing from the offers: {needed}");
+    }
+    for stock in [
+        "Want me to save where we are",
+        "so there's a safe point to come back to?",
+        "Shall I save?",
+    ] {
         assert!(
-            body.trim_end().ends_with('?'),
-            "an offer is a question (line {line}): {body}"
+            !text.contains(stock),
+            "a stock save offer is back in the skill: {stock}"
         );
     }
+}
+
+#[test]
+fn the_plain_offer_waits_and_a_due_offer_takes_a_turn_of_its_own() {
+    let text = skill_text();
+    let offer = section(&text, "### Offering to save");
+    // The plain offer waits for the current answer; it never interrupts a question just asked.
+    assert!(offer.contains("waits until the current answer is dealt with"));
+    assert!(offer.contains("never interrupts a question you just asked"));
+    // The strong ones still interrupt.
+    assert_eq!(
+        offer.matches("It does not wait.").count(),
+        2,
+        "the strong recommendation and the too-long line do not wait"
+    );
+    // A due offer is the reflection and then the offer, with no story question.
+    assert!(offer.contains("A due offer takes a turn of its own."));
+    assert!(offer.contains("with no story question"));
+    assert!(offer.contains("the offer is the turn's only question"));
+    // All three strengths are still there, keyed to the program's states.
+    assert!(offer.contains("`save_offer` true"));
+    assert!(offer.contains("`suggest_wrap_up`"));
+    assert!(offer.contains("`wrap_up`"));
 }
 
 #[test]
@@ -370,31 +408,43 @@ fn reaching_a_stopping_point_offers_a_choice_and_a_save_and_records_a_believable
     // The snapshot is exactly what the stop returned, with the program's message file.
     assert!(reach.contains("git add -- <each path in add_paths>"));
     assert!(reach.contains("git commit -q -F <message_file>"));
-    // A goodbye is a fixed line for the writer. The notice about an answer that isn't
-    // saved is not: its meaning is fixed in the instructions, its wording is new each time.
-    let lines = say_blocks(&reach);
+    // Nothing in this section is a sentence to copy: the turn, the notice about an answer
+    // that isn't saved and the goodbye are described by their meaning, worded afresh.
+    assert!(
+        say_blocks(&reach).is_empty(),
+        "the stopping point must not carry a say block"
+    );
     assert!(
         reach.contains("not saved yet") && reach.contains("may be lost the next time they start"),
         "the instructions must say what the unsaved-answer notice means"
-    );
-    assert!(
-        lines.iter().all(|(_, body)| !body.contains("may be lost")),
-        "the unsaved-answer notice must not be a sentence to copy"
     );
     // A deliberate stop checks a waiting answer first; the notice is the fallback.
     assert!(reach.contains("check it before stopping"));
     assert!(reach.contains("give the plain notice instead"));
     // Stopping without saving records nothing.
     assert!(reach.contains("record nothing"));
-    // The save is an offer in the same line as the choice, so it adds no second question.
-    let first = lines.first().expect("the choice line");
-    assert_eq!(
-        first.1.matches('?').count(),
-        1,
-        "the choice is the only question in the line: {}",
-        first.1
+    // The turn is built from three described parts, in the writer's own words and the
+    // rotating reflection moves, so two stopping points in a session do not sound alike.
+    for needed in [
+        "worded afresh each time, with no sentence to copy",
+        "built from what the writer confirmed this session, in their own words",
+        "the same rotating moves as a reflection",
+        "not the move you used last time",
+        "**The areas to look at next:**",
+        "**One short line offering to save where things stand.**",
+    ] {
+        assert!(reach.contains(needed), "missing from the turn: {needed}");
+    }
+    // The save is an offer beside the choice, so it adds no second question.
+    assert!(reach.contains("The choice of areas is the turn's only question"));
+    assert!(reach.contains("an offer, not a second question"));
+    // The goodbye is one plain line with no question, and never names a next area.
+    assert!(reach.contains("**The goodbye** is one plain line with no question"));
+    assert!(reach.contains("It never names a next area"));
+    assert!(
+        !text.contains("Saved. Next time I'll pick it up from here."),
+        "the stock goodbye is back in the skill"
     );
-    assert!(first.1.contains("I can save where we are"));
 }
 
 #[test]
@@ -410,15 +460,58 @@ fn the_drift_guard_keeps_the_tangent_as_a_loose_idea_and_never_confirms_it() {
     );
     assert!(!drift.contains("skaldsaga propose"));
     // It asks, it never refuses.
-    let lines = say_blocks(&drift);
-    assert_eq!(lines.len(), 1);
+    assert!(drift.contains("Never refuse, never call it off topic"));
+}
+
+#[test]
+fn the_drift_question_is_a_reminder_and_one_open_question_with_no_sample_text() {
+    let text = skill_text();
+    let drift = section(&text, "### When the story drifts");
     assert!(
-        lines[0]
-            .1
-            .contains("Is it part of the story you told me about?")
+        say_blocks(&drift).is_empty(),
+        "the drift question must not carry a say block"
+    );
+    for needed in [
+        "two parts and one question, worded afresh each time, with no sentence to copy",
+        "**A general reminder, as a statement,**",
+        "with no specific scene",
+        "what they said is kept either way",
+        "**One open question** about where they are heading with it",
+        "It is not a yes/no question",
+        "The open question is the turn's only question",
+        // A new inspiration becomes the focus; a lost thread goes back.
+        "A new inspiration becomes the new focus",
+        "A lost thread goes back to the topic",
+    ] {
+        assert!(
+            drift.contains(needed),
+            "missing from the drift step: {needed}"
+        );
+    }
+    // The old yes/no question, its stock opening and the follow-or-return question are gone.
+    for gone in [
+        "Is it part of the story you told me about?",
+        "That's interesting.",
+        "whether to follow it or go back",
+    ] {
+        assert!(!text.contains(gone), "an old drift line is back: {gone}");
+    }
+}
+
+#[test]
+fn the_line_at_the_end_of_a_thread_is_described_not_given_as_a_sentence() {
+    let text = skill_text();
+    let focus = section(&text, "### Following the writer's focus");
+    assert!(focus.contains("**The line at the end of a thread.**"));
+    assert!(focus.contains("carrying on from here isn't built yet"));
+    assert!(focus.contains("its wording is new each time"));
+    assert!(
+        say_blocks(&focus).len() == 1,
+        "only the one question about a moment remains in a say block"
     );
     assert!(
-        !drift.to_lowercase().contains("off topic\"") || drift.contains("never call it off topic")
+        !text.contains("That's a good start."),
+        "the stock end-of-thread line is back in the skill"
     );
 }
 
@@ -489,16 +582,31 @@ fn a_clear_answer_is_saved_when_the_writer_carries_on_and_a_guess_gets_a_real_qu
 }
 
 #[test]
-fn the_four_worded_afresh_lines_are_named_and_kept_out_of_say_blocks() {
+fn the_nine_worded_afresh_lines_are_named_and_kept_out_of_say_blocks() {
     let text = skill_text();
-    assert!(text.contains("never taken from a `say` block or from an earlier turn"));
+    assert!(
+        text.contains("Nine things are never taken from a `say` block or from an earlier turn")
+    );
     for line in [
         "the reflection after an answer",
         "the real question about a guess",
         "the quick check when the writer stops",
         "the notice about an answer that isn't saved",
+        "the offers to save",
+        "the turn at a stopping point",
+        "the question when the story drifts",
+        "the goodbye",
+        "the line at the end of a thread",
     ] {
         assert!(text.contains(line), "not named as worded afresh: {line}");
+    }
+    // The session-start recaps and the once-per-session lines keep their fixed lines on purpose.
+    for kept in [
+        "You're writing a modern Jack and Jill, set in a city at night",
+        "I'm not finding a story in this folder.",
+        "What's the story, even a scrap?",
+    ] {
+        assert!(text.contains(kept), "a fixed line was removed: {kept}");
     }
 }
 

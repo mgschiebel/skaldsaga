@@ -29,9 +29,9 @@ A **complete, detailed outline** of your story:
 
 ## What you'll need
 
-- **Claude Code**, Anthropic's assistant, installed on your computer. Skaldsaga runs inside it. For now it works on Linux; Mac and Windows are planned for the first public release.
-- **A Claude account that includes Claude Code**, such as a paid Claude plan. Skaldsaga uses your Claude account for the conversation; there's nothing else to pay for.
-- **Git**, a free tool that keeps a history of your story so you can always go back. Many computers already have it, and Skaldsaga tells you if yours doesn't.
+- **Claude Code**, Anthropic's assistant, installed on your computer. Skaldsaga runs inside it. Anthropic's [setup page](https://code.claude.com/docs/en/setup) has the install steps for each kind of computer, and there is a [guide for people who have never used a terminal](https://code.claude.com/docs/en/terminal-guide). For now Skaldsaga works on Linux; Mac and Windows are planned for the first public release.
+- **A Claude account that includes Claude Code.** A Pro, Max, Team or Enterprise plan does; the free plan doesn't. You log in the first time you start Claude Code. Skaldsaga uses your Claude account for the conversation; there's nothing else to pay for.
+- **Git**, a free tool that keeps a history of your story so you can always go back. You can get it from [git-scm.com/downloads](https://git-scm.com/downloads). Many computers already have it, and Skaldsaga tells you if yours doesn't.
 
 You don't need a GitHub account.
 
@@ -47,23 +47,30 @@ You don't need a GitHub account.
 2. **Open an empty folder for your story** in Claude Code. Use a new, empty folder for each story.
 3. **Type `/skaldsaga`.** That's the only command you need to remember. You can type your idea right after it, or just press enter and Skaldsaga will ask what your story is about.
 
+**Getting a newer version.** In Claude Code, type `/plugin marketplace update skaldsaga`, then start a fresh session. If you'd rather it happen on its own, type `/plugin`, choose **Marketplaces**, pick `skaldsaga` and select **Enable auto-update**.
+
 ## Writing your story
 
-Skaldsaga asks one question at a time, about things you can picture: a scene, a character, a moment. It works out the bigger structure from your answers. It says back what it understood in its own words, and keeps an answer once you've confirmed it or simply carried on past it. When it's guessing at what you mean ("It sounds like your hero ends up changing. Is that right?"), it asks you first. If it gets something wrong, say so and it fixes it before keeping anything.
+Skaldsaga asks one question at a time, about things you can picture: a scene, a character, a moment. It works out the bigger structure from your answers. It says back what it understood in its own words, and keeps an answer once you've confirmed it or simply carried on past it. When it's guessing at what you mean, it asks you first. If it gets something wrong, say so and it fixes it before keeping anything.
 
 **Take breaks whenever you like.** Your answers are saved as you go. Next time, open the same folder and type `/skaldsaga` on its own. If you stopped in the middle of something, Skaldsaga gives you a short recap of what you've decided and asks the one question that picks things back up. When a part of your story has run its course, or your answers get short, Skaldsaga stops to say what that part added, offers a few things to look at next (with a suggestion), and offers to save where you are. If you stop at that point, next time it suggests where to start.
 
-**Skaldsaga stays on your story.** If you wander off on a tangent, it asks, gently, whether the idea belongs to the story you told it, and holds on to the idea either way. You choose whether to follow it or go back.
+**Skaldsaga stays on your story.** If you wander off on a tangent, it reminds you what you were working on, says it is keeping what you said, and asks where you're heading with it. It might be a new idea or a lost thread; either is fine. A new idea becomes what you work on next, and a lost thread takes you back to where you were.
 
-**You don't have to know the answers yet.** If you're unsure, say so. Skaldsaga keeps it as "to be decided" and comes back when the story makes it clearer. If you're stuck, it can offer "what if" ideas built from your own.
+**You don't have to know the answers yet.** If you're unsure, say so. Skaldsaga keeps it as "to be decided" and comes back when the story makes it clearer.
 
 **You can change your mind.** If a new answer conflicts with an earlier one, Skaldsaga points it out while the topic is fresh and lets you choose what to keep.
 
 **Your story stays yours.** Skaldsaga keeps your story in plain files in your folder, and it never changes your writing behind your back.
 
+## You'll pick up the craft along the way
+
+Skaldsaga teaches as it goes, with no quizzes. Along the way you'll meet a few common craft terms, each explained in plain words when a question needs it. Before long you'll be using your own names for the people, places and moments in your story instead.
+
 ## What's not ready yet
 
 - Carrying on past the basic shape of the story (how it begins, what gets in the way, the worst moment, the ending).
+- Offering "what if" ideas when you're stuck.
 - Bringing in writing you already have, such as drafts and notes. For now, start in an empty folder.
 - Later stages: drafting scenes in your own voice, editing, and preparing a finished story for publishing (an e-book, a print book or a web serial).
 
@@ -73,12 +80,7 @@ Skaldsaga draws on many ideas about how stories work. Its early design was inspi
 
 ## For contributors
 
-Skaldsaga is free and open source, and the project is still in active development. If you'd like to help, start here:
-
-- [`CONTRIBUTING.md`](CONTRIBUTING.md): the rules for contributions, including licensing
-- [`HANDOFF.md`](HANDOFF.md): where the project stands, what's next, and a guide to the design documents in [`docs/`](docs/)
-- [`ARCHITECTURE.md`](ARCHITECTURE.md): a one-page sketch of how the pieces fit together
-- [`docs/background.md`](docs/background.md): where the ideas came from, with research notes and attribution
+Skaldsaga is free and open source, and the project is still in active development. If you'd like to help, start with [`CONTRIBUTING.md`](CONTRIBUTING.md), then [`HANDOFF.md`](HANDOFF.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## License
 

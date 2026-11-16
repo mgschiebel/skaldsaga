@@ -346,7 +346,7 @@ characters: [p-0007, p-0002]   # fog only: who the subplot involves
 - **Landmarks live on the arc (v9),** not on scenes: one entry per landmark makes "one inciting incident per arc" hold by shape, avoids ambiguity when a scene is a landmark for both the main story and a subplot, lets movement boundaries be derived from one small map, and makes missing landmarks visible as empty entries.
 - `dramatic_question` and `thematic_question` (v7; replace `central_question`) feed the argument-coherence check; `premise.history` is the versioned baseline the housekeeper uses for drift.
 
-### Idea (planned November 8, 2026, planning session 7; not built)
+### Idea (planned November 8, 2026, planning session 7; build plan approved by the author November 16, 2026; not built)
 
 A held idea (a brainstormed idea or a parked tangent) is its own node. Layout is settled one decision at a time below.
 

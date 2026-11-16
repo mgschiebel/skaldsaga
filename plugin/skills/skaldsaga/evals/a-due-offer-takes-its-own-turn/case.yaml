@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: a-due-offer-takes-its-own-turn
+expected_outcome: |
+  Nine answers have been confirmed since the last save offer, and a tenth is waiting, said back as
+  a statement. The writer's new message answers the next question and corrects nothing, which counts
+  as a yes. The skill saves the waiting answer through the program first, which makes the tenth
+  confirmed answer and makes the plain save offer due. It records the new answer as waiting. The
+  turn is then the reflection of the new answer, as a statement in fresh wording, followed by the
+  offer to save as a plain question, and nothing else: it does not ask the next story question in
+  the same turn, because a due offer takes a turn of its own.
+
+context:
+  scaffold_script: place-files.sh
