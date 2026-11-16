@@ -4,6 +4,6 @@ Each folder is one case in the layout `claude plugin eval` reads (see the skill-
 
 Twenty-one of the cases (`i-dont-know-*`, `asking-for-ideas-*`, `a-liked-idea-*`, `a-saved-idea-*`, `mid-thread-*`, `save-offer-*`, `wrap-up-*`, `resume-from-*`, `short-answers-*`, `skipping-the-check-*`, `stop-after-*`, `tangent-*`, `carrying-on-*`, `a-correction-*`, `a-guess-*`, `reflections-vary-*`, `a-stated-place-*`, `a-due-offer-*`, `the-drift-question-*` and `the-goodbye-*`) need the `skaldsaga` program: put it on PATH or set `SKALDSAGA_BIN` to it; their setup scripts use the `resume` scenario.
 
-Entry routing itself is deterministic and covered by script tests (`crates/skaldsaga/tests/entry_cli.rs`), not here. A script test also scans every writer-facing line in `SKILL.md` for internal words (`crates/skaldsaga/tests/skill_prompt.rs`).
+Entry routing itself is deterministic and covered by script tests (`crates/skaldsaga/tests/entry_cli.rs`), not here. A script test also scans every writer-facing line in `SKILL.md` and its reference files for internal words (`crates/skaldsaga/tests/skill_prompt.rs`).
 
 Run from this skill's folder: `claude plugin eval . --allow-tools Write,Edit,Bash --scaffold`. These are real, billed model runs. This folder is left out of the installable plugin.
