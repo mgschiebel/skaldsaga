@@ -21,6 +21,7 @@ pub mod decisions;
 pub mod entry;
 pub mod fsio;
 pub mod hooks;
+pub mod idea;
 pub mod ids;
 pub mod index;
 pub mod init;

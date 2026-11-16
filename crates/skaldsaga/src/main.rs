@@ -20,18 +20,21 @@ use skaldsaga_core::decisions::{self, DecisionError};
 use skaldsaga_core::entry;
 use skaldsaga_core::fsio::{self, Refused};
 use skaldsaga_core::hooks;
+use skaldsaga_core::idea::{self, IdeaError};
 use skaldsaga_core::index;
 use skaldsaga_core::init::{self, InitOutcome, InitReport};
 use skaldsaga_core::json::{self, Value, ValueExt as _};
 use skaldsaga_core::marker::{self, MarkerError};
 use skaldsaga_core::meter::{self, StatusInput};
+use skaldsaga_core::model::{IdeaOrigin, IdeaStatus};
 use skaldsaga_core::project::{self, Location, Project};
 use skaldsaga_core::propose::{self, ProposeError};
 use skaldsaga_core::recap;
 use skaldsaga_core::safety;
 use skaldsaga_core::scenario::{self, Scenario, ScenarioOutcome};
 use skaldsaga_core::session;
-use skaldsaga_core::settings::{self, MeterSettings, SessionSettings};
+use skaldsaga_core::settings::{self, MeterSettings, RoutingSettings, SessionSettings};
+use skaldsaga_core::spec;
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
 
 const USAGE: &str = "\
@@ -87,6 +90,23 @@ Usage:
                                      Checks pending proposals in .harness/inbox (all, or the
                                      ones named) against the spec and writes each verdict into
                                      its file. Changes nothing in the spec. Prints JSON
+  skaldsaga check --ripple FILE [--project DIR]
+                                     Ripple preview: applies the change list in FILE (a draft in
+                                     the same shape `propose` takes) to a copy of the story and
+                                     lists only the existing scenes and facts that would stop
+                                     fitting. Files nothing and changes nothing. Prints JSON
+  skaldsaga idea add --text-file FILE --origin tangent|brainstorm [--touches ID,ID]
+                                     [--project DIR]
+                                     Saves a held idea (one or two sentences, at most 300
+                                     characters, from FILE). --touches names the story parts it
+                                     touches: node IDs or the stage names premise, people,
+                                     setup, complications, crisis, resolution. The same text is
+                                     never saved twice. Prints JSON, including the path for git
+  skaldsaga idea mark --id ID --status picked|set_aside [--project DIR]
+                                     Records that the writer picked an idea or waved it off
+  skaldsaga idea list [--touching PART] [--project DIR]
+                                     Read-only. The held ideas, or only those touching one node
+                                     ID or stage name. Prints JSON
   skaldsaga commit --proposal ID [--decision keep_anyway|not_sure] [--cleared] [--project DIR]
                                      Re-checks one proposal and, if it may commit, writes it into
                                      the spec, archives it in .harness/committed and rebuilds the
@@ -164,6 +184,7 @@ fn main() -> ExitCode {
         ["propose", rest @ ..] => run(propose_cmd(rest)),
         ["session", sub, rest @ ..] => run(session_cmd(sub, rest)),
         ["recap", rest @ ..] => run(recap_cmd(rest)),
+        ["idea", sub, rest @ ..] => run(idea_cmd(sub, rest)),
         ["init", rest @ ..] => run(init_cmd(rest)),
         ["index", rest @ ..] => run(index_cmd(rest)),
         ["check", rest @ ..] => run(check_cmd(rest)),
@@ -472,12 +493,20 @@ fn index_cmd(rest: &[&str]) -> Result<(), CliError> {
 
 /// Checks pending proposals. Refuses outside a Skaldsaga project.
 fn check_cmd(rest: &[&str]) -> Result<(), CliError> {
-    let parsed = flags(rest, &["--project", "--proposal"])?;
+    let parsed = flags(rest, &["--project", "--proposal", "--ripple"])?;
     let project = project_from(&parsed);
     if !project.is_initialized() {
         return Err(CliError::Failed(
             "this folder isn't set up for Skaldsaga yet (no .harness folder)".into(),
         ));
+    }
+    if let Some(file) = flag(&parsed, "--ripple") {
+        if flag(&parsed, "--proposal").is_some() {
+            return Err(CliError::Usage(
+                "--ripple can't be used with --proposal".into(),
+            ));
+        }
+        return ripple_cmd(&project, file);
     }
     let only: Vec<String> = parsed
         .iter()
@@ -1071,6 +1100,137 @@ fn propose_cmd(rest: &[&str]) -> Result<(), CliError> {
         }
         Err(ProposeError::Invalid(m)) => Err(CliError::Usage(m)),
         Err(ProposeError::Fs(e)) => Err(CliError::Failed(e.to_string())),
+    }
+}
+
+/// The ripple preview: what an idea's change list would break, without
+/// filing or changing anything (*Decided November 8, 2026*).
+fn ripple_cmd(project: &Project, file: &str) -> Result<(), CliError> {
+    let draft = read_input_file(file, "change list")?;
+    let drafted = match propose::parse_draft(&draft) {
+        Ok(d) => d,
+        Err(ProposeError::Invalid(m)) => return Err(CliError::Usage(m)),
+        Err(ProposeError::Fs(e)) => return Err(CliError::Failed(e.to_string())),
+    };
+    let loaded = spec::load(&project.spec_dir()).map_err(|e| CliError::Failed(e.to_string()))?;
+    let routing = RoutingSettings::load(project).map_err(|e| CliError::Failed(e.to_string()))?;
+    let ripple = check::ripple(&loaded.spec, &drafted.ops, &routing);
+    let r = ripple.to_value();
+    let mut v = json::object();
+    v.set("outcome", "ripple".into());
+    for key in ["would_break", "breaks", "unusable"] {
+        v.set(key, r.get(key).cloned().unwrap_or_default());
+    }
+    print_json(&v)
+}
+
+fn idea_error(e: IdeaError) -> CliError {
+    match e {
+        IdeaError::Invalid(m) => CliError::Usage(m),
+        IdeaError::Fs(e) => CliError::Failed(e.to_string()),
+    }
+}
+
+/// Held ideas: saving one, marking one picked or set aside, and listing the
+/// held ones (`idea` module). A write never gets a snapshot of its own; the
+/// file is returned so the skill can stage it with the next real save.
+fn idea_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
+    match sub {
+        "add" => {
+            let parsed = flags(rest, &["--project", "--text-file", "--origin", "--touches"])?;
+            let origin = match required(&parsed, "--origin")? {
+                "tangent" => IdeaOrigin::Tangent,
+                "brainstorm" => IdeaOrigin::Brainstorm,
+                _ => {
+                    return Err(CliError::Usage(
+                        "--origin must be tangent or brainstorm".into(),
+                    ));
+                }
+            };
+            let touches: Vec<String> = flag(&parsed, "--touches")
+                .map(|list| {
+                    list.split(',')
+                        .map(str::trim)
+                        .filter(|part| !part.is_empty())
+                        .map(String::from)
+                        .collect()
+                })
+                .unwrap_or_default();
+            let text = read_input_file(required(&parsed, "--text-file")?, "idea text")?;
+            let project = require_project(&parsed)?;
+            let added = idea::add(&project, &text, origin, &touches).map_err(idea_error)?;
+            let mut v = json::object();
+            v.set(
+                "outcome",
+                if added.existing { "exists" } else { "saved" }.into(),
+            );
+            v.set("id", added.id.as_str().into());
+            v.set("status", added.status.as_str().into());
+            v.set(
+                "add_paths",
+                if added.existing {
+                    strings(&[])
+                } else {
+                    strings(&[added.path])
+                },
+            );
+            print_json(&v)
+        }
+        "mark" => {
+            let parsed = flags(rest, &["--project", "--id", "--status"])?;
+            let status = match required(&parsed, "--status")? {
+                "picked" => IdeaStatus::Picked,
+                "set_aside" => IdeaStatus::SetAside,
+                _ => {
+                    return Err(CliError::Usage(
+                        "--status must be picked or set_aside".into(),
+                    ));
+                }
+            };
+            let project = require_project(&parsed)?;
+            let marked =
+                idea::mark(&project, required(&parsed, "--id")?, status).map_err(idea_error)?;
+            let mut v = json::object();
+            v.set(
+                "outcome",
+                if marked.changed {
+                    "marked"
+                } else {
+                    "unchanged"
+                }
+                .into(),
+            );
+            v.set("id", marked.id.as_str().into());
+            v.set("status", marked.status.as_str().into());
+            v.set(
+                "add_paths",
+                if marked.changed {
+                    strings(&[marked.path])
+                } else {
+                    strings(&[])
+                },
+            );
+            print_json(&v)
+        }
+        "list" => {
+            let parsed = flags(rest, &["--project", "--touching"])?;
+            let project = require_project(&parsed)?;
+            let held = idea::list(&project, flag(&parsed, "--touching")).map_err(idea_error)?;
+            let mut items = Vec::new();
+            for held_idea in &held {
+                let mut item = json::object();
+                item.set("id", held_idea.id.as_str().into());
+                item.set("text", held_idea.text.as_str().into());
+                item.set("origin", held_idea.origin.as_str().into());
+                item.set("touches", strings(&held_idea.touches));
+                items.push(item);
+            }
+            let mut v = json::object();
+            v.set("outcome", "listed".into());
+            v.set("ideas", Value::Array(items));
+            print_json(&v)
+        }
+        _ => Err(CliError::Usage(format!("unknown idea command '{sub}'"))),
     }
 }
 

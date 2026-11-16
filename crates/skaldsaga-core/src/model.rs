@@ -236,10 +236,13 @@ pub enum NodeType {
     Thread,
     Style,
     Arc,
+    /// A held idea (a brainstormed idea or a parked tangent). Not part of the
+    /// story until the writer picks it.
+    Idea,
 }
 
 impl NodeType {
-    pub const ALL: [NodeType; 9] = [
+    pub const ALL: [NodeType; 10] = [
         NodeType::Person,
         NodeType::Place,
         NodeType::Group,
@@ -249,6 +252,7 @@ impl NodeType {
         NodeType::Thread,
         NodeType::Style,
         NodeType::Arc,
+        NodeType::Idea,
     ];
 
     /// The ID kind nodes of this type use.
@@ -264,6 +268,7 @@ impl NodeType {
             NodeType::Thread => IdKind::Thread,
             NodeType::Style => IdKind::Style,
             NodeType::Arc => IdKind::Arc,
+            NodeType::Idea => IdKind::Idea,
         }
     }
 
@@ -279,6 +284,7 @@ impl NodeType {
             NodeType::Thread => "threads",
             NodeType::Style => "style",
             NodeType::Arc => "arcs",
+            NodeType::Idea => "ideas",
         }
     }
 
@@ -297,6 +303,7 @@ impl NodeType {
             NodeType::Thread => "thread",
             NodeType::Style => "style",
             NodeType::Arc => "arc",
+            NodeType::Idea => "idea",
         }
     }
 }
@@ -573,6 +580,136 @@ pub struct Arc {
     pub characters: Vec<String>,
 }
 
+/// The most characters an idea's text may have (*Decided November 8, 2026*:
+/// one or two sentences, enforced as a character count because a sentence
+/// count is unreliable). A saved idea is read back into the interviewer's
+/// prompt, so a short cap keeps that text small.
+pub const IDEA_TEXT_MAX_CHARS: usize = 300;
+
+/// The most story parts one idea may name in `touches` (*Proposed*: a cap in
+/// the spirit of the other size limits, so a hand-edited file can't grow a
+/// list without end).
+pub const IDEA_TOUCHES_MAX: usize = 24;
+
+/// Where an idea stands (*Decided November 8, 2026*). `set_aside` means the
+/// writer waved it off, so it never resurfaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IdeaStatus {
+    Held,
+    Picked,
+    SetAside,
+}
+
+impl IdeaStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IdeaStatus::Held => "held",
+            IdeaStatus::Picked => "picked",
+            IdeaStatus::SetAside => "set_aside",
+        }
+    }
+}
+
+/// Where an idea came from (*Decided November 8, 2026*): a fixed choice, no
+/// session reference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IdeaOrigin {
+    /// Parked by the drift guard.
+    Tangent,
+    /// Offered in a brainstorming round.
+    Brainstorm,
+}
+
+impl IdeaOrigin {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IdeaOrigin::Tangent => "tangent",
+            IdeaOrigin::Brainstorm => "brainstorm",
+        }
+    }
+}
+
+/// Fields an idea adds. It stores its text and the parts of the story it
+/// touches, not a change list: that is built when the writer leans toward the
+/// idea, from the story as it is then, so a preview never goes stale.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Idea {
+    /// One or two sentences, at most [`IDEA_TEXT_MAX_CHARS`] characters.
+    pub text: String,
+    pub status: IdeaStatus,
+    pub origin: IdeaOrigin,
+    /// Node IDs, or the stage codes `premise`, `people`, `setup`,
+    /// `complications`, `crisis`, `resolution`, for a loose idea with no
+    /// single node to attach to.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub touches: Vec<String>,
+}
+
+impl Idea {
+    /// A short label for the node's required `name`, taken from the text
+    /// (*Proposed*): the first words, cut at a word boundary.
+    pub fn label_for(text: &str) -> String {
+        const LABEL_MAX: usize = 60;
+        let flat: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        if flat.chars().count() <= LABEL_MAX {
+            return flat;
+        }
+        let cut: String = flat.chars().take(LABEL_MAX).collect();
+        let trimmed = match cut.rsplit_once(' ') {
+            Some((head, _)) if !head.is_empty() => head.to_string(),
+            _ => cut,
+        };
+        format!("{trimmed}...")
+    }
+
+    /// Why this idea can't be stored, in plain words, or `None` when it is
+    /// well formed: the text is non-empty and short enough, and every
+    /// `touches` entry is a stage code or the ID of a story node.
+    pub fn problem(&self) -> Option<String> {
+        if self.text.trim().is_empty() {
+            return Some("an idea needs some text".into());
+        }
+        if self.text.chars().count() > IDEA_TEXT_MAX_CHARS {
+            return Some(format!(
+                "an idea's text is limited to {IDEA_TEXT_MAX_CHARS} characters; shorten it to one or two sentences"
+            ));
+        }
+        if self.touches.len() > IDEA_TOUCHES_MAX {
+            return Some(format!(
+                "an idea can name at most {IDEA_TOUCHES_MAX} story parts"
+            ));
+        }
+        let mut seen = std::collections::HashSet::new();
+        for part in &self.touches {
+            if !is_idea_touch(part) {
+                return Some(format!(
+                    "'{part}' isn't a story part an idea can touch (use a node ID or one of the stage names)"
+                ));
+            }
+            if !seen.insert(part.as_str()) {
+                return Some(format!("'{part}' is listed twice in touches"));
+            }
+        }
+        None
+    }
+}
+
+/// True if `part` is something an idea may name in `touches`: a stage code,
+/// or the well-formed ID of a node of any type except another idea. (A fact
+/// lives inside a node, so a fact ID is not a node ID; an idea names the node.)
+pub fn is_idea_touch(part: &str) -> bool {
+    if crate::marker::Topic::parse(part).is_some() {
+        return true;
+    }
+    NodeType::ALL
+        .into_iter()
+        .filter(|t| *t != NodeType::Idea)
+        .any(|t| crate::ids::is_kind(part, t.id_kind()))
+}
+
 /// The fields that depend on a node's type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeBody {
@@ -585,6 +722,7 @@ pub enum NodeBody {
     Thread(Thread),
     Style(Style),
     Arc(Arc),
+    Idea(Idea),
 }
 
 impl NodeBody {
@@ -599,6 +737,7 @@ impl NodeBody {
             NodeBody::Thread(_) => NodeType::Thread,
             NodeBody::Style(_) => NodeType::Style,
             NodeBody::Arc(_) => NodeType::Arc,
+            NodeBody::Idea(_) => NodeType::Idea,
         }
     }
 }

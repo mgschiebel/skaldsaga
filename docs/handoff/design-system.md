@@ -173,7 +173,7 @@ Every node is a Markdown file. Structured data lives in YAML front matter; the b
 
 ```yaml
 id: p-0007
-type: person        # person | place | group | item | scene | decision | thread | style | arc (group, item added in v9)
+type: person        # person | place | group | item | scene | decision | thread | style | arc | idea (group, item added in v9; idea added November 16, 2026)
 name: "Mara Vance"
 aliases: ["Mara", "the courier"]
 summary: "Courier who smuggles letters past the blockade"  # index line
@@ -346,7 +346,7 @@ characters: [p-0007, p-0002]   # fog only: who the subplot involves
 - **Landmarks live on the arc (v9),** not on scenes: one entry per landmark makes "one inciting incident per arc" hold by shape, avoids ambiguity when a scene is a landmark for both the main story and a subplot, lets movement boundaries be derived from one small map, and makes missing landmarks visible as empty entries.
 - `dramatic_question` and `thematic_question` (v7; replace `central_question`) feed the argument-coherence check; `premise.history` is the versioned baseline the housekeeper uses for drift.
 
-### Idea (planned November 8, 2026, planning session 7; build plan approved by the author November 16, 2026; not built)
+### Idea (planned November 8, 2026, planning session 7; built November 16, 2026, #84, program side only)
 
 A held idea (a brainstormed idea or a parked tangent) is its own node. Layout is settled one decision at a time below.
 
@@ -357,7 +357,25 @@ A held idea (a brainstormed idea or a parked tangent) is its own node. Layout is
 - **Ripple preview lists only what would break** (*Decided November 8, 2026*): when the writer leans toward an idea, `check` applies the change list to a copy of the story and reports only the existing scenes and facts that would stop fitting. It does not list new connections, so the preview stays short on a phone and fits the rule that the interviewer speaks up only about conflicts.
 - **Three commands, ripple as a mode of `check`** (*Decided November 8, 2026*): `idea add` creates a held idea with its text, origin and touches; `idea mark` sets the status to picked or set aside; `idea list` is read-only and returns the held ideas that touch a given part, so the skill can mention one at a time. The ripple preview is a mode of the existing `check`, not a new command.
 - **Idea text is capped at one or two sentences** (*Decided November 8, 2026*): the program enforces it as a limit of 300 characters (not a sentence count, which is unreliable) and refuses longer text. A saved idea is read back into the interviewer's prompt, so a short cap keeps that text small; the general 1 MiB cap on story files still applies on top.
-- **Idea IDs use the prefix `idea-`** (*Decided November 8, 2026*): `i-` is already the story-world item prefix, so ideas read `idea-` followed by the usual random part. Ideas live in their own `ideas/` folder like the other nodes. The prefix is added to the ID kinds with the build.
+- **Idea IDs use the prefix `idea-`** (*Decided November 8, 2026*): `i-` is already the story-world item prefix, so ideas read `idea-` followed by the usual random part. Ideas live in their own `ideas/` folder like the other nodes. The prefix is added to the ID kinds with the build (done).
+
+**Built November 16, 2026** (#84, branch `build/brainstorm-idea-node`; `crates/skaldsaga-core/src/idea.rs`; what was built and the choices still *Proposed*: `build-log.md`, Build progress). File shape:
+
+```yaml
+id: idea-stkr2345
+type: idea
+name: The informant is Jonah's sister     # a label cut from the text
+revision: 1
+text: The informant is Jonah's sister.
+status: held                              # held | picked | set_aside
+origin: brainstorm                        # tangent | brainstorm
+touches: [p-jnah2345, crisis]             # node IDs or stage names
+```
+
+- **Written straight in** (*Decided November 16, 2026*): `idea add` and `idea mark` write the node file themselves, through the guarded `Project` methods, and are not filed as proposals. An idea is not part of the story until the writer picks it, so the story checks have nothing to say about it. A write returns the file to stage with the next real save and never makes a snapshot of its own.
+- **Commands:** `idea add --text-file FILE --origin tangent|brainstorm [--touches ID,ID]`, `idea mark --id ID --status picked|set_aside`, `idea list [--touching PART]`, and the ripple preview `check --ripple FILE`. All print JSON.
+- **Ideas are not story references** (*Proposed*): `touches` doesn't appear in backlinks and never blocks deleting the node it names; a touch whose node is gone is stale and matches nothing.
+- **Ripple preview:** `check --ripple FILE` takes a draft in the shape `propose` takes, runs the real check on a copy of the story, and lists only findings that rest on an ID already in the story (`would_break`, `breaks`, and `unusable` when the change list can't be applied). It files and writes nothing.
 
 ### Proposal
 
