@@ -2,6 +2,8 @@
 
 *October 18, 2026. Companion to `HANDOFF.md` (v8), which holds the reasoning and full schemas. Everything here reflects Decided items unless marked* **Proposed***. The project name Skaldsaga and the entry-point skill name `skaldsaga` are Decided; other names of skills, scripts and files are working names. Internal role names (orchestrator, interviewer, housekeeper and so on) are never shown to the writer.*
 
+> **Update, November 16, 2026 (planning session 10).** An architecture review changed parts of this sketch: only the Interviewer talks to the writer; every other agent runs in the background; an agent is a skill plus a primitive, where the primitive is a subcommand group of the one binary; the old orchestrator is split up; and agents check each other in designed pairs. The review is in [`docs/handoff/design-agents.md`](docs/handoff/design-agents.md), with the grid of who checks whom in [`docs/handoff/agent-grid.md`](docs/handoff/agent-grid.md). Its Decided choices replace what is written below; its Proposed ones do not yet. Nothing described here or there is built beyond one skill plus the program.
+
 ## Components
 
 ### Main thread (talks to the writer)
