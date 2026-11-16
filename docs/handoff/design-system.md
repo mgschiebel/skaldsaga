@@ -377,7 +377,7 @@ touches: [p-jnah2345, crisis]             # node IDs or stage names
 - **Ideas are not story references** (*Proposed*): `touches` doesn't appear in backlinks and never blocks deleting the node it names; a touch whose node is gone is stale and matches nothing.
 - **Ripple preview:** `check --ripple FILE` takes a draft in the shape `propose` takes, runs the real check on a copy of the story, and lists only findings that rest on an ID already in the story (`would_break`, `breaks`, and `unusable` when the change list can't be applied). It files and writes nothing.
 
-### Agent records: verdicts, queued questions and what was asked (planned November 16, 2026, planning session 12; built November 16, 2026, #PR, program side only)
+### Agent records: verdicts, queued questions and what was asked (planned November 16, 2026, planning session 12; built November 16, 2026, #92, program side only)
 
 Three small record kinds let the agents leave their work beside the story without a second writer in any folder. They are **not spec nodes**: `spec::load` skips the `verdicts` and `queue` folders, so records add nothing to the checks, the backlinks or the index, and the story loads exactly as it did before them. Each has a checked ID prefix (`verdict-`, `question-`, `asked-`, added to the ID kinds) and its own folder, and **one command writes each folder** (*Decided November 16, 2026*: the owner is the command, not the process).
 
