@@ -58,3 +58,10 @@ path = "fuzz_targets/sequence_ids.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "records"
+path = "fuzz_targets/records.rs"
+test = false
+doc = false
+bench = false

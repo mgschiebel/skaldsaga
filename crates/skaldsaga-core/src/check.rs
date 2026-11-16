@@ -567,6 +567,9 @@ fn kind_word(kinds: &[IdKind]) -> String {
         IdKind::Proposal => "a proposal",
         IdKind::WriterDecision => "a writer decision",
         IdKind::Idea => "an idea",
+        IdKind::Verdict => "a verdict",
+        IdKind::Question => "a question",
+        IdKind::Asked => "a record of a question asked",
     };
     kinds.iter().map(word).collect::<Vec<_>>().join(" or ")
 }

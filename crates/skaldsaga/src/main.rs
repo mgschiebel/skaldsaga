@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use skaldsaga_core::asked;
 use skaldsaga_core::check::{self, InboxEntry};
 use skaldsaga_core::commit::{self, CommitOptions, Decision, Outcome};
 use skaldsaga_core::complete;
@@ -29,13 +30,16 @@ use skaldsaga_core::meter::{self, StatusInput};
 use skaldsaga_core::model::{IdeaOrigin, IdeaStatus};
 use skaldsaga_core::project::{self, Location, Project};
 use skaldsaga_core::propose::{self, ProposeError};
+use skaldsaga_core::question;
 use skaldsaga_core::recap;
+use skaldsaga_core::records::RecordError;
 use skaldsaga_core::safety;
 use skaldsaga_core::scenario::{self, Scenario, ScenarioOutcome};
 use skaldsaga_core::session;
 use skaldsaga_core::settings::{self, MeterSettings, RoutingSettings, SessionSettings};
 use skaldsaga_core::spec;
 use skaldsaga_core::statusline::{self, WireError, WireOutcome};
+use skaldsaga_core::verdict;
 
 const USAGE: &str = "\
 skaldsaga: deterministic scripts for the Skaldsaga story mentor
@@ -109,6 +113,28 @@ Usage:
   skaldsaga idea list [--touching PART] [--project DIR]
                                      Read-only. The held ideas, or only those touching one node
                                      ID or stage name. Prints JSON
+  skaldsaga verdict add --agent NAME --file FILE [--project DIR]
+                                     Records one agent's judgment of one saved answer, from a
+                                     JSON draft in FILE (answer, result, checked, justification).
+                                     The result must be pass or one of the agent's sanctioned
+                                     fails, and every cited item must exist. Prints JSON,
+                                     including the path for git and a message file
+  skaldsaga verdict list [--agent NAME] [--answer ID] [--project DIR]
+                                     Read-only. The verdicts on record, oldest first, each marked
+                                     stale when an item it cited has changed. Prints JSON
+  skaldsaga queue add --agent NAME --file FILE [--project DIR]
+                                     Queues one question an agent wants the writer asked, from a
+                                     JSON draft in FILE (concerns, reason, verdict). Stores no
+                                     wording. Prints JSON, including the path for git and a
+                                     message file
+  skaldsaga queue list [--agent NAME] [--near PART] [--project DIR]
+                                     Read-only. The questions still waiting, ranked: unblocking
+                                     value, then how long each has waited, then those near PART
+                                     (a node ID or stage name). Prints JSON
+  skaldsaga queue mark --question ID --state asked|answered|set_aside [--project DIR]
+                                     Records, in the Interviewer's own record, that a queued
+                                     question was asked, answered or set aside. Prints the path
+                                     for git and a message file when it changed
   skaldsaga commit --proposal ID [--decision keep_anyway|not_sure] [--cleared] [--project DIR]
                                      Re-checks one proposal and, if it may commit, writes it into
                                      the spec, archives it in .harness/committed and rebuilds the
@@ -187,6 +213,8 @@ fn main() -> ExitCode {
         ["session", sub, rest @ ..] => run(session_cmd(sub, rest)),
         ["recap", rest @ ..] => run(recap_cmd(rest)),
         ["idea", sub, rest @ ..] => run(idea_cmd(sub, rest)),
+        ["verdict", sub, rest @ ..] => run(verdict_cmd(sub, rest)),
+        ["queue", sub, rest @ ..] => run(queue_cmd(sub, rest)),
         ["init", rest @ ..] => run(init_cmd(rest)),
         ["index", rest @ ..] => run(index_cmd(rest)),
         ["check", rest @ ..] => run(check_cmd(rest)),
@@ -1237,6 +1265,208 @@ fn idea_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
             print_json(&v)
         }
         _ => Err(CliError::Usage(format!("unknown idea command '{sub}'"))),
+    }
+}
+
+fn record_error(e: RecordError) -> CliError {
+    match e {
+        RecordError::Invalid(m) => CliError::Usage(m),
+        RecordError::Fs(e) => CliError::Failed(e.to_string()),
+    }
+}
+
+/// The time to record in a verdict or a question, to the minute, in UTC.
+fn record_stamp() -> String {
+    let secs = now();
+    format!(
+        "{}T{:02}:{:02}",
+        decisions::date_from_unix(secs),
+        secs % 86_400 / 3_600,
+        secs % 3_600 / 60
+    )
+}
+
+/// The notes about files that couldn't be used, as JSON.
+fn problems_value(problems: &[String]) -> Value {
+    strings(problems)
+}
+
+/// Verdicts: one agent's judgment of one saved answer (`verdict` module). `add`
+/// writes only inside that agent's own folder and takes its content from a file,
+/// never the command line. A write makes no snapshot itself: it returns the file
+/// to stage and a message file the skill can commit with (no verdict text is in
+/// it, SR-32).
+fn verdict_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
+    match sub {
+        "add" => {
+            let parsed = flags(rest, &["--project", "--agent", "--file"])?;
+            let agent = required(&parsed, "--agent")?;
+            let draft = read_input_file(required(&parsed, "--file")?, "verdict")?;
+            let project = require_project(&parsed)?;
+            let added =
+                verdict::add(&project, agent, &draft, &record_stamp()).map_err(record_error)?;
+            let mut v = json::object();
+            v.set(
+                "outcome",
+                if added.existing { "exists" } else { "recorded" }.into(),
+            );
+            v.set("id", added.id.as_str().into());
+            if added.existing {
+                v.set("add_paths", strings(&[]));
+            } else {
+                v.set("add_paths", strings(&[added.path]));
+                v.set(
+                    "message_file",
+                    message_file(&project, "Skaldsaga: record a check of an answer")?,
+                );
+            }
+            print_json(&v)
+        }
+        "list" => {
+            let parsed = flags(rest, &["--project", "--agent", "--answer"])?;
+            let project = require_project(&parsed)?;
+            let listing = verdict::list(
+                &project,
+                flag(&parsed, "--agent"),
+                flag(&parsed, "--answer"),
+            )
+            .map_err(record_error)?;
+            let mut items = Vec::new();
+            for listed in &listing.verdicts {
+                let verdict = &listed.verdict;
+                let mut item = json::object();
+                item.set("id", verdict.id.as_str().into());
+                item.set("agent", verdict.agent.as_str().into());
+                item.set("counterpart", verdict.counterpart.as_str().into());
+                item.set("answer", verdict.answer.as_str().into());
+                item.set("result", verdict.result.as_str().into());
+                let mut checked = Vec::new();
+                for (cited, now) in verdict.checked.iter().zip(&listed.current) {
+                    let mut c = json::object();
+                    c.set("id", cited.id.as_str().into());
+                    c.set("revision", Value::from(u64::from(cited.revision)));
+                    c.set(
+                        "current",
+                        now.map_or(Value::Null, |n| Value::from(u64::from(n))),
+                    );
+                    checked.push(c);
+                }
+                item.set("checked", Value::Array(checked));
+                item.set("justification", verdict.justification.as_str().into());
+                item.set("created", verdict.created.as_str().into());
+                item.set("stale", Value::from(listed.stale));
+                items.push(item);
+            }
+            let mut v = json::object();
+            v.set("outcome", "listed".into());
+            v.set("verdicts", Value::Array(items));
+            v.set("problems", problems_value(&listing.problems));
+            print_json(&v)
+        }
+        _ => Err(CliError::Usage(format!("unknown verdict command '{sub}'"))),
+    }
+}
+
+/// The question queue (`question` and `asked` modules). `add` writes only the
+/// raising agent's own questions; `mark` writes only the Interviewer's record of
+/// what it asked. Both take their content from the command line only as IDs and
+/// fixed words, and from a file for anything longer.
+fn queue_cmd(sub: &str, rest: &[&str]) -> Result<(), CliError> {
+    match sub {
+        "add" => {
+            let parsed = flags(rest, &["--project", "--agent", "--file"])?;
+            let agent = required(&parsed, "--agent")?;
+            let draft = read_input_file(required(&parsed, "--file")?, "question")?;
+            let project = require_project(&parsed)?;
+            let added =
+                question::add(&project, agent, &draft, &record_stamp()).map_err(record_error)?;
+            let mut v = json::object();
+            v.set(
+                "outcome",
+                if added.existing { "exists" } else { "queued" }.into(),
+            );
+            v.set("id", added.id.as_str().into());
+            if added.existing {
+                v.set("add_paths", strings(&[]));
+            } else {
+                v.set("add_paths", strings(&[added.path]));
+                v.set(
+                    "message_file",
+                    message_file(&project, "Skaldsaga: queue a question for the writer")?,
+                );
+            }
+            print_json(&v)
+        }
+        "list" => {
+            let parsed = flags(rest, &["--project", "--agent", "--near"])?;
+            let project = require_project(&parsed)?;
+            let listing =
+                question::list(&project, flag(&parsed, "--agent"), flag(&parsed, "--near"))
+                    .map_err(record_error)?;
+            let mut items = Vec::new();
+            for listed in &listing.questions {
+                let q = &listed.question;
+                let mut item = json::object();
+                item.set("id", q.id.as_str().into());
+                item.set("agent", q.agent.as_str().into());
+                item.set("concerns", strings(&q.concerns));
+                item.set("reason", q.reason.as_str().into());
+                item.set("verdict", q.verdict.as_str().into());
+                item.set("created", q.created.as_str().into());
+                item.set("state", listed.standing.as_str().into());
+                item.set(
+                    "unblocking",
+                    Value::from(u64::try_from(listed.unblocking).unwrap_or(u64::MAX)),
+                );
+                item.set("stale", Value::from(listed.stale));
+                item.set("near", Value::from(listed.near));
+                items.push(item);
+            }
+            let mut v = json::object();
+            v.set("outcome", "listed".into());
+            v.set("questions", Value::Array(items));
+            v.set("problems", problems_value(&listing.problems));
+            print_json(&v)
+        }
+        "mark" => {
+            let parsed = flags(rest, &["--project", "--question", "--state"])?;
+            let state = match required(&parsed, "--state")? {
+                "asked" => asked::State::Asked,
+                "answered" => asked::State::Answered,
+                "set_aside" => asked::State::SetAside,
+                _ => {
+                    return Err(CliError::Usage(
+                        "--state must be asked, answered or set_aside".into(),
+                    ));
+                }
+            };
+            let project = require_project(&parsed)?;
+            let marked = asked::mark(&project, required(&parsed, "--question")?, state)
+                .map_err(record_error)?;
+            let mut v = json::object();
+            v.set(
+                "outcome",
+                if marked.changed {
+                    "marked"
+                } else {
+                    "unchanged"
+                }
+                .into(),
+            );
+            v.set("question", marked.question.as_str().into());
+            v.set("state", marked.state.as_str().into());
+            if marked.changed {
+                v.set("add_paths", strings(&[marked.path]));
+                v.set(
+                    "message_file",
+                    message_file(&project, "Skaldsaga: note what happened to a question")?,
+                );
+            } else {
+                v.set("add_paths", strings(&[]));
+            }
+            print_json(&v)
+        }
+        _ => Err(CliError::Usage(format!("unknown queue command '{sub}'"))),
     }
 }
 
