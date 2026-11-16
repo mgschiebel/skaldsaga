@@ -20,6 +20,8 @@ Security requirements this touches (IDs from `docs/security/2026-10-20-review.md
 
 - [ ] `HANDOFF.md` Status and Next/Ready-to-build blocks are updated, and this change is recorded in the right file in `docs/handoff/` (or "nothing to record")
 
+- [ ] `README.md` still matches what a writer sees in this build (updated, or "README: still accurate" in the description), and it holds only what the README rule in `CLAUDE.md` allows
+
 - [ ] No new findings in the code this change adds (`ci/presubmit.sh` ran clean, or each check that could not run, and each finding or suppression, is listed here with a reason and an expiry, and each suppression is in `docs/security/exceptions.toml`), and the diff was reviewed against the Security rules in `CLAUDE.md`
 
 ## Checked before pushing
