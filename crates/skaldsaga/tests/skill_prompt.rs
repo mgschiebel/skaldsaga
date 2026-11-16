@@ -2,7 +2,9 @@
 //! item 5; `delivery.md`, Testing and evals, part 3).
 //!
 //! Every fixed line meant for the writer sits in a ```` ```say ```` block in
-//! `SKILL.md`. A deterministic scan checks that none of them uses an internal
+//! `SKILL.md` or one of the reference files next to it (`references/`), which
+//! these tests read together with `SKILL.md` so a wording pin holds wherever
+//! the text lands. A deterministic scan checks that none of them uses an internal
 //! word, so the writer never meets the program's own vocabulary. The same
 //! file's tool permissions and commands are checked too, so a later edit
 //! can't quietly widen what the skill may do (SR-24, SR-31, SR-32).
@@ -54,12 +56,44 @@ const INTERNAL_TERMS: [&str; 31] = [
 /// Roles that are internal too, checked as whole words.
 const INTERNAL_ROLES: [&str; 4] = ["harvester", "researcher", "outliner", "subagent"];
 
-fn skill_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../plugin/skills/skaldsaga/SKILL.md")
+fn skill_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../plugin/skills/skaldsaga")
 }
 
+/// `SKILL.md` alone: the front matter, the rules, the router and the per-answer loop.
+fn skill_main() -> String {
+    std::fs::read_to_string(skill_dir().join("SKILL.md")).expect("SKILL.md")
+}
+
+/// Every reference file next to the skill, by file name, in name order.
+fn reference_files() -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = std::fs::read_dir(skill_dir().join("references"))
+        .expect("the references folder")
+        .map(|entry| {
+            let path = entry.expect("a reference entry").path();
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .expect("a reference file name")
+                .to_string();
+            let text = std::fs::read_to_string(&path).expect("a reference file");
+            (name, text)
+        })
+        .collect();
+    out.sort();
+    out
+}
+
+/// The skill as the model reads it: `SKILL.md` first (so its front matter
+/// leads), then each reference. A line that starts a new file is a `##`
+/// heading, so a section never runs on into the next file.
 fn skill_text() -> String {
-    std::fs::read_to_string(skill_path()).expect("SKILL.md")
+    let mut text = skill_main();
+    for (name, body) in reference_files() {
+        text.push_str(&format!("\n\n## (reference file {name})\n\n"));
+        text.push_str(&body);
+    }
+    text
 }
 
 /// The text of every ```` ```say ```` block, with the line it starts on.
@@ -810,5 +844,114 @@ fn the_recap_mentions_one_saved_idea_and_still_only_reads() {
         mid.contains(
             "Where there is no saved idea for the topic, a loose idea may take that place"
         )
+    );
+}
+
+/// The router in `SKILL.md`, from its heading to the next `##` heading.
+fn router() -> String {
+    section(&skill_main(), "## Where each part lives")
+}
+
+#[test]
+fn the_router_names_every_reference_file_and_every_named_file_exists() {
+    let router = router();
+    let files = reference_files();
+    assert!(
+        files.len() >= 6,
+        "expected the split's reference files, found {}",
+        files.len()
+    );
+    for (name, body) in &files {
+        let path = format!("${{CLAUDE_PLUGIN_ROOT}}/skills/skaldsaga/references/{name}");
+        assert!(router.contains(&path), "the router never names {name}");
+        // Each reference opens by saying when to read it.
+        assert!(
+            body.trim_start().starts_with("*Read this when"),
+            "{name} does not open with when to read it"
+        );
+    }
+    // Every file the router names is there.
+    for part in router.split("skills/skaldsaga/references/").skip(1) {
+        let name = part.split('`').next().expect("a file name");
+        assert!(
+            files.iter().any(|(n, _)| n == name),
+            "the router names {name}, which does not exist"
+        );
+    }
+}
+
+#[test]
+fn every_section_the_router_points_to_is_in_a_reference_and_the_loop_stays_in_the_main_skill() {
+    let router = router();
+    let main = skill_main();
+    let references: String = reference_files().into_iter().map(|(_, b)| b).collect();
+    // Bold section names in the router: each is a heading in some reference.
+    let named: std::collections::BTreeSet<&str> = router
+        .split("**")
+        .skip(1)
+        .step_by(2)
+        .filter(|n| {
+            [
+                "The opener",
+                "Offering to save",
+                "Following the writer's focus",
+                "Reaching a stopping point",
+                "When the story drifts",
+                "Brainstorming: a round of ideas",
+                "Saved ideas come back up",
+                "Install check",
+                "Scenarios",
+            ]
+            .contains(n)
+        })
+        .collect();
+    assert_eq!(
+        named.len(),
+        9,
+        "the router names the nine sections: {named:?}"
+    );
+    for name in named {
+        let found = references.lines().any(|l| {
+            l.starts_with('#') && l.trim_start_matches('#').trim_start().starts_with(name)
+        });
+        assert!(found, "{name} is not a heading in any reference file");
+        assert!(
+            !main
+                .lines()
+                .any(|l| l.starts_with('#')
+                    && l.trim_start_matches('#').trim_start().starts_with(name)),
+            "{name} should have moved out of SKILL.md"
+        );
+    }
+    // What always applies stays in the main skill.
+    for heading in [
+        "## Rules that always apply",
+        "## 0. Find the story folder and route",
+        "### After every answer",
+        "### On a yes",
+    ] {
+        assert!(main.contains(heading), "{heading} is missing from SKILL.md");
+    }
+}
+
+#[test]
+fn the_split_keeps_every_say_block_once() {
+    // 18 fixed lines for the writer existed before the split (Build 1, 0.9.1).
+    // A block lost, doubled or left behind in a wrong place changes this.
+    let blocks = say_blocks(&skill_text());
+    assert_eq!(blocks.len(), 18, "the number of say blocks changed");
+    let mut seen = std::collections::HashSet::new();
+    for (line, body) in &blocks {
+        assert!(
+            seen.insert(body.clone()),
+            "the say block at line {line} appears twice: {body}"
+        );
+    }
+    // The main skill keeps only the one line step 0 uses (which folder to use);
+    // every other fixed line lives with the part that uses it.
+    assert_eq!(
+        say_blocks(&skill_main()).len(),
+        1,
+        "the main skill should hold the always-applying rules, not the parts' lines"
     );
 }

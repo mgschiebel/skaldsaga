@@ -2,7 +2,7 @@
 
 *Planning session 10, November 16, 2026 (branch `plan/agent-architecture`; doc only). Part of the Skaldsaga handoff; the index is [`HANDOFF.md`](../../HANDOFF.md). Load it for any work that splits `SKILL.md`, adds an agent, or changes how agents check each other. The October 18 sketch in [`ARCHITECTURE.md`](../../ARCHITECTURE.md) stays as the record of the first plan; where the two disagree, this file is newer, but only its **Decided** choices replace the sketch, and its **Proposed** ones do not yet. The grid of who checks whom is in [`agent-grid.md`](agent-grid.md).*
 
-*Nothing in this file is built. What exists is one skill (`plugin/skills/skaldsaga/SKILL.md`, about 480 lines, doing the orchestrator's and the interviewer's jobs) plus the Rust program. Labels as in `HANDOFF.md`: **Decided** means the author confirmed it in this session; **Proposed** means Claude suggested it and the author has not yet confirmed it. Agent names here (Argument, Cast and so on) are internal and are never shown to the writer.*
+*Nothing in this file is built. What exists is one skill (`plugin/skills/skaldsaga/SKILL.md`, about 480 lines until Build 1 split it in 0.9.1 into a main skill of about 155 lines and seven reference files, doing the orchestrator's and the interviewer's jobs) plus the Rust program. Labels as in `HANDOFF.md`: **Decided** means the author confirmed it in this session; **Proposed** means Claude suggested it and the author has not yet confirmed it. Agent names here (Argument, Cast and so on) are internal and are never shown to the writer.*
 
 ## Why this review
 
@@ -181,7 +181,7 @@ What the pilot showed about the template: some pairs have a third resolution (re
 
 **Not in these builds:** the Learning agent and concept tagging, the Auditor, every other agent, routing a finding to an agent at fault, the writer command for learning topics, and open items 20 and 22.
 
-**Build 1: the Interviewer split** (branch `build/interviewer-split`; skill only, no program change; *Proposed*: patch version 0.9.1 so the installed plugin matches).
+**Build 1: the Interviewer split** (branch `build/interviewer-split`; skill only, no program change; *Proposed*: patch version 0.9.1 so the installed plugin matches). **Built November 16, 2026 (#PR, version 0.9.1); where each part landed is in `build-log.md`, Build progress.**
 - `SKILL.md` keeps the frontmatter, "Rules that always apply", a short router, and the per-answer loop ("After every answer", "On a yes"). Each router line says which reference to read before doing that part. Everything else moves, in the same words, to `plugin/skills/skaldsaga/references/`: setup (steps 1 to 3), the opener, resuming (mid-thread and stopping point), stopping and drifting (offering to save, following focus, reaching a stopping point, drift), ideas (a round and saved ideas) and developer (install check, scenarios). Exactly which section lands in which file is settled in the build.
 - Tests: `skill_prompt.rs` reads the skill and all its references together, so the wording pins hold wherever the text lands; new tests check that the router names every reference file and that every `say` block is still present once. The PR shows, by script, that no sentence was lost. The evals are unchanged (billed, not run).
 - Risk to carry to the catch-up test: the model must load a reference when its route calls for it.
