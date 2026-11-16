@@ -13,6 +13,8 @@
 //! single committer (`commit`), the test scenarios (`scenario`), and `complete`: the
 //! script soft checks, the gates and the writer's stored decisions.
 
+pub mod agents;
+pub mod asked;
 pub mod check;
 pub mod commit;
 pub mod complete;
@@ -34,7 +36,9 @@ pub mod ops;
 pub mod project;
 pub mod proposal;
 pub mod propose;
+pub mod question;
 pub mod recap;
+pub mod records;
 pub mod registry;
 pub mod safety;
 pub mod scenario;
@@ -44,6 +48,7 @@ pub mod softchecks;
 pub mod spec;
 pub mod statusline;
 pub mod timeline;
+pub mod verdict;
 
 #[cfg(test)]
 pub(crate) mod testspec;

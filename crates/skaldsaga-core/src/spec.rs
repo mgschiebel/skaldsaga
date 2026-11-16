@@ -97,6 +97,11 @@ pub fn load(spec_dir: &Path) -> Result<Loaded, FsError> {
             );
             continue;
         }
+        // The agents' records (verdicts, the question queue) sit beside the
+        // story's nodes but are not nodes: `records` reads and writes them.
+        if entry.is_dir && crate::records::is_record_folder(&entry.name) {
+            continue;
+        }
         let Some(node_type) = entry
             .is_dir
             .then(|| NodeType::from_folder(&entry.name))

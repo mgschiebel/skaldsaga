@@ -41,11 +41,19 @@ pub enum IdKind {
     WriterDecision,
     /// A held idea (a brainstormed idea or a parked tangent), stored in `spec/ideas/`.
     Idea,
+    /// One agent's judgment of one saved answer, stored in `spec/verdicts/<agent>/`
+    /// (not a story node; see `records`).
+    Verdict,
+    /// A question an agent raised for the writer, stored in `spec/queue/<agent>/`.
+    Question,
+    /// The Interviewer's record of one question it asked, stored in
+    /// `spec/queue/interviewer/`.
+    Asked,
 }
 
 impl IdKind {
     /// Every kind, in a fixed order.
-    pub const ALL: [IdKind; 14] = [
+    pub const ALL: [IdKind; 17] = [
         IdKind::Person,
         IdKind::Place,
         IdKind::Group,
@@ -60,6 +68,9 @@ impl IdKind {
         IdKind::Proposal,
         IdKind::WriterDecision,
         IdKind::Idea,
+        IdKind::Verdict,
+        IdKind::Question,
+        IdKind::Asked,
     ];
 
     /// The prefix written before the hyphen.
@@ -79,6 +90,9 @@ impl IdKind {
             IdKind::Proposal => "pr",
             IdKind::WriterDecision => "wd",
             IdKind::Idea => "idea",
+            IdKind::Verdict => "verdict",
+            IdKind::Question => "question",
+            IdKind::Asked => "asked",
         }
     }
 
@@ -104,6 +118,9 @@ impl fmt::Display for IdKind {
             IdKind::Proposal => "proposal",
             IdKind::WriterDecision => "writer decision",
             IdKind::Idea => "idea",
+            IdKind::Verdict => "verdict",
+            IdKind::Question => "question",
+            IdKind::Asked => "asked",
         };
         f.write_str(name)
     }

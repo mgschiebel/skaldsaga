@@ -377,6 +377,58 @@ touches: [p-jnah2345, crisis]             # node IDs or stage names
 - **Ideas are not story references** (*Proposed*): `touches` doesn't appear in backlinks and never blocks deleting the node it names; a touch whose node is gone is stale and matches nothing.
 - **Ripple preview:** `check --ripple FILE` takes a draft in the shape `propose` takes, runs the real check on a copy of the story, and lists only findings that rest on an ID already in the story (`would_break`, `breaks`, and `unusable` when the change list can't be applied). It files and writes nothing.
 
+### Agent records: verdicts, queued questions and what was asked (planned November 16, 2026, planning session 12; built November 16, 2026, #PR, program side only)
+
+Three small record kinds let the agents leave their work beside the story without a second writer in any folder. They are **not spec nodes**: `spec::load` skips the `verdicts` and `queue` folders, so records add nothing to the checks, the backlinks or the index, and the story loads exactly as it did before them. Each has a checked ID prefix (`verdict-`, `question-`, `asked-`, added to the ID kinds) and its own folder, and **one command writes each folder** (*Decided November 16, 2026*: the owner is the command, not the process).
+
+| Record | Folder | Written only by |
+| --- | --- | --- |
+| Verdict | `spec/verdicts/<agent>/verdict-xxxxxxxx.md` | `verdict add --agent <agent>` |
+| Queued question | `spec/queue/<agent>/question-xxxxxxxx.md` | `queue add --agent <agent>` |
+| Record of a question asked | `spec/queue/interviewer/asked-xxxxxxxx.md` | `queue mark` |
+
+```yaml
+# a verdict
+id: verdict-abcd2345
+type: verdict
+agent: continuity
+counterpart: interviewer
+answer: pr-efgh6789                 # the saved answer it checked (must be in .harness/committed/)
+result: contradiction_reported      # pass, or a code on the agent's list
+checked:                            # the saved items it looked at, with the revision it saw
+- id: p-maraharb
+  revision: 2
+justification: Mara's eyes differ between scenes.   # at most 400 characters
+created: 2026-11-16T17:44
+```
+
+```yaml
+# a queued question (the wording is never stored; the Interviewer words each question afresh)
+id: question-jkmn2345
+type: question
+agent: continuity
+concerns: [p-maraharb, crisis]      # node IDs or stage names
+reason: The eye colour clashes.     # at most 300 characters
+verdict: verdict-abcd2345           # the failed verdict it came from
+created: 2026-11-16T17:44
+```
+
+```yaml
+# the Interviewer's record of one question
+id: asked-pqrs2345
+type: asked
+question: question-jkmn2345
+state: asked                        # asked | answered | set_aside
+```
+
+- **The agent registry** (`agents.rs`): each agent's name (which is its folder) and its closed list of sanctioned fail codes. A verdict is accepted only with `pass` or a code on its agent's list. Continuity's codes are `contradiction_reported`, `nothing_saved_to_check` and `writer_kept_inconsistency` (the names are *Proposed*). The Interviewer is not in the registry: it records no verdicts and raises no questions of its own.
+- **Commands** (all print JSON; content comes from a file, never the command line; a write names its file for git and returns a message file only when something changed; the skill makes the snapshot): `verdict add --agent A --file F`; `verdict list [--agent A] [--answer PR]` (read-only); `queue add --agent A --file F`; `queue list [--agent A] [--near PART]` (read-only); `queue mark --question ID --state asked|answered|set_aside`.
+- **What the program checks:** the result is on the agent's list; a pass and every fail but `nothing_saved_to_check` cite at least one saved item, and that fail cites none; every cited ID is a node or fact in the story, each cited once, at a revision no higher than the current one; the saved answer exists as a regular file; a question names real story parts and comes from a failed verdict of the same agent; text lengths and counts are capped (24 cited items or parts, 16 KiB a file, 2000 verdicts, 500 questions, 1000 asked records); a linked folder is refused; every file is read back through the capped, link-refusing reader.
+- **Derived on read, never stored** (*Decided November 16, 2026*): `verdict list` marks a verdict **stale** when anything it cited has a different revision now or is gone; `queue list` ranks the open questions and marks a question stale when its verdict is. Answered and set-aside questions leave the list. Nothing another agent would change is written into a record.
+- **Ranking** (*Proposed* reading of the session 11 order): the number of other parts of the story that read the concerned parts (the same count `check` uses for routing, the sequence and the concerned parts themselves left out), most first; then the question waiting longest; then one that concerns the part the conversation is near; then the ID. Staleness is shown beside each question but does not change the order.
+- **Retries are safe** (*Proposed*): adding the same verdict or question twice (same content, any spacing) returns `exists` and writes nothing, so a skill that repeats a call after an interruption does not fill the queue. A final `asked` state (answered or set aside) never changes again; marking the state a question already has changes nothing.
+- **Times** have minute resolution in UTC (`2026-11-16T17:44`), taken when the record is written.
+
 ### Proposal
 
 ```json
