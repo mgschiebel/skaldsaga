@@ -4,7 +4,7 @@
 
 **The pair list is the source.** The grid is derived from it. Edit the list, then redraw the grid by hand until a later build adds a generator. A pair is **mapped** once its contract (the contested item, each side's pass and sanctioned fails, forbidden paths and tiebreaker, as in `design-agents.md`) is written; the rest are **to map**, and they fill in as builds touch them. Until a pair is mapped, neither agent may settle a dispute on its own: the result is an open gap in the question queue.
 
-Counts: 169 of 253 pairs have a relationship; 3 are mapped (the three pilots); 166 are to map; 84 have no direct relationship drawn so far (to confirm as agents are built).
+Counts: 169 of 253 pairs have a relationship; 3 are mapped (the three pilots) and 1 has a first-build contract (Interviewer and Continuity); 165 are to map; 84 have no direct relationship drawn so far (to confirm as agents are built).
 
 ## How to read a cell
 
@@ -58,7 +58,7 @@ Each line is `Agent and Agent (kind) [status]: the contested item or reason`. Pi
 - **Interviewer and Viewpoint** (Viewpoint challenges Interviewer) [to map]: Finds scenes with no viewpoint owner, or knowledge leaks
 - **Interviewer and Voice** (Voice challenges Interviewer) [to map]: Finds viewpoint characters who would sound alike
 - **Interviewer and Learning** (challenge each other) [to map]: Learning flags unearned terms in questions; the interviewer's logs show what the writer has demonstrated
-- **Interviewer and Continuity** (Continuity challenges Interviewer) [to map]: Flags contradictions in what the interviewer saved
+- **Interviewer and Continuity** (Continuity challenges Interviewer) [mapped (first build contract, planning session 12; the adversary pairing itself stays Proposed)]: Flags contradictions in what the interviewer saved; the verdict contract is in `design-agents.md`, "The first build's plan"
 - **Interviewer and Completeness** (Completeness challenges Interviewer) [to map]: Finds what the story still lacks as a whole; queues questions
 - **Interviewer and Harvester** (Harvester feeds Interviewer) [to map]: Harvested facts reach the writer only through the interviewer
 - **Interviewer and Researcher** (Researcher feeds Interviewer) [to map]: Sourced facts are offered to the writer by the interviewer
